@@ -1,0 +1,35 @@
+{
+  "HomePage": {
+    "title": "Metashark",
+    "description": "Create your own subdomain with a custom emoji",
+    "adminLink": "Admin"
+  },
+  "SubdomainForm": {
+    "subdomainLabel": "Subdomain",
+    "subdomainPlaceholder": "your-subdomain",
+    "iconLabel": "Icon",
+    "noIcon": "No icon selected",
+    "selectEmoji": "Select Emoji",
+    "iconDescription": "Select an emoji to represent your subdomain",
+    "createButton": "Create Subdomain",
+    "creatingButton": "Creating...",
+    "errorRequired": "Subdomain and icon are required",
+    "errorInvalidEmoji": "Please enter a valid emoji (maximum 10 characters)",
+    "errorInvalidChars": "Subdomain can only have lowercase letters, numbers, and hyphens. Please try again.",
+    "errorTaken": "This subdomain is already taken"
+  },
+  "AdminDashboard": {
+    "headerTitle": "Subdomain Management",
+    "welcomeMessage": "Welcome, {username}",
+    "signOutButton": "Sign Out",
+    "noSubdomains": "No subdomains have been created yet.",
+    "visitSubdomain": "Visit subdomain →",
+    "created": "Created"
+  },
+  "LoginPage": {
+    "title": "Sign In to Metashark",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "signInButton": "Sign In"
+  }
+}
