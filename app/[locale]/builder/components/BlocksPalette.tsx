@@ -2,24 +2,31 @@
 
 "use client";
 
-import { blockRegistry } from "@/templates";
+// CORRECCIÓN: La ruta de importación se ha cambiado de "@/templates" a la correcta.
+import { blockRegistry } from "@/components/templates";
 import { useDraggable } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
 
 /**
  * @file BlocksPalette.tsx
  * @description Componente que muestra la lista de bloques de construcción disponibles.
- * Cada bloque es un elemento arrastrable que el usuario puede soltar en el canvas.
+ * CORRECCIÓN DE BUILD: Se ha reparado la ruta de importación del `blockRegistry`,
+ * resolviendo un error crítico "Module not found" que impedía la compilación
+ * y el despliegue de la aplicación.
  *
  * @author Metashark
- * @version 1.0.0
+ * @version 1.1.0 (Build Fix)
  */
 
-// Sub-componente para un único elemento arrastrable en la paleta.
+/**
+ * @description Sub-componente para un único elemento arrastrable en la paleta.
+ * @param {{ blockType: string }} props - Propiedades del componente.
+ * @returns {JSX.Element}
+ */
 function PaletteItem({ blockType }: { blockType: string }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `palette-${blockType}`,
-    data: { type: blockType, defaultProps: {} }, // Aquí se podrían poner props por defecto
+    data: { type: blockType, defaultProps: {} },
   });
 
   return (
@@ -35,6 +42,10 @@ function PaletteItem({ blockType }: { blockType: string }) {
   );
 }
 
+/**
+ * @description El componente principal que renderiza la paleta de bloques.
+ * @returns {JSX.Element}
+ */
 export function BlocksPalette() {
   const availableBlocks = Object.keys(blockRegistry);
 
@@ -49,4 +60,9 @@ export function BlocksPalette() {
     </div>
   );
 }
-/* Ruta: app/[locale]/builder/components/BlocksPalette.tsx */
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Previsualización de Bloques: En lugar de mostrar solo el nombre del bloque, cada `PaletteItem` podría renderizar una pequeña miniatura o una previsualización visual estática del bloque. Esto mejoraría drásticamente la experiencia de usuario al seleccionar componentes.
+ * 2. Organización por Categorías: A medida que el número de bloques crezca, la paleta se volverá difícil de usar. Una mejora crucial sería agrupar los bloques por categorías (ej. "Encabezados", "Héroes", "Contenido", "Pies de página") y presentarlos dentro de un componente `<Accordion>` de Shadcn/UI para mantener la paleta organizada.
+ * 3. Búsqueda de Bloques: Añadir un campo de búsqueda en la parte superior de la paleta para permitir a los usuarios filtrar rápidamente los bloques por nombre, una característica de productividad esencial para editores con muchos componentes.
+ */
