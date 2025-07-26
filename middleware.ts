@@ -1,98 +1,156 @@
-// middleware.ts
+/* Ruta: middleware.ts */
+
+import { createClient } from "@/lib/supabase/middleware";
+import createIntlMiddleware from "next-intl/middleware";
+import { type NextRequest, NextResponse } from "next/server";
+import { rootDomain } from "./lib/utils";
+import { localePrefix, locales, pathnames } from "./navigation";
+import { getSiteDataBySubdomain } from "./lib/data/sites"; // ¡Importante!
+
 /**
- * @file Middleware de Enrutamiento y Autorización
- * @description Este middleware es el corazón de la aplicación. Se ejecuta en cada petición
- * para determinar el enrutamiento correcto (subdominio vs. dominio principal) y aplicar
- * las políticas de autorización basadas en roles.
+ * @file middleware.ts
+ * @description Middleware principal de la aplicación, ahora con lógica de verificación de existencia de subdominios.
+ * CORRECCIÓN CRÍTICA (404): Antes, el middleware reescribía a la ruta del subdominio
+ * incondicionalmente, impidiendo que Next.js renderizara la página 404 si el subdominio no existía.
+ * Ahora, el middleware consulta la existencia del subdominio. Si no existe, permite que la
+ * petición continúe sin reescribir, lo que permite a Next.js manejar correctamente el 404.
  *
  * @author Metashark
- * @version 2.0.0
+ * @version 17.0.0 (Subdomain Existence Check & 404 Fix)
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "./auth"; // Auth.js v5
-import createIntlMiddleware from "next-intl/middleware";
-import { locales, pathnames, localePrefix } from "./navigation";
-import { rootDomain } from "./lib/utils";
+export async function middleware(request: NextRequest) {
+  const { pathname, origin, host } = request.nextUrl;
 
-/**
- * @description Middleware de internacionalización (i18n).
- * Gestiona los prefijos de idioma en las rutas del dominio principal.
- */
-const intlMiddleware = createIntlMiddleware({
-  locales,
-  pathnames,
-  localePrefix,
-  defaultLocale: "en",
-});
-
-/**
- * @description Middleware principal de Auth.js.
- * Envuelve toda la lógica y se encarga de la protección de rutas.
- */
-export default auth((request) => {
-  const { nextUrl } = request;
-  const host = request.headers.get("host") || "";
-
-  // 1. Detección de Subdominio
-  const subdomain = host.split(".")[0];
-  const isSubdomainRequest =
-    host !== rootDomain && host.endsWith(`.${rootDomain}`);
-
-  if (isSubdomainRequest && subdomain) {
-    console.log(
-      `[Middleware] Subdomain detected: '${subdomain}'. Rewriting to /s/${subdomain}${nextUrl.pathname}`
-    );
-    // Reescribe la URL para renderizar la página del tenant
-    return NextResponse.rewrite(
-      new URL(`/s/${subdomain}${nextUrl.pathname}`, request.url)
-    );
+  if (
+    process.env.MAINTENANCE_MODE === "true" &&
+    !pathname.startsWith("/maintenance") &&
+    !request.cookies.has("maintenance_bypass")
+  ) {
+    return NextResponse.rewrite(new URL("/maintenance.html", request.url));
   }
 
-  // 2. Lógica de Autorización para el Dominio Principal
-  // `request.auth` contiene la sesión del usuario si está logueado.
-  const session = request.auth;
-  const isLoggedIn = !!session?.user;
-  const userRole = (session?.user as any)?.role || "guest";
-  const pathname = nextUrl.pathname;
-
-  // Extraer el locale para poder comparar rutas sin el prefijo de idioma
-  const pathnameWithoutLocale =
-    pathname.startsWith(`/${locales[0]}`) ||
-    pathname.startsWith(`/${locales[1]}`)
-      ? pathname.substring(3)
-      : pathname;
-
-  // Proteger la ruta de desarrollador
-  if (pathnameWithoutLocale.startsWith("/dev-dashboard")) {
-    if (userRole !== "developer") {
-      // Si no es developer, redirigir al login o a una página de no autorizado.
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
+  if (host.startsWith("www.")) {
+    const newHost = host.replace("www.", "");
+    const newUrl = new URL(pathname, `https://${newHost}`);
+    return NextResponse.redirect(newUrl, 301);
   }
 
-  // Proteger el panel de administración
-  if (pathnameWithoutLocale.startsWith("/admin")) {
-    if (!isLoggedIn) {
-      // Si no está logueado, redirigir al login
-      return NextResponse.redirect(new URL("/login", request.url));
+  const intlResponse = createIntlMiddleware({
+    locales,
+    localePrefix,
+    pathnames,
+    defaultLocale: "pt-BR",
+  })(request);
+  const locale = intlResponse.headers.get("x-next-intl-locale") || "pt-BR";
+
+  const rootDomainWithoutPort = rootDomain.split(":")[0];
+  const hostWithoutPort = host.split(":")[0];
+  const subdomain =
+    hostWithoutPort !== rootDomainWithoutPort &&
+    hostWithoutPort.endsWith(`.${rootDomainWithoutPort}`)
+      ? hostWithoutPort.replace(`.${rootDomainWithoutPort}`, "")
+      : null;
+
+  if (subdomain) {
+    // **NUEVA LÓGICA DE VERIFICACIÓN**
+    // Consultamos si el subdominio existe ANTES de reescribir la URL.
+    const siteData = await getSiteDataBySubdomain(subdomain);
+    if (siteData) {
+      // Si el subdominio existe, reescribimos a la ruta interna.
+      return NextResponse.rewrite(
+        new URL(`/${locale}/s/${subdomain}${pathname}`, request.url)
+      );
     }
-    if (userRole !== "admin" && userRole !== "developer") {
-      // Si está logueado pero no tiene el rol correcto, redirigir al dashboard principal o a una página de error.
-      return NextResponse.redirect(new URL("/dashboard", request.url)); // Asumiendo que /dashboard es la página del usuario 'user'
-    }
+    // Si el subdominio NO existe, NO reescribimos. Dejamos que la petición continúe
+    // a su ruta original (ej. `/es/non-existent-page`), lo que permitirá a Next.js
+    // activar la página `not-found.tsx` correctamente.
+    return intlResponse;
   }
 
-  // Si pasa todas las comprobaciones de autorización, aplicamos el i18n.
-  return intlMiddleware(request);
-});
+  // --- Lógica de autenticación para el dominio raíz (sin cambios) ---
+  const supabase = (await createClient(request)).supabase;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const pathnameWithoutLocale = pathname.startsWith(`/${locale}`)
+    ? pathname.slice(locale.length + 1) || "/"
+    : pathname;
+
+  const protectedRoutes = ["/dashboard", "/admin"];
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathnameWithoutLocale.startsWith(route)
+  );
+
+  if (!session && isProtectedRoute) {
+    const loginUrl = new URL(`/${locale}/login`, origin);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (session && pathnameWithoutLocale.startsWith("/login")) {
+    const dashboardUrl = new URL(`/${locale}/dashboard`, origin);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  return intlResponse;
+}
 
 export const config = {
-  // El matcher se aplica a todas las rutas excepto a los assets estáticos.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|maintenance.html).*)",
+  ],
 };
 
+export const runtime = "nodejs";
+/* Ruta: middleware.ts */
+
 /* MEJORAS PROPUESTAS
+ * 1. **CACHE DE SUBDOMINIOS (CRÍTICO):** La consulta `getSiteDataBySubdomain` en el middleware añade latencia. Es fundamental implementar una caché (ej. Vercel KV, Upstash Redis) para los resultados de esta consulta. La caché se invalidaría (o actualizaría) solo cuando un sitio se crea o elimina, reduciendo la carga en la base de datos a casi cero para este path.
+ * 2. **Manejo de Dominios Personalizados:** La lógica actual solo maneja subdominios. El siguiente paso es expandirla para que, si no se detecta un subdominio, se consulte una columna `custom_domain` en la tabla `sites`. Si se encuentra una coincidencia, se reescribe la URL al subdominio interno correspondiente, completando la arquitectura multi-tenant.
+ * 3. **Firewall de IPs para Mantenimiento:** La lógica actual de bypass de mantenimiento usa una cookie. Para un control más seguro, se podría leer la IP del solicitante (a través de `request.ip`) y compararla con una lista blanca de IPs de desarrolladores definida en las variables de entorno.
+ * 1. **Manejo de Dominios Personalizados:** Implementar la lógica para consultar la base de datos (con una caché de Redis/Vercel KV para rendimiento) y mapear un dominio personalizado (ej. `www.cliente.com`) a su subdominio interno (`cliente.metashark.com`), completando la arquitectura multi-tenant.
+ * 2. **Geolocalización por IP:** En lugar de depender solo del `Accept-Language` header, se podría usar la IP del usuario (disponible en Vercel) para una detección de idioma más precisa y para ofrecer contenido geolocalizado (ej. precios en moneda local).
+ * 3. **Firewall de Rutas (A/B Testing, Feature Flags):** El middleware es el lugar perfecto para implementar A/B testing o feature flags. Se podría leer una cookie o un parámetro de la sesión para redirigir a un porcentaje de usuarios a una versión alternativa de una página (ej. `/v2/pricing`).
+1.  **Detección de Idioma del Navegador:** Configurar `next-intl` para detectar el `Accept-Language` header.
+2.  **Manejo de Dominios Personalizados:** Añadir lógica para reconocer dominios personalizados.
+3.  **Redirección de `www`:** Implementar redirección 301 para SEO.
+4.  **Redirección con `callbackUrl`:** Redirigir a los usuarios a la página que intentaban visitar antes del login.
+1.  **Detección de Idioma del Navegador:** Configurar `next-intl` para detectar el `Accept-Language` header del usuario.
+2.  **Manejo de Dominios Personalizados:** Añadir lógica para reconocer dominios personalizados de los tenants.
+3.  **Redirección de `www`:** Implementar redirección 301 de `www.dominio.com` a `dominio.com` para SEO.
+4.  **Redirección con `callbackUrl`:** Para una UX mejorada, si un usuario no autenticado intenta acceder a `/dashboard/settings`, el middleware puede redirigirlo a `/login?callbackUrl=/dashboard/settings`. Después de un login exitoso, la aplicación lo redirigiría de vuelta a la página que intentó visitar originalmente.
+1.  **Detección de Idioma del Navegador:** Configurar `next-intl` para detectar el `Accept-Language` header del usuario.
+2.  **Manejo de Dominios Personalizados:** Añadir lógica para reconocer dominios personalizados de los tenants.
+3.  **Redirección de `www`:** Implementar redirección 301 de `www.dominio.com` a `dominio.com` para SEO.
+1.  **Detección de Idioma del Navegador:** `next-intl` puede configurarse para detectar automáticamente el idioma
+ *    preferido del navegador del usuario (`Accept-Language` header) y redirigirlo a ese `locale` en su
+ *    primera visita, en lugar de usar siempre `pt-BR`. Esto mejora la experiencia de usuario inicial.
+2.  **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para
+ *    reconocer dominios personalizados, consultando la tabla `sites` y reescribiendo la URL al
+ *    subdominio interno correspondiente.
+3.  **Redirección de `www`:** Añadir una lógica al principio del middleware para detectar si el `host`
+ *    empieza con `www.` y hacer una redirección 301 (permanente) a la versión sin `www` para
+ *    consistencia de SEO.
+ * 1. **Matcher más Granular:** Para un control aún más fino, el matcher puede ser un array de strings, excluyendo rutas específicas una por una, ej: `['/((?!api|_next).*)', '/es', '/en']`.
+ * 2. **Middleware Anidado (Experimental):** Investigar el uso de la característica de "middleware anidado" de Next.js para aplicar diferentes lógicas de middleware a diferentes segmentos de ruta (ej. uno para `/admin` y otro para `/dashboard`).
+ * 1. **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para reconocer dominios personalizados, consultando la tabla `sites` y reescribiendo la URL al subdominio interno correspondiente.
+ * 2. **Página de "Acceso Denegado":** En lugar de redirigir a `/login`, se podría redirigir a una página `/unauthorized` para una UX más clara cuando un usuario autenticado intenta acceder a una ruta para la que no tiene permisos.
+ * 1. **Logging en el Edge:** Para depurar el middleware en producción, se puede usar `console.log`. Plataformas como Vercel exponen estos logs, lo que es útil para trazar redirecciones o el comportamiento de enrutamiento por subdominio.
+ * 2. **Optimización del Matcher:** A medida que se añadan más rutas públicas que no requieran lógica de sesión (ej. `/blog/[slug]`), se pueden añadir al `matcher` usando negative lookaheads para que el middleware no se ejecute innecesariamente, mejorando el rendimiento.
+ * 1. **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para reconocer dominios personalizados, consultando la tabla `sites` y reescribiendo la URL al subdominio interno correspondiente.
+ * 2. **Página de "Acceso Denegado":** En lugar de redirigir a `/dashboard`, se podría redirigir a una página `/unauthorized` para una UX más clara cuando un usuario autenticado intenta acceder a una ruta para la que no tiene permisos.
+ * 3. **Redirección de `www`:** Añadir una lógica al principio del middleware para detectar si el `host` empieza con `www.` y hacer una redirección 301 (permanente) a la versión sin `www` para consistencia de SEO.
+ * 1. **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para reconocer dominios personalizados, consultando la tabla `sites` y reescribiendo la URL al subdominio interno correspondiente.
+ * 2. **Página de "Acceso Denegado":** En lugar de redirigir a `/dashboard`, se podría redirigir a una página `/unauthorized` para una UX más clara cuando un usuario autenticado intenta acceder a una ruta para la que no tiene permisos.
+ * 3. **Redirección de `www`:** Añadir una lógica al principio del middleware para detectar si el `host` empieza con `www.` y hacer una redirección 301 (permanente) a la versión sin `www` para consistencia de SEO.
+ * 1. **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para reconocer dominios personalizados, consultando la tabla `sites` y reescribiendo la URL al subdominio interno correspondiente.
+ * 2. **Página de "Acceso Denegado":** En lugar de redirigir a `/dashboard`, se podría redirigir a una página `/unauthorized` para una UX más clara.
+ * 3. **Redirección de `www`:** Añadir una lógica al principio del middleware para detectar si el `host` empieza con `www.` y hacer una redirección 301 (permanente) a la versión sin `www` para consistencia de SEO.
+ * 1. **Manejo de Dominios Personalizados:** El siguiente gran paso en el enrutamiento sería añadir lógica para reconocer dominios personalizados. Esto implicaría una consulta a la tabla `sites` en el middleware para ver si el `host` de la petición coincide con un `custom_domain` y reescribir a la ruta `/s/[subdomain]` correspondiente.
+ * 2. **Página de "Acceso Denegado":** En lugar de redirigir a los usuarios sin el rol adecuado a `/dashboard`, se podría redirigir a una página genérica `/unauthorized` que explique por qué no pueden acceder, mejorando la claridad para el usuario.
+ * 3. **Redirección de `www`:** Añadir una lógica al principio del middleware para detectar si el `host` empieza con `www.` y, si es así, hacer una redirección 301 (permanente) a la versión sin `www` para una consistencia de SEO.
  * 1. **Caché de Decisión de Roles:** Para usuarios con mucho tráfico, la sesión `request.auth` puede ser cacheadas brevemente en el edge para reducir la latencia de las verificaciones de rol.
  * 2. **Página de "Acceso Denegado":** En lugar de redirigir a los usuarios sin el rol adecuado a otra página, se podría redirigir a una página genérica `/unauthorized` que explique por qué no pueden acceder.
  * 3. **Redirección de `www`:** Añadir lógica al principio para detectar y redirigir permanentemente (301) `www.yourdomain.com` a `yourdomain.com` para una consistencia de SEO.

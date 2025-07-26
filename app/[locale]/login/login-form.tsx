@@ -1,0 +1,82 @@
+/* Ruta: app/[locale]/login/login-form.tsx */
+
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { brandTheme } from "@/lib/supabase/auth-theme"; // <-- IMPORTACIÓN CLAVE
+import { rootDomain } from "@/lib/utils";
+import { Auth } from "@supabase/auth-ui-react";
+import type { Provider } from "@supabase/supabase-js";
+
+/**
+ * @file login-form.tsx
+ * @description Componente de Cliente para el Formulario de Autenticación de Supabase.
+ * REFACTORIZADO: Se ha eliminado la configuración de estilo en línea (`variables`) y
+ * se ha reemplazado por la importación de un objeto de tema de marca centralizado
+ * (`brandTheme`). Esto mejora drásticamente la mantenibilidad y la coherencia del diseño.
+ *
+ * @author Metashark
+ * @version 4.0.0 (Branded Theme Refactor)
+ */
+
+/**
+ * @description Lee las variables de entorno para determinar qué proveedores de OAuth mostrar.
+ * @returns {Provider[]} Un array de strings de proveedores válidos para Supabase.
+ */
+function getOAuthProviders(): Provider[] {
+  const providersEnv = process.env.NEXT_PUBLIC_OAUTH_PROVIDERS || "google";
+  const validProviders: Provider[] = [
+    "google", "github", "azure", "bitbucket", "gitlab", "slack", "spotify",
+    "twitch", "twitter", "discord", "apple",
+  ];
+
+  return providersEnv
+    .split(",")
+    .map((p) => p.trim() as Provider)
+    .filter((p) => validProviders.includes(p));
+}
+
+export function LoginForm({ localization }: { localization: any }) {
+  const providers = getOAuthProviders();
+  const redirectUrl = `${
+    process.env.NEXT_PUBLIC_ROOT_URL || `http://${rootDomain}`
+  }/api/auth/callback`;
+
+  return (
+    <Auth
+      supabaseClient={createClient()}
+      appearance={{ theme: brandTheme }} // <-- USO DEL TEMA DE MARCA
+      theme="dark" // Base para que Supabase aplique nuestras variables oscuras
+      providers={providers}
+      redirectTo={redirectUrl}
+      localization={localization}
+      socialLayout="horizontal"
+    />
+  );
+}
+/* Ruta: app/[locale]/login/login-form.tsx */
+
+/* MEJORAS PROPUESTAS
+ * 1. **Manejo de Errores de la URL:** Este componente podría leer los parámetros de error de la URL (ej. `?error=auth_failed`) y mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
+ * 2. **Pasar Parámetro `next` a `redirectTo`:** Para implementar la redirección post-login inteligente, se debería leer el parámetro `next` de la URL actual y añadirlo a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
+ * 3. **Vista por Defecto Dinámica:** Añadir una prop `defaultView` al componente que permita a la página contenedora decidir si el formulario debe mostrar "Sign In" o "Sign Up" por defecto (ej. `/login` vs `/signup`).
+1.  **Tema Personalizado Completo:** Crear un objeto de tema (`const brandTheme: Theme = { ... }`) y pasarlo a la prop `theme` en lugar de `ThemeSupa` y `variables`. Esto permite un control más granular y limpio sobre la apariencia del componente de autenticación.
+2.  **Validación de Variables de Entorno:** Utilizar Zod para validar las variables de entorno (`NEXT_PUBLIC_ROOT_URL`, `NEXT_PUBLIC_OAUTH_PROVIDERS`) al iniciar la aplicación, previniendo errores de configuración en tiempo de ejecución.
+3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` o similar para mostrar un esqueleto de carga mientras la librería se inicializa, mejorando la percepción de rendimiento.
+1.  **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
+2.  **Validación de Variables de Entorno:** Utilizar Zod para validar `NEXT_PUBLIC_ROOT_DOMAIN` y `NEXT_PUBLIC_ROOT_URL` al iniciar la aplicación, previniendo errores si no están definidos.
+3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga mientras la librería se inicializa.
+1.  **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI.
+2.  **Validación de Variables de Entorno:** Usar Zod para validar `NEXT_PUBLIC_ROOT_DOMAIN`.
+3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga.
+ * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI.
+ * 2. **Validación de Variables de Entorno:** Utilizar Zod para validar `NEXT_PUBLIC_ROOT_URL` al iniciar la aplicación, previniendo errores si no está definida.
+ * 3. **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga mientras se inicializa.
+ * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
+ * 2. **Variables de Entorno Validadas:** Utilizar Zod para validar las variables de entorno al iniciar la aplicación, asegurando que `NEXT_PUBLIC_OAUTH_PROVIDERS` contenga valores válidos y previniendo errores en tiempo de ejecución.
+ * 3. **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` o similar para mostrar un esqueleto de carga mientras la librería se inicializa, mejorando la percepción de rendimiento.
+ */
+/* MEJORAS PROPUESTAS
+ * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
+ * 2. **Paso de Clientes:** En lugar de crear un nuevo cliente de Supabase aquí, la página del servidor podría crear la instancia y pasarla como prop para un mejor control.
+ */

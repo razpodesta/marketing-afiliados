@@ -1,0 +1,45 @@
+/* Ruta: app/branding.css */
+
+/*
+ * @file branding.css
+ * @description Archivo central para la identidad visual de MetaShark.
+ * Define la paleta de colores para el tema oscuro por defecto.
+ *
+ * @author Metashark
+ * @version 1.1.0 (Tailwind v4 Compatibility)
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 84% 4%; /* #09090B - Zinc 950 */
+    --foreground: 210 40% 98%; /* #FAFAFA - Zinc 50 */
+
+    --card: 222 84% 4%; /* #09090B */
+    --card-foreground: 210 40% 98%; /* #FAFAFA */
+
+    --popover: 222 84% 4%; /* #09090B */
+    --popover-foreground: 210 40% 98%; /* #FAFAFA */
+
+    --primary: 74 92% 56%; /* #ADFF2F - Verde Lima (del logo) */
+    --primary-foreground: 222 84% 4%; /* Texto oscuro para contraste */
+
+    --secondary: 217 33% 17%; /* #21293A */
+    --secondary-foreground: 210 40% 98%; /* #FAFAFA */
+
+    --muted: 217 33% 17%; /* #21293A */
+    --muted-foreground: 215 20% 65%; /* #9CA3AF - Gray 400 */
+
+    --accent: 217 33% 17%; /* #21293A */
+    --accent-foreground: 210 40% 98%; /* #FAFAFA */
+
+    --destructive: 0 63% 31%; /* #B91C1C - Red 700 */
+    --destructive-foreground: 210 40% 98%; /* #FAFAFA */
+
+    --border: 217 33% 17%; /* #21293A */
+    --input: 217 33% 17%; /* #21293A */
+    --ring: 74 92% 56%; /* Verde Lima */
+  }
+}

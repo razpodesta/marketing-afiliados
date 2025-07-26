@@ -1,18 +1,17 @@
 // app/s/[subdomain]/page.tsx
 /**
- * @file Public Subdomain Page (Server Component)
- * @description Esta página se renderiza públicamente para cada tenant. Carga los datos
- * del tenant desde Supabase y muestra su página de bienvenida.
+ * @file Public Site Page (Server Component)
+ * @description Esta página se renderiza públicamente para cada sitio. Carga los datos
+ * del sitio desde Supabase y muestra su página de bienvenida.
  *
  * @author Metashark
- * @version 2.0.0 (Data Source Refactor)
+ * @version 2.1.0 (Site-centric refactor)
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// CORRECCIÓN: Apuntar a la nueva función desde `tenants.ts`
-import { getTenantDataBySubdomain } from "@/lib/platform/tenants";
+import { getSiteDataBySubdomain } from "@/lib/data/sites";
 import { protocol, rootDomain } from "@/lib/utils";
 
 export async function generateMetadata({
@@ -20,19 +19,17 @@ export async function generateMetadata({
 }: {
   params: { subdomain: string };
 }): Promise<Metadata> {
-  const { subdomain } = params;
-  // CORRECCIÓN: Llamar a la nueva función
-  const tenantData = await getTenantDataBySubdomain(subdomain);
+  const siteData = await getSiteDataBySubdomain(params.subdomain);
 
-  if (!tenantData) {
+  if (!siteData || !siteData.subdomain) {
     return {
-      title: `Subdomain not found | ${rootDomain}`,
+      title: `Site Not Found | ${rootDomain}`,
     };
   }
 
   return {
-    title: `${tenantData.subdomain}.${rootDomain}`,
-    description: `Welcome to the page for ${tenantData.subdomain}`,
+    title: `${siteData.subdomain}.${rootDomain}`,
+    description: `Welcome to the page for ${siteData.subdomain}`,
   };
 }
 
@@ -41,11 +38,9 @@ export default async function SubdomainPage({
 }: {
   params: { subdomain: string };
 }) {
-  const { subdomain } = params;
-  // CORRECCIÓN: Llamar a la nueva función
-  const tenantData = await getTenantDataBySubdomain(subdomain);
+  const siteData = await getSiteDataBySubdomain(params.subdomain);
 
-  if (!tenantData) {
+  if (!siteData) {
     notFound();
   }
 
@@ -59,11 +54,10 @@ export default async function SubdomainPage({
           {rootDomain}
         </Link>
       </div>
-
       <div className="text-center">
-        <div className="mb-6 text-9xl">{tenantData.icon}</div>
+        <div className="mb-6 text-9xl">{siteData.icon || "🌐"}</div>
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-          Welcome to {tenantData.subdomain}.{rootDomain}
+          Welcome to {siteData.subdomain}.{rootDomain}
         </h1>
         <p className="mt-3 text-lg text-gray-600">
           This is your custom subdomain page.

@@ -1,14 +1,16 @@
 // app/[locale]/admin/dashboard.tsx
 /**
- * @file Admin Dashboard Client Component
- * @description Interfaz principal para la administración de todos los tenants de la plataforma.
- * Utiliza el patrón `useState` + `useTransition` y un modal de confirmación para borrados.
+ * @file Componente Cliente del Dashboard de Administración
+ * @description Interfaz para la administración de todos los sitios de la plataforma.
+ * Ha sido refactorizado para ser totalmente compatible con Supabase Auth,
+ * utilizando el objeto `User` de Supabase y la `signOutAction` nativa.
  *
  * @author Metashark
- * @version 2.2.0 (Final React 18 Pattern)
+ * @version 3.0.0 (Supabase Auth Integration)
  */
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import {
   ExternalLink,
   Loader2,
@@ -16,12 +18,11 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
-import type { Session } from "next-auth";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 
-import { deleteTenantAsAdminAction, logout } from "@/app/actions";
+import { deleteSiteAsAdminAction, signOutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,24 +43,25 @@ import {
 } from "@/components/ui/dialog";
 import { protocol, rootDomain } from "@/lib/utils";
 
-// Este tipo se ajusta a los datos transformados que le pasará el Server Component
-type TransformedTenant = {
+/**
+ * @description Tipo para los datos de sitios transformados para la visualización en el cliente.
+ */
+type TransformedSite = {
   subdomain: string;
-  icon: string;
-  createdAt: number; // Esperamos un timestamp numérico
-};
-
-type ActionState = {
-  error?: string;
-  success?: string;
+  icon: string | null;
+  createdAt: number;
 };
 
 /**
- * @description Cabecera del dashboard que muestra información del usuario y acciones.
+ * @description Renderiza el encabezado del dashboard, mostrando el título,
+ * mensaje de bienvenida y botón de cierre de sesión.
+ * @param {object} props - Propiedades del componente.
+ * @param {User} props.user - El objeto de usuario autenticado de Supabase.
  */
-function DashboardHeader({ session }: { session: Session }) {
+const DashboardHeader = ({ user }: { user: User }) => {
   const t = useTranslations("AdminDashboard");
-  const username = session.user?.name || "User";
+  // Obtenemos el nombre de los metadatos del usuario de Supabase, con un fallback a su email.
+  const username = user.user_metadata?.full_name || user.email || "Admin";
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -73,7 +75,7 @@ function DashboardHeader({ session }: { session: Session }) {
         <span className="text-sm text-gray-600">
           {t("welcomeMessage", { username })}
         </span>
-        <form action={logout}>
+        <form action={signOutAction}>
           <Button variant="outline" size="sm" type="submit">
             <LogOut className="mr-2 h-4 w-4" />
             {t("signOutButton")}
@@ -82,27 +84,29 @@ function DashboardHeader({ session }: { session: Session }) {
       </div>
     </div>
   );
-}
+};
 
 /**
- * @description Componente que maneja la lógica de eliminación con un modal de confirmación.
+ * @description Renderiza un diálogo de confirmación para eliminar un sitio.
+ * @param {object} props - Propiedades del componente.
+ * @param {TransformedSite} props.site - El sitio a eliminar.
+ * @param {(formData: FormData) => void} props.onDelete - La función a llamar al confirmar.
+ * @param {boolean} props.isPending - Estado de la transición para mostrar el loader.
  */
-function DeleteTenantDialog({
-  tenant,
+const DeleteSiteDialog = ({
+  site,
   onDelete,
   isPending,
 }: {
-  tenant: TransformedTenant;
+  site: TransformedSite;
   onDelete: (formData: FormData) => void;
   isPending: boolean;
-}) {
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const formAction = () => {
-    const formData = new FormData();
-    formData.append("subdomain", tenant.subdomain);
+  const formAction = (formData: FormData) => {
     onDelete(formData);
-    setIsOpen(false); // Cierra el modal al confirmar
+    setIsOpen(false);
   };
 
   return (
@@ -118,53 +122,58 @@ function DeleteTenantDialog({
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-6 w-6 text-red-600" />
-            ¿Estás seguro?
-          </DialogTitle>
-          <DialogDescription>
-            Esta acción es irreversible. El sitio{" "}
-            <strong className="font-medium text-gray-900">
-              {tenant.subdomain}
-            </strong>{" "}
-            y todos sus datos asociados serán eliminados permanentemente.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </DialogClose>
-          <form action={formAction}>
+        <form action={formAction}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-6 w-6 text-red-600" />
+              ¿Estás seguro?
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción es irreversible. El sitio{" "}
+              <strong className="font-medium text-gray-900">
+                {site.subdomain}
+              </strong>{" "}
+              y todos sus datos asociados serán eliminados permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <input type="hidden" name="subdomain" value={site.subdomain} />
             <Button variant="destructive" type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sí, eliminar sitio
             </Button>
-          </form>
-        </DialogFooter>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 /**
  * @description Componente principal del dashboard de administración.
+ * @param {object} props - Propiedades del componente.
+ * @param {TransformedSite[]} props.sites - Lista de sitios a mostrar.
+ * @param {User} props.user - El objeto de usuario autenticado de Supabase.
  */
 export function AdminDashboard({
-  tenants,
-  session,
+  sites,
+  user,
 }: {
-  tenants: TransformedTenant[];
-  session: Session;
+  sites: TransformedSite[];
+  user: User;
 }) {
-  const [state, setState] = useState<ActionState>({});
   const [isPending, startTransition] = useTransition();
   const format = useFormatter();
   const t = useTranslations("AdminDashboard");
 
   const handleDelete = (formData: FormData) => {
     startTransition(async () => {
-      const result = await deleteTenantAsAdminAction(state, formData);
+      const result = await deleteSiteAsAdminAction(formData);
       if (result.success) {
         toast.success(result.success);
       } else if (result.error) {
@@ -176,26 +185,26 @@ export function AdminDashboard({
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto w-full max-w-7xl">
-        <DashboardHeader session={session} />
-        {tenants.length > 0 ? (
+        <DashboardHeader user={user} />
+        {sites.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {tenants.map((tenant) => (
-              <Card key={tenant.subdomain}>
+            {sites.map((site) => (
+              <Card key={site.subdomain}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <CardTitle>{tenant.subdomain}</CardTitle>
+                      <CardTitle>{site.subdomain}</CardTitle>
                       <CardDescription>
                         {t("created")}:{" "}
-                        {format.dateTime(new Date(tenant.createdAt), "short")}
+                        {format.dateTime(new Date(site.createdAt), "short")}
                       </CardDescription>
                     </div>
-                    <div className="text-4xl">{tenant.icon}</div>
+                    <div className="text-4xl">{site.icon}</div>
                   </div>
                 </CardHeader>
                 <CardFooter className="justify-between">
                   <a
-                    href={`${protocol}://${tenant.subdomain}.${rootDomain}`}
+                    href={`${protocol}://${site.subdomain}.${rootDomain}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -204,8 +213,8 @@ export function AdminDashboard({
                       {t("visitSubdomain")}
                     </Button>
                   </a>
-                  <DeleteTenantDialog
-                    tenant={tenant}
+                  <DeleteSiteDialog
+                    site={site}
                     onDelete={handleDelete}
                     isPending={isPending}
                   />
@@ -227,6 +236,29 @@ export function AdminDashboard({
 }
 
 /* MEJORAS PROPUESTAS
+ * 1. **Paginación:** Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación en la función `getAllSites` del backend y añadir controles de paginación en la UI del `AdminDashboard` es crucial para la escalabilidad.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio. Esto requeriría modificar `getAllSites` para aceptar un parámetro de búsqueda y pasarlo a la consulta de Supabase.
+ * 3. **Estado de Carga por Tarjeta:** En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 4. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un administrador (`developer`) podría tener un botón para "Iniciar sesión como propietario", lo cual requeriría una Server Action y una función avanzada de Supabase Auth para generar un token de sesión para otro usuario.
+ */
+/* MEJORAS PROPUESTAS
+ * 1. **Paginación:** Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación en `getAllSites` es crucial para la escalabilidad.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio o email del propietario.
+ * 3. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un `developer` podría tener un botón para "Iniciar sesión como propietario" para depurar problemas.
+ * 1. **Paginación:** Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación en `getAllSites` es crucial para la escalabilidad.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio o email del propietario.
+ * 3. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un `developer` podría tener un botón para "Iniciar sesión como propietario" para depurar problemas.
+
+ * 1. **Paginación:** Implementar paginación en `getAllSites` para escalar a miles de sitios.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio o email del propietario.
+ * 3. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un `developer` podría tener un botón para "Iniciar sesión como propietario" para depurar problemas.
+ * 1. **Paginación:** Implementar paginación en `getAllSites` para escalar a miles de sitios.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio o email del propietario.
+ * 3. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un `developer` podría tener un botón para "Iniciar sesión como propietario" para depurar problemas.
+
+ * 1. **Paginación:** Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación (pasando `page` y `limit` a `getAllSites`) es crucial para la escalabilidad.
+ * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio o email del propietario.
+ * 3. **Acciones de Suplantación (Impersonation):** Para soporte avanzado, un `developer` podría tener un botón para "Iniciar sesión como propietario", generando una sesión temporal con los permisos del usuario para depurar problemas.
  * 1. **Paginación:** Si la lista de tenants crece, esta página se volverá lenta. Implementar paginación (pasando `page` y `limit` a `getAllTenants`) es crucial para la escalabilidad.
  * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar tenants por subdominio o email del propietario (requeriría un `join` en la consulta de la base de datos).
  * 3. **Acciones de Suplantación (Impersonation):** Para un soporte de alto nivel, un rol `developer` podría tener un botón para "Iniciar sesión como este usuario", que genere una sesión temporal con los permisos del propietario del tenant. Esto es una funcionalidad avanzada pero muy potente.

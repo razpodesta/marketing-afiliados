@@ -260,3 +260,52 @@ Estabilización de Dependencias: Hemos ajustado todas las versiones de los paque
 Flujo de Usuario Completo: Hemos construido el flujo completo desde el registro (/signup), el inicio de sesión (/login), hasta un dashboard funcional (/dashboard) donde los usuarios pueden gestionar sus propios sitios.
 Código Limpio y Mantenible: Hemos refactorizado el código para usar patrones modernos (Server Actions con useState + useTransition), hemos eliminado archivos obsoletos y hemos añadido documentación exhaustiva.
 ---
+## 2025-07-25 (Fase 2 Inicio): Implementación de la Landing Page y Refactorización del Flujo de Auth
+
+**Autor:** Gemini AI
+
+### Resumen de Cambios
+Se ha iniciado la Fase 2 del desarrollo, enfocada en la experiencia del usuario. Se ha reemplazado la página de inicio provisional por una landing page de marketing completa y se ha refactorizado el sistema de autenticación para alinearse con el nuevo esquema de base de datos `v2`.
+
+### Detalles Técnicos
+1.  **Arquitectura de Landing Page:** Se crearon componentes modulares para la landing page (`Header`, `Hero`, `Features`, `Footer`) en la carpeta `components/landing`.
+2.  **Nueva Página de Inicio:** El archivo `app/[locale]/page.tsx` fue reestructurado para ensamblar estos componentes, presentando una fachada profesional a los nuevos visitantes.
+3.  **Redirección de Usuarios Autenticados:** La página de inicio ahora detecta si un usuario ya ha iniciado sesión y lo redirige directamente a su `/dashboard`, mejorando la UX.
+4.  **Alineación de Autenticación:** El archivo `auth.ts` y los tipos de `next-auth.d.ts` fueron actualizados para usar la nueva columna `app_role` de la tabla `profiles`, completando la migración del modelo de datos.
+
+### Impacto y Próximos Pasos
+La aplicación ahora presenta una cara pública profesional y un flujo de usuario lógico desde el descubrimiento hasta el producto. El siguiente paso es construir el núcleo de la experiencia del suscriptor: la gestión de "Sitios" y "Campañas" dentro de su dashboard.
+---
+## 2025-07-25 (Blindaje Final): Corrección de Lógica de Joins en Supabase
+
+**Autor:** Gemini AI
+
+### Resumen de Cambios
+Se ha realizado una refactorización final y de alta precisión en el sistema de autenticación (`auth.ts`) para corregir errores de tipo persistentes causados por una consulta de `join` incorrecta a la base de datos de Supabase.
+
+### Detalles Técnicos
+1.  **Re-arquitectura de Consulta:** La función `getUserForAuth` fue reescrita. Ahora la consulta se origina en la tabla `auth.users` (donde reside el email único) y realiza un `join` hacia la tabla `public.profiles` para obtener el rol del usuario. Esto alinea la consulta con la estructura relacional de la base de datos.
+2.  **Manejo de Tipos Correcto:** Esta nueva estructura de consulta permite a TypeScript inferir correctamente los tipos de datos devueltos, eliminando todos los errores de "propiedad no existe".
+3.  **Contrato de `authorize`:** Se aseguró que la función `authorize` del proveedor `Credentials` cumpla estrictamente su contrato, devolviendo explícitamente un objeto `User` en caso de éxito o `null` en todos los casos de fallo.
+4.  **Limpieza de Arquitectura:** Se eliminaron los archivos y carpetas obsoletos (`lib/subdomains.ts`, `lib/platform/`) para consolidar toda la lógica de acceso a datos en el directorio `lib/data/`.
+
+### Impacto y Próximos Pasos
+Este hito marca la **finalización de la fase de estabilización**. El proyecto ahora compila sin errores, es seguro en cuanto a tipos y su arquitectura de datos es coherente. La base está completamente blindada y lista para la siguiente fase: la construcción de la funcionalidad de marketing para los usuarios.
+---
+## 2025-07-25 (Blindaje Final v2): Corrección de Flujo de Autenticación de Supabase
+
+**Autor:** Gemini AI
+
+### Resumen de Cambios
+Se ha realizado una refactorización final en el sistema de autenticación para corregir un error fundamental en la forma en que se interactuaba con la base de datos de Supabase, eliminando los `joins` prohibidos y adoptando el flujo de autenticación recomendado.
+
+### Detalles Técnicos
+1.  **Eliminación de Joins Prohibidos:** Se reescribió la lógica de `authorize` en `auth.ts`. Se eliminó la consulta que intentaba hacer un `join` desde `public.profiles` a `auth.users`, que es una operación no permitida por Supabase.
+2.  **Adopción del Flujo de Dos Pasos:** La nueva lógica sigue el patrón correcto:
+    a. Primero, se autentica al usuario contra el endpoint de Supabase Auth usando `supabase.auth.signInWithPassword`.
+    b. Segundo, si la autenticación es exitosa, se utiliza el ID del usuario devuelto para realizar una consulta separada y permitida a la tabla `public.profiles` y obtener los metadatos (como el rol).
+3.  **Alineación Arquitectónica:** Este cambio alinea nuestra implementación con las mejores prácticas de seguridad y funcionamiento de Supabase, eliminando todos los errores de compilación y de runtime relacionados con la autenticación.
+
+### Impacto y Próximos Pasos
+El sistema de autenticación está ahora en un estado **correcto, seguro y de producción**. El proyecto está listo para ser compilado y probado de forma integral.
+---

@@ -1,0 +1,64 @@
+{
+  "HomePage": {
+    "title": "Metashark",
+    "description": "Create your own subdomain with a custom emoji",
+    "adminLink": "Admin"
+  },
+  "SubdomainForm": {
+    "subdomainLabel": "Subdomain",
+    "subdomainPlaceholder": "your-subdomain",
+    "iconLabel": "Icon",
+    "selectEmoji": "Select Emoji",
+    "createButton": "Create Site",
+    "creatingButton": "Creating..."
+  },
+  "AdminDashboard": {
+    "headerTitle": "Site Management",
+    "welcomeMessage": "Welcome, {username}",
+    "signOutButton": "Sign Out",
+    "noSubdomains": "No sites have been created yet.",
+    "visitSubdomain": "Visit Site →",
+    "created": "Created"
+  },
+  "LoginPage": {
+    "title": "Welcome Back",
+    "subtitle": "Sign in or create an account to continue",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "signInButton": "Sign In",
+    "signUpButton": "Sign Up",
+    "signInWith": "Continue with",
+    "signUpWith": "Continue with",
+    "alreadyHaveAccount": "Already have an account? Sign In",
+    "dontHaveAccount": "Don't have an account? Sign Up",
+    "forgotPasswordLink": "Forgot your password?",
+    "sendInstructionsButton": "Send Reset Instructions"
+  },
+  "ForgotPasswordPage": {
+    "title": "Forgot Your Password?",
+    "description": "Enter your email address and we'll send you a link to reset it.",
+    "emailLabel": "Email Address",
+    "submitButton": "Send Reset Link",
+    "sendingButton": "Sending..."
+  },
+  "ResetPasswordPage": {
+    "title": "Reset Your Password",
+    "newPasswordLabel": "New Password",
+    "confirmPasswordLabel": "Confirm New Password",
+    "submitButton": "Update Password"
+  },
+  "AuthNoticePage": {
+    "confirmation": {
+      "title": "Check your email",
+      "description": "We've sent a confirmation link to your email address."
+    },
+    "reset": {
+      "title": "Check your email",
+      "description": "We've sent a password reset link to your email address."
+    },
+    "default": {
+      "title": "Action Required",
+      "description": "Please check your email for further instructions."
+    }
+  }
+}

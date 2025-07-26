@@ -1,35 +1,82 @@
 // app/[locale]/dashboard/page.tsx
 /**
- * @file Subscriber Dashboard Page (Server Component)
- * @description Punto de entrada para el dashboard. Se encarga de la autenticación
- * y de la carga inicial de datos (lista de tenants del usuario).
+ * @file Página Principal del Dashboard del Suscriptor (Server Component)
+ * @description Punto de entrada para el dashboard. Con la creación del cliente de servidor
+ * de Supabase y el tipado explícito, esta página vuelve a ser funcional y segura.
  *
  * @author Metashark
- * @version 2.3.0 (Data Loading Activated)
+ * @version 3.1.0 (Explicit Typing & Corrected Import)
  */
 import { Suspense } from "react";
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getTenantsByOwner } from "@/lib/platform/tenants";
+import { createClient } from "@/lib/supabase/server";
+import { getSitesByWorkspaceId, type Site } from "@/lib/data/sites";
 import { DashboardClient } from "./dashboard-client";
+import { logger } from "@/lib/logging";
+
+// Helper para obtener el workspace del usuario
+async function getUserWorkspaceId(userId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("owner_id", userId)
+    .single();
+  if (error && error.code !== "PGRST116") {
+    logger.error(`No se encontró workspace para el usuario ${userId}`, error);
+    return null;
+  }
+  return data?.id ?? null;
+}
 
 export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect("/login");
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return redirect("/login");
   }
 
-  // CORRECCIÓN: Se activa la carga de datos de los tenants que pertenecen al usuario.
-  const tenants = await getTenantsByOwner(session.user.id);
+  const workspaceId = await getUserWorkspaceId(user.id);
+
+  let sites: Site[] = [];
+  if (workspaceId) {
+    sites = await getSitesByWorkspaceId(workspaceId);
+  } else {
+    logger.warn(
+      `El usuario ${user.id} ha iniciado sesión pero no tiene un workspace asociado.`
+    );
+  }
 
   return (
     <Suspense fallback={<p>Cargando tu dashboard...</p>}>
-      {/* CORRECCIÓN: Se pasa la prop `initialTenants` al componente cliente. */}
-      <DashboardClient session={session} initialTenants={tenants} />
+      <DashboardClient user={user} initialSites={sites} />
     </Suspense>
   );
 }
 
+/* MEJORAS PROPUESTAS
+ * 1. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo.
+ * 2. **Manejo de Errores de Carga:** Envolver las llamadas a la base de datos en un `try/catch`.
+ * 3. **Página de "Crear Workspace":** Redirigir al usuario a `/create-workspace` si no tiene uno.
+ */
+/* MEJORAS PROPUESTAS
+ * 1. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo.
+ * 2. **Manejo de Errores de Carga:** Envolver `getSitesByWorkspaceId` en un `try/catch` para mostrar un componente de error en la UI si la base de datos falla.
+ * 3. **Página de "Crear Workspace":** Si `workspaceId` es nulo, redirigir al usuario a una página `/create-workspace` para guiarlo.
+ */
+/* MEJORAS PROPUESTAS
+ * 1. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo para mejorar la percepción de velocidad.
+ * 2. **Manejo de Errores de Carga:** Envolver `getSitesByWorkspaceId` en un `try/catch` para manejar elegantemente los casos en que la base de datos no esté disponible, mostrando un componente de error en la UI.
+ * 3. **Página de "Crear Workspace":** Si `workspaceId` es nulo, en lugar de mostrar un dashboard vacío, redirigir al usuario a una página `/create-workspace` para guiarlo en su primer paso.
+ */
+/* MEJORAS PROPUESTAS
+ * 1. **Gestión de Workspaces:** El siguiente paso lógico es implementar la lógica para establecer el `active_workspace_id` en la sesión del usuario al iniciar sesión o a través de un selector en la UI.
+ * 2. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo para mejorar la percepción de velocidad.
+ * 3. **Manejo de Errores de Carga:** Envolver `getSitesByWorkspaceId` en un `try/catch` para manejar elegantemente los casos en que la base de datos no esté disponible.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo para mejorar la percepción de velocidad.
  * 2. **Manejo de Errores de Carga:** Envolver `getTenantsByOwner` en un `try/catch` y pasar un estado de error al `DashboardClient` para mostrar un mensaje amigable si la base de datos no está disponible.

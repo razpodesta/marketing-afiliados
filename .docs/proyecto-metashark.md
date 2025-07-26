@@ -336,4 +336,44 @@ El proyecto actual es una base excelente. Aquí hay una hoja de ruta de posibles
 *   **Streaming con Suspense:** Envolver los componentes que cargan datos (como `AdminDashboard`) en un `<Suspense>` de React para mostrar un esqueleto de carga (loading skeleton) y mejorar la percepción de velocidad.
 *   **CI/CD (Integración Continua / Despliegue Continuo):** Configurar GitHub Actions para ejecutar automáticamente los tests y el linter en cada `push`, y para desplegar automáticamente a Vercel cuando se fusionen cambios a la rama `main`.
 ---
+Visión General:
+Este aparato de trabajo no es código, es el plano arquitectónico y de negocio para nuestro proyecto. Define la visión, la lógica del usuario, la estructura de la base de datos y el flujo de trabajo que seguiremos. Cada pieza está diseñada para la alta performance, la escalabilidad y una experiencia de usuario memorable.
+1. La Visión Pulida: "Metashark Affiliate Suite"
+Elevator Pitch: "Metashark es una plataforma SaaS intuitiva que permite a emprendedores y marketers de afiliados construir, publicar y optimizar landing pages de alta conversión en minutos, sin escribir una sola línea de código. Publica en un subdominio gestionado por nosotros, en tu propio dominio personalizado, o exporta el código para un control total."
+Lógica de Negocio Central:
+Modelo Freemium/Tiered: Los usuarios se registran gratis para crear 1 sitio con hasta 3 campañas (con un branding sutil de Metashark). Los planes de pago desbloquean más sitios, campañas ilimitadas, dominios personalizados, analíticas avanzadas y opciones de exportación.
+Enfoque en la Velocidad: Tanto en la performance de las páginas generadas (Core Web Vitals) como en la velocidad con la que un usuario pasa de la idea a una página publicada.
+2. El Flujo de Usuario Detallado (The User Journey)
+Este es el paso a paso que construiremos, desde el primer contacto hasta un cliente exitoso.
+Descubrimiento (La Página Principal):
+El usuario llega a home.metashark.tech. Se encuentra con una landing page profesional y moderna (Hero, Features, Testimonios, Precios, FAQ, Footer).
+El CTA principal es "Empieza Gratis" o "Crea tu primera página".
+Registro y Confirmación (Onboarding):
+El usuario hace clic en el CTA y va a /signup.
+Completa el registro (nombre, email, contraseña).
+ACCIÓN: La Server Action signupUser crea una entrada en auth.users de Supabase. Supabase automáticamente envía un email de confirmación a la dirección proporcionada.
+El usuario ve un mensaje: "¡Casi listo! Revisa tu correo para confirmar tu cuenta."
+Confirmación y Creación del Espacio de Trabajo:
+El usuario hace clic en el enlace de su email.
+Es redirigido a una URL especial de Supabase que lo marca como "confirmado".
+Una vez confirmado, es redirigido a home.metashark.tech/login.
+Al iniciar sesión por primera vez, nuestro sistema detecta que es un nuevo usuario confirmado.
+ACCIÓN: Se ejecuta una lógica de "primer login":
+Se crea un Workspace (Espacio de Trabajo) por defecto para el usuario en la base de datos (ej. "Mi Primer Workspace").
+Se le asigna el rol de admin dentro de ESE workspace.
+El usuario aterriza por primera vez en su Dashboard Maestro (/dashboard).
+El Dashboard Maestro (El Centro de Control):
+El usuario ve su workspace. Aquí es donde gestionará todos sus "Sitios". Un "Sitio" es un subdominio (sitio-1.metashark.tech, mi-tienda.metashark.tech).
+El flujo principal es: crear un Sitio. Al crearlo, se le asigna un subdominio único.
+Gestión de un Sitio (El Foco del Producto):
+Al entrar a un Sitio, el usuario ve el verdadero producto: el gestor de Campañas.
+Aquí puede crear "Bridge Pages", "Review Pages", etc.
+Al crear una nueva campaña, es llevado a la Suite de Diseño.
+La Suite de Diseño (El "Canva"):
+Una interfaz visual de arrastrar y soltar (o de selección de secciones pre-construidas) donde el usuario personaliza el contenido, los colores y las imágenes de su página.
+Los cambios se guardan en la base de datos (en la tabla pages como un objeto JSON).
+Publicación y Exportación:
+Con un clic en "Publicar", la página se vuelve accesible en nombre-sitio.metashark.tech/nombre-campana.
+Los usuarios de planes superiores ven opciones adicionales: "Conectar Dominio Personalizado" o "Exportar Código (ZIP)".
+---
 
