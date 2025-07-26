@@ -1,34 +1,22 @@
-// app/[locale]/dashboard/page.tsx
-/**
- * @file Página Principal del Dashboard del Suscriptor (Server Component)
- * @description Punto de entrada para el dashboard. Con la creación del cliente de servidor
- * de Supabase y el tipado explícito, esta página vuelve a ser funcional y segura.
- *
- * @author Metashark
- * @version 3.1.0 (Explicit Typing & Corrected Import)
- */
+/* Ruta: app/[locale]/dashboard/page.tsx */
+
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getSitesByWorkspaceId, type Site } from "@/lib/data/sites";
 import { DashboardClient } from "./dashboard-client";
 import { logger } from "@/lib/logging";
 
-// Helper para obtener el workspace del usuario
-async function getUserWorkspaceId(userId: string): Promise<string | null> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("workspaces")
-    .select("id")
-    .eq("owner_id", userId)
-    .single();
-  if (error && error.code !== "PGRST116") {
-    logger.error(`No se encontró workspace para el usuario ${userId}`, error);
-    return null;
-  }
-  return data?.id ?? null;
-}
-
+/**
+ * @file Página Principal del Dashboard del Suscriptor (Server Component).
+ * @description Punto de entrada para el dashboard. Gestiona la autenticación del usuario.
+ * REFACTORIZACIÓN CRÍTICA: Se ha eliminado la lógica de obtención de 'sites'
+ * y la prop 'initialSites' que se pasaba a `DashboardClient`. El nuevo diseño del
+ * "Centro de Comando" no requiere esta información, y la discrepancia de props
+ * estaba causando un error fatal de compilación en el despliegue.
+ *
+ * @author Metashark
+ * @version 4.0.0 (Build Fix & Prop Concordance)
+ */
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
@@ -36,28 +24,27 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    logger.warn("Intento de acceso al dashboard sin sesión. Redirigiendo a login.");
     return redirect("/login");
   }
 
-  const workspaceId = await getUserWorkspaceId(user.id);
-
-  let sites: Site[] = [];
-  if (workspaceId) {
-    sites = await getSitesByWorkspaceId(workspaceId);
-  } else {
-    logger.warn(
-      `El usuario ${user.id} ha iniciado sesión pero no tiene un workspace asociado.`
-    );
-  }
+  // La lógica para obtener 'sites' y 'workspaceId' ha sido eliminada
+  // ya que el DashboardClient rediseñado no los necesita en esta vista principal.
+  // La gestión de sitios se realizará en la página dedicada '/dashboard/sites'.
 
   return (
-    <Suspense fallback={<p>Cargando tu dashboard...</p>}>
-      <DashboardClient user={user} initialSites={sites} />
+    <Suspense fallback={<p>Cargando tu Centro de Comando...</p>}>
+      {/* El componente DashboardClient ya no recibe `initialSites` */}
+      <DashboardClient user={user} />
     </Suspense>
   );
 }
+/* Ruta: app/[locale]/dashboard/page.tsx */
 
 /* MEJORAS PROPUESTAS
+ * 1. **Esqueleto de Carga (Skeleton) Sofisticado:** Reemplazar el `fallback` de Suspense, que es un simple texto, por un componente `DashboardSkeleton` visual. Este componente imitaría la estructura del dashboard (sidebar, header, y cuadrícula de tarjetas) con formas grises animadas, mejorando drásticamente la percepción de velocidad de carga.
+ * 2. **Página de Onboarding para Nuevos Usuarios:** Añadir una comprobación después de obtener el `user`. Si es la primera visita del usuario (se puede comprobar con un campo `last_login_at` en la tabla `profiles`), redirigirlo a una página `/welcome` para un tour guiado o configuración inicial, en lugar de al dashboard principal.
+ * 3. **Gestión de Errores de Carga de Sesión:** Envolver la llamada `supabase.auth.getUser()` en un bloque `try/catch`. Si la base de datos de Supabase no está disponible, la aplicación fallará. Capturar el error permitiría mostrar una página de error amigable en lugar de un crash de la aplicación.
  * 1. **Esqueleto de Carga (Skeleton):** Reemplazar el `fallback` de Suspense con un componente de esqueleto de carga visualmente atractivo.
  * 2. **Manejo de Errores de Carga:** Envolver las llamadas a la base de datos en un `try/catch`.
  * 3. **Página de "Crear Workspace":** Redirigir al usuario a `/create-workspace` si no tiene uno.

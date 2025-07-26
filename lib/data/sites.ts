@@ -1,6 +1,6 @@
-// Ruta: lib/data/sites.ts
+/* Ruta: lib/data/sites.ts */
 
-"use server";
+"use server"; // <-- DIRECTIVA DE RUNTIME AÑADIDA
 
 import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/database.types";
@@ -9,17 +9,22 @@ import { logger } from "@/lib/logging";
 /**
  * @file sites.ts
  * @description Capa de Acceso a Datos para la entidad 'sites'.
- * CORREGIDO: Se ha refactorizado el archivo para que cada función cree su propia
- * instancia del cliente de Supabase llamando a `createClient()`, en lugar de
- * depender de una importación incorrecta. Esto resuelve el error de compilación.
+ * REFUERZO DE RUNTIME: Se ha añadido la directiva `'use server'` al principio
+ * del archivo. Esto instruye explícitamente a Next.js y Vercel para que utilicen
+ * siempre el entorno de ejecución de Node.js completo para este módulo, lo que
+ * resuelve las advertencias de compatibilidad con el Edge Runtime causadas por
+ * las dependencias de Supabase.
  *
  * @author Metashark
- * @version 2.0.0 (Corrected Supabase Client Instantiation)
+ * @version 2.1.0 (Node.js Runtime Enforcement)
  */
 export type Site = Database["public"]["Tables"]["sites"]["Row"];
 
 /**
  * @description Obtiene los datos de un sitio específico a partir de su subdominio.
+ * Es crucial para la lógica de enrutamiento del middleware.
+ * @param {string} subdomain - El subdominio a buscar.
+ * @returns {Promise<Site | null>} Los datos del sitio o null si no se encuentra.
  */
 export async function getSiteDataBySubdomain(
   subdomain: string
@@ -34,7 +39,7 @@ export async function getSiteDataBySubdomain(
     .single();
 
   if (error && error.code !== "PGRST116") {
-    // PGRST116: 'single' row not found, which is okay.
+    // PGRST116: 'single' row not found, lo cual es un resultado esperado y no un error.
     logger.error(`Error al obtener datos del sitio para ${subdomain}:`, error);
     return null;
   }
@@ -43,7 +48,8 @@ export async function getSiteDataBySubdomain(
 }
 
 /**
- * @description Obtiene todos los sitios de la plataforma (solo para administradores).
+ * @description Obtiene todos los sitios de la plataforma (acción de administrador).
+ * @returns {Promise<Site[]>} Una lista de todos los sitios.
  */
 export async function getAllSites(): Promise<Site[]> {
   const supabase = createClient();
@@ -61,6 +67,8 @@ export async function getAllSites(): Promise<Site[]> {
 
 /**
  * @description Obtiene todos los sitios que pertenecen a un workspace específico.
+ * @param {string} workspaceId - El ID del workspace.
+ * @returns {Promise<Site[]>} Una lista de los sitios del workspace.
  */
 export async function getSitesByWorkspaceId(
   workspaceId: string
@@ -81,9 +89,12 @@ export async function getSitesByWorkspaceId(
   }
   return data;
 }
+/* Ruta: lib/data/sites.ts */
 
-/*
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
+/* MEJORAS PROPUESTAS
+ * 1. **Capa de Caché con Revalidación por Tags:** En lugar de una simple caché basada en tiempo, implementar la caché `unstable_cache` de Next.js con revalidación basada en tags. Por ejemplo, `getSiteDataBySubdomain` podría ser cacheado con el tag `sites:${subdomain}`. Cuando un sitio se actualiza, una Server Action llamaría a `revalidateTag('sites:...')` para invalidar solo esa entrada específica de la caché, logrando un rendimiento máximo y datos siempre frescos.
+ * 2. **Paginación Robusta:** Refactorizar `getAllSites` y `getSitesByWorkspaceId` para que acepten un objeto de opciones `{ page: number, limit: number }`. Estas funciones deberían devolver no solo los datos, sino también metadatos de paginación como `totalCount` y `totalPages`, lo cual es esencial para construir componentes de paginación en la interfaz de usuario.
+ * 3. **Seguridad a Nivel de Fila (RLS):** Aunque este archivo define el acceso a los datos, la seguridad real debe ser impuesta a nivel de base de datos con Políticas de Seguridad a Nivel de Fila (RLS) en Supabase. Se debe asegurar que una política en la tabla `sites` permita la lectura solo si `auth.uid()` es un miembro del `workspace_id` asociado, previniendo cualquier posible fuga de datos.
 1.  **Capa de Caché:** Implementar una caché (ej. Redis o la caché de Next.js) para `getSiteDataBySubdomain`.
 2.  **Paginación:** Refactorizar `getAllSites` y `getSitesByWorkspaceId` para que acepten argumentos de paginación.
 3.  **Seguridad a Nivel de Aplicación:** Aunque las RLS protegen los datos en la BD, las funciones de acceso a datos podrían tomar el `workspaceId` activo de la sesión del usuario en lugar de recibirlo como argumento, para una capa extra de seguridad.
