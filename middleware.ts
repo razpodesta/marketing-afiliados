@@ -5,18 +5,17 @@ import createIntlMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 import { rootDomain } from "./lib/utils";
 import { localePrefix, locales, pathnames } from "./navigation";
-import { getSiteDataBySubdomain } from "./lib/data/sites"; // ¡Importante!
+import { getSiteDataBySubdomain } from "./lib/data/sites";
 
 /**
  * @file middleware.ts
- * @description Middleware principal de la aplicación, ahora con lógica de verificación de existencia de subdominios.
- * CORRECCIÓN CRÍTICA (404): Antes, el middleware reescribía a la ruta del subdominio
- * incondicionalmente, impidiendo que Next.js renderizara la página 404 si el subdominio no existía.
- * Ahora, el middleware consulta la existencia del subdominio. Si no existe, permite que la
- * petición continúe sin reescribir, lo que permite a Next.js manejar correctamente el 404.
+ * @description Middleware principal de la aplicación.
+ * MEJORA DE SEGURIDAD: Se ha añadido la ruta `/dev-console` a la lista de
+ * rutas protegidas. El middleware ahora bloqueará el acceso a usuarios no
+ * autenticados a esta nueva sección crítica.
  *
  * @author Metashark
- * @version 17.0.0 (Subdomain Existence Check & 404 Fix)
+ * @version 18.0.0 (Dev Console Route Protection)
  */
 
 export async function middleware(request: NextRequest) {
@@ -53,22 +52,15 @@ export async function middleware(request: NextRequest) {
       : null;
 
   if (subdomain) {
-    // **NUEVA LÓGICA DE VERIFICACIÓN**
-    // Consultamos si el subdominio existe ANTES de reescribir la URL.
     const siteData = await getSiteDataBySubdomain(subdomain);
     if (siteData) {
-      // Si el subdominio existe, reescribimos a la ruta interna.
       return NextResponse.rewrite(
         new URL(`/${locale}/s/${subdomain}${pathname}`, request.url)
       );
     }
-    // Si el subdominio NO existe, NO reescribimos. Dejamos que la petición continúe
-    // a su ruta original (ej. `/es/non-existent-page`), lo que permitirá a Next.js
-    // activar la página `not-found.tsx` correctamente.
     return intlResponse;
   }
 
-  // --- Lógica de autenticación para el dominio raíz (sin cambios) ---
   const supabase = (await createClient(request)).supabase;
   const {
     data: { session },
@@ -78,7 +70,8 @@ export async function middleware(request: NextRequest) {
     ? pathname.slice(locale.length + 1) || "/"
     : pathname;
 
-  const protectedRoutes = ["/dashboard", "/admin"];
+  // Se añade `/dev-console` a las rutas que requieren una sesión.
+  const protectedRoutes = ["/dashboard", "/admin", "/dev-console"];
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathnameWithoutLocale.startsWith(route)
   );
@@ -106,7 +99,10 @@ export const config = {
 export const runtime = "nodejs";
 /* Ruta: middleware.ts */
 
-/* MEJORAS PROPUESTAS
+/* MEJORAS PROPUESTAS (Consolidadas)
+ * 1. **CACHE DE SUBDOMINIOS (CRÍTICO):** La consulta `getSiteDataBySubdomain` en el middleware añade latencia. Es fundamental implementar una caché (ej. Vercel KV, Upstash Redis) para los resultados de esta consulta, invalidándola solo cuando un sitio se crea o elimina.
+ * 2. **Manejo de Dominios Personalizados:** El siguiente paso es expandir la lógica para que, si no se detecta un subdominio, se consulte una columna `custom_domain` en la tabla `sites`. Si se encuentra una coincidencia, se reescribe la URL al subdominio interno correspondiente.
+ * 3. **Firewall de IPs para Mantenimiento:** La lógica actual de bypass de mantenimiento usa una cookie. Para un control más seguro, se podría leer la IP del solicitante (a través de `request.ip`) y compararla con una lista blanca de IPs de desarrolladores definida en las variables de entorno./* MEJORAS PROPUESTAS
  * 1. **CACHE DE SUBDOMINIOS (CRÍTICO):** La consulta `getSiteDataBySubdomain` en el middleware añade latencia. Es fundamental implementar una caché (ej. Vercel KV, Upstash Redis) para los resultados de esta consulta. La caché se invalidaría (o actualizaría) solo cuando un sitio se crea o elimina, reduciendo la carga en la base de datos a casi cero para este path.
  * 2. **Manejo de Dominios Personalizados:** La lógica actual solo maneja subdominios. El siguiente paso es expandirla para que, si no se detecta un subdominio, se consulte una columna `custom_domain` en la tabla `sites`. Si se encuentra una coincidencia, se reescribe la URL al subdominio interno correspondiente, completando la arquitectura multi-tenant.
  * 3. **Firewall de IPs para Mantenimiento:** La lógica actual de bypass de mantenimiento usa una cookie. Para un control más seguro, se podría leer la IP del solicitante (a través de `request.ip`) y compararla con una lista blanca de IPs de desarrolladores definida en las variables de entorno.

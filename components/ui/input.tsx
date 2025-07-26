@@ -19,3 +19,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
 }
 
 export { Input }
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Input con Iconos: Crear un componente de nivel superior, como `<InputWithIcon>`, que componga este componente `<Input>` y permita añadir fácilmente un icono (`lucide-react`) a la izquierda o a la derecha del campo de texto. Este es un patrón de UI muy común para campos de búsqueda, email o contraseña.
+ * 2. Variantes de Tamaño y Estilo: Al igual que el componente `<Button>`, se podría integrar `cva` para añadir props de `size` (`sm`, `md`, `lg`) y `variant` (`default`, `ghost`). Esto permitiría una mayor flexibilidad de diseño sin necesidad de sobrescribir clases manualmente.
+ * 3. Integración con `<Label>` y Mensajes de Error: Crear un componente `<FormField>` que agrupe `<Label>`, `<Input>` y un espacio para mostrar mensajes de validación de error. Esto abstraería el patrón de campo de formulario completo, reduciendo el código repetitivo en los formularios y asegurando la correcta asociación de etiquetas e inputs para la accesibilidad.
+ */

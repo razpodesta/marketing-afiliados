@@ -55,7 +55,11 @@ export function LoginForm({ localization }: { localization: any }) {
   );
 }
 /* Ruta: app/[locale]/login/login-form.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=confirmation-failed`) utilizando el hook `useSearchParams`. Si se detecta un error, podría mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback mucho más claro al usuario que una simple redirección.
+ * 2. Pasar Parámetro `next` a `redirectTo`: Para implementar la redirección post-login inteligente sugerida en el `page.tsx`, este componente debería leer el parámetro `next` de la URL y añadirlo dinámicamente a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
+ * 3. Vista por Defecto Dinámica: Añadir una prop `defaultView` al componente (`"sign_in"` | `"sign_up"`). Esto permitiría a la página contenedora decidir si el formulario debe mostrar "Sign In" o "Sign Up" por defecto, lo que permitiría crear rutas separadas como `/login` y `/signup` que reutilizarían este mismo componente.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Manejo de Errores de la URL:** Este componente podría leer los parámetros de error de la URL (ej. `?error=auth_failed`) y mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
  * 2. **Pasar Parámetro `next` a `redirectTo`:** Para implementar la redirección post-login inteligente, se debería leer el parámetro `next` de la URL actual y añadirlo a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.

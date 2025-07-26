@@ -23,7 +23,11 @@ export default getRequestConfig(async ({ locale }) => {
     messages: (await import(`./messages/${locale}.json`)).default,
   };
 });
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Integración con un CMS de Traducciones: Para proyectos grandes o equipos donde los traductores no son desarrolladores, la gestión de archivos JSON puede ser engorrosa. Una mejora arquitectónica sería integrar un Sistema de Gestión de Contenidos (CMS) para traducciones como `Lokalise`, `Phrase` o `Contentful`. En ese caso, esta función, en lugar de importar un archivo local, haría una llamada a la API del CMS para obtener las traducciones.
+ * 2. Carga de Namespaces (Nombres de Espacio): Para aplicaciones extremadamente grandes con miles de cadenas de texto por idioma, `next-intl` soporta la división de los archivos de mensajes en "namespaces" (ej. `common.json`, `dashboard.json`). Esta función podría ser modificada para cargar solo los namespaces necesarios para la ruta actual, optimizando aún más el uso de memoria.
+ * 3. Gestión de Pluralización y Formatos Complejos: A medida que la aplicación crezca, se pueden aprovechar las características avanzadas de `next-intl` para manejar reglas de pluralización complejas, formatos de moneda y fechas/horas específicas de cada `locale`, todo configurado dentro de este archivo.
+ */
 /*
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Carga de Mensajes bajo Demanda:** Explorar la carga de mensajes solo para los componentes necesarios en páginas muy grandes.

@@ -1,8 +1,8 @@
 /* Ruta: templates/index.ts */
 
 import React from "react";
-import { Header1, type Header1Props } from "./Header/Header1";
-import { Hero1, type Hero1Props } from "./Hero/Hero1";
+import { Header1, type Header1Props } from "../../templates/Header/Header1";
+import { Hero1, type Hero1Props } from "../../templates/Hero/Hero1";
 import { PageBlock } from "@/lib/builder/types.d";
 
 /**

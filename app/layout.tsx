@@ -38,7 +38,11 @@ export default function RootLayout({
     </html>
   );
 }
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Datos Estructurados (JSON-LD): Para un SEO avanzado, se podría enriquecer la función `generateMetadata` para incluir un script de tipo `application/ld+json`. Esto proporcionaría a los motores de búsqueda información estructurada sobre la organización, mejorando la visibilidad en los resultados de búsqueda.
+ * 2. Variables de CSS para Fuentes: Aunque el método actual es eficiente, una práctica arquitectónica alternativa es definir la fuente como una variable CSS en `globals.css` y luego aplicarla en la configuración de Tailwind. Esto centraliza aún más la gestión del tema y puede facilitar el uso de múltiples fuentes (ej. una para cuerpo, otra para encabezados).
+ * 3. Inyección de Scripts de Analítica: Este es el lugar ideal para añadir los scripts de servicios de analítica (como Google Analytics, Vercel Analytics o PostHog) que necesitan estar presentes en todas las páginas de la aplicación.
+ */
 /*
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Proveedor de Temas (Theming):** Integrar un `ThemeProvider` (ej. de `next-themes`) para permitir

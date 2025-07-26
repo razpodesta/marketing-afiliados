@@ -22,7 +22,11 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
 }
 /* Ruta: components/ThemeProvider.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Crear un Hook de Tema Personalizado (`useBrandTheme`): Abstraer el uso del hook `useTheme` de `next-themes` en un hook personalizado propio, como `useBrandTheme`. Esto crearía un punto centralizado para añadir lógica de negocio futura, como disparar eventos de analítica cuando un usuario cambia de tema, o aplicar lógica específica de la marca sin tener que refactorizar cada componente que usa el tema.
+ * 2. Persistencia del Tema en la Base de Datos: Para usuarios autenticados, se podría extender la funcionalidad para guardar su preferencia de tema en la tabla `profiles` de Supabase. Este `ThemeProvider` podría leer esa preferencia de un contexto de sesión al cargar la aplicación, sincronizando la experiencia del usuario a través de diferentes dispositivos y navegadores.
+ * 3. Forzar Tema en Rutas Específicas: La librería `next-themes` soporta una prop `forcedTheme`. Este `ThemeProvider` podría ser modificado para leer la ruta actual y forzar un tema específico en ciertas páginas si fuera necesario (por ejemplo, forzar siempre un tema claro para una página de previsualización de landings que se va a imprimir).
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Crear un Hook de Tema Personalizado:** Abstraer el uso de `useTheme` en un hook personalizado, como `useBrandTheme`. Esto permitiría añadir lógica de negocio futura (ej. analíticas en el cambio de tema, lógica específica de la marca) en un solo lugar sin tener que refactorizar cada componente que use el tema.
  * 2. **Persistencia en Base de Datos:** Para usuarios autenticados, se podría extender la funcionalidad para guardar la preferencia de tema en la tabla `profiles` de Supabase. El `ThemeProvider` podría leer esta preferencia al cargar la sesión, sincronizando la experiencia a través de diferentes dispositivos.

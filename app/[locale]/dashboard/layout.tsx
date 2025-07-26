@@ -1,12 +1,12 @@
 /* Ruta: app/[locale]/dashboard/layout.tsx */
 
-import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logging";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 /**
  * @file layout.tsx
@@ -77,6 +77,11 @@ export default async function DashboardLayout({
 }
 /* Ruta: app/[locale]/dashboard/layout.tsx */
 
+/* MEJORAS PROPUESTAS
+ * 1. Contexto de React para Datos de Sesión: En lugar de pasar `user`, `workspaces` y `activeWorkspace` como props a través de la jerarquía (prop drilling), crear un `SessionProvider` en este layout que utilice React Context para hacer estos datos disponibles a todos los componentes cliente anidados de una forma más limpia y eficiente.
+ * 2. Flujo de Onboarding para Nuevos Usuarios: Añadir una lógica aquí que verifique si `workspaces` está vacío. Si es así, en lugar de renderizar el dashboard, se podría redirigir al usuario a una página de bienvenida `/welcome` para crear su primer workspace, guiándolo en sus primeros pasos.
+ * 3. Carga de Datos con `Promise.all`: Las consultas para obtener el usuario y los workspaces se ejecutan en serie. Se pueden ejecutar en paralelo usando `Promise.all` para reducir ligeramente el tiempo de carga del layout en el servidor.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Contexto de React para Datos de Sesión:** En lugar de pasar `user`, `workspaces` y `activeWorkspace` como props a través de la jerarquía (prop drilling), crear un `SessionProvider` en este layout que utilice React Context para hacer estos datos disponibles a todos los componentes cliente anidados de una forma más limpia y eficiente.
  * 2. **Flujo de Onboarding para Nuevos Usuarios:** Añadir una lógica aquí que verifique si `workspaces` está vacío. Si es así, en lugar de renderizar el dashboard, se podría redirigir al usuario a una página de bienvenida `/welcome` para crear su primer workspace, guiándolo en sus primeros pasos.

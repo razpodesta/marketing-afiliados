@@ -1,18 +1,18 @@
 /* Ruta: app/[locale]/builder/core/store.ts */
 
-import { create, type StateCreator } from "zustand";
 import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 import { arrayMove } from "@dnd-kit/sortable";
+import { create, type StateCreator } from "zustand";
 
 /**
  * @file store.ts
  * @description Almacén de estado global para el constructor.
- * MEJORA: Se ha añadido el estado `isSaving` y una acción para controlarlo.
- * Esto es crucial para deshabilitar la UI durante las operaciones de guardado
- * y proporcionar un feedback claro al usuario.
+ * MEJORA FUNCIONAL: Se ha añadido la acción `updateBlockStyle` para permitir
+ * la modificación de las propiedades de estilo de un bloque, completando la
+ * capacidad de personalización visual del editor.
  *
  * @author Metashark
- * @version 1.4.0 (Saving State Management)
+ * @version 1.5.0 (Style Management)
  */
 
 interface BuilderState {
@@ -22,6 +22,7 @@ interface BuilderState {
   setCampaignConfig: (config: CampaignConfig) => void;
   setSelectedBlockId: (blockId: string | null) => void;
   updateBlockProp: (blockId: string, propName: string, value: any) => void;
+  updateBlockStyle: (blockId: string, styleName: string, value: string) => void; // <-- NUEVA ACCIÓN
   addBlock: (blockType: string, defaultProps: Record<string, any>) => void;
   moveBlock: (activeId: string, overId: string) => void;
   deleteBlock: (blockId: string) => void;
@@ -32,44 +33,80 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
   campaignConfig: null,
   selectedBlockId: null,
   isSaving: false,
-  
-  setCampaignConfig: (config) => set({ campaignConfig: config, selectedBlockId: null }),
+
+  setCampaignConfig: (config) =>
+    set({ campaignConfig: config, selectedBlockId: null }),
   setSelectedBlockId: (blockId) => set({ selectedBlockId: blockId }),
-  
+
   updateBlockProp: (blockId, propName, value) =>
     set((state) => {
       if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.map((block) => 
-        block.id === blockId ? { ...block, props: { ...block.props, [propName]: value } } : block
+      const newBlocks = state.campaignConfig.blocks.map((block) =>
+        block.id === blockId
+          ? { ...block, props: { ...block.props, [propName]: value } }
+          : block
       );
       return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
-  addBlock: (blockType, defaultProps) => 
+  // NUEVA ACCIÓN IMPLEMENTADA
+  updateBlockStyle: (blockId, styleName, value) =>
     set((state) => {
       if (!state.campaignConfig) return {};
-      const newBlock: PageBlock = { id: `block-${Date.now()}`, type: blockType, props: defaultProps, styles: {} };
+      const newBlocks = state.campaignConfig.blocks.map((block) =>
+        block.id === blockId
+          ? { ...block, styles: { ...block.styles, [styleName]: value } }
+          : block
+      );
+      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
+    }),
+
+  addBlock: (blockType, defaultProps) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const newBlock: PageBlock = {
+        id: `block-${Date.now()}`,
+        type: blockType,
+        props: defaultProps,
+        styles: {},
+      };
       const newBlocks = [...state.campaignConfig.blocks, newBlock];
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks }, selectedBlockId: newBlock.id };
+      return {
+        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
+        selectedBlockId: newBlock.id,
+      };
     }),
 
   moveBlock: (activeId, overId) =>
     set((state) => {
       if (!state.campaignConfig) return {};
-      const oldIndex = state.campaignConfig.blocks.findIndex(b => b.id === activeId);
-      const newIndex = state.campaignConfig.blocks.findIndex(b => b.id === overId);
+      const oldIndex = state.campaignConfig.blocks.findIndex(
+        (b) => b.id === activeId
+      );
+      const newIndex = state.campaignConfig.blocks.findIndex(
+        (b) => b.id === overId
+      );
       if (oldIndex === -1 || newIndex === -1) return {};
-      const newBlocks = arrayMove(state.campaignConfig.blocks, oldIndex, newIndex);
+      const newBlocks = arrayMove(
+        state.campaignConfig.blocks,
+        oldIndex,
+        newIndex
+      );
       return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
   deleteBlock: (blockId) =>
     set((state) => {
       if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.filter(b => b.id !== blockId);
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks }, selectedBlockId: null };
+      const newBlocks = state.campaignConfig.blocks.filter(
+        (b) => b.id !== blockId
+      );
+      return {
+        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
+        selectedBlockId: null,
+      };
     }),
-  
+
   setIsSaving: (isSaving) => set({ isSaving }),
 });
 

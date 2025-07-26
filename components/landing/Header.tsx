@@ -4,19 +4,33 @@
 
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import * as React from "react";
 
 /**
  * @file Header.tsx
- * @description Encabezado principal de la landing page, rediseñado con la nueva
- * identidad de marca. Es fijo en la parte superior, con un efecto de desenfoque
- * de fondo para una estética moderna.
+ * @description Encabezado principal de la landing page.
+ * REFACTORIZACIÓN DE DISEÑO RESPONSIVO: Se ha añadido un menú de navegación
+ * móvil ("hamburguesa") que utiliza un componente `<Sheet>` para mostrar los
+ * enlaces en pantallas pequeñas. Esto corrige la falta de navegación en
+ * dispositivos móviles y proporciona una experiencia de usuario completa y
+ * estándar.
  *
  * @author Metashark
- * @version 4.0.0 (Brand Identity Redesign)
+ * @version 5.0.0 (Responsive Navigation Fix)
  */
 export function LandingHeader() {
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+
+  const navLinks = [
+    { href: "#features", label: "Características" },
+    { href: "#pricing", label: "Precios" },
+    { href: "#faq", label: "FAQ" },
+  ];
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
@@ -32,40 +46,75 @@ export function LandingHeader() {
           <span className="text-xl font-bold text-foreground">Metashark</span>
         </Link>
 
+        {/* Navegación para Escritorio */}
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          <Link
-            href="#features"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Características
-          </Link>
-          <Link
-            href="#pricing"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Precios
-          </Link>
-          <Link
-            href="#faq"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            FAQ
-          </Link>
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="flex items-center gap-2">
-          <LanguageSwitcher />
-          <Button variant="ghost" asChild>
-            <Link href="/login">Iniciar Sesión</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/login">Regístrate Gratis</Link>
-          </Button>
+          <div className="hidden md:flex items-center gap-2">
+            <LanguageSwitcher />
+            <Button variant="ghost" asChild>
+              <Link href="/login">Iniciar Sesión</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/login">Regístrate Gratis</Link>
+            </Button>
+          </div>
+
+          {/* Menú para Móviles */}
+          <div className="md:hidden">
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Abrir menú</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <nav className="grid gap-6 text-lg font-medium mt-8">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsSheetOpen(false)}
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+                <div className="mt-8 pt-8 border-t border-border/40 flex flex-col gap-4">
+                  <LanguageSwitcher />
+                  <Button variant="ghost" asChild>
+                    <Link href="/login">Iniciar Sesión</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/login">Regístrate Gratis</Link>
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
     </header>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Animación al Hacer Scroll: Implementar una animación que reduzca sutilmente la altura (padding) del header y el tamaño del logo cuando el usuario comienza a hacer scroll hacia abajo. Esto maximiza el espacio visible para el contenido y añade un toque de refinamiento a la interfaz.
+ * 2. Estado de Autenticación Dinámico: Este componente debería recibir la sesión del usuario como prop desde el componente de servidor de la página. Si el usuario está autenticado, los botones "Iniciar Sesión" y "Regístrate" se reemplazarían por un menú de avatar con un enlace al "Dashboard" y "Cerrar Sesión", creando una experiencia coherente.
+ * 3. Resaltado de Sección Activa: Utilizar un "Intersection Observer" para detectar qué sección de la landing page (`#features`, `#pricing`) está actualmente en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente en el header, proporcionando un mejor feedback de la ubicación del usuario en la página.
+ */
 /* Ruta: components/landing/Header.tsx */
 
 /* MEJORAS PROPUESTAS

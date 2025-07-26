@@ -172,6 +172,12 @@ export function DashboardSidebar({ user }: { user: User }) {
     </aside>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+Navegación Basada en Roles: El array mainNavLinks está codificado en duro. Una mejora arquitectónica significativa sería filtrar este array basándose en el app_role del usuario. Esto permitiría, por ejemplo, mostrar un enlace a /admin o /dev-console directamente en la barra lateral solo para los usuarios con los permisos adecuados.
+Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
+Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario. Esto requeriría una tabla notifications en la base de datos y un sistema de sondeo o websockets.
+*/
 /* Ruta: components/dashboard/DashboardSidebar.tsx */
 
 /* MEJORAS PROPUESTAS

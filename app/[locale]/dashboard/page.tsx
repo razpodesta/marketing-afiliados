@@ -41,6 +41,12 @@ export default async function DashboardPage() {
 }
 /* Ruta: app/[locale]/dashboard/page.tsx */
 
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Esqueleto de Carga (Skeleton) Sofisticado: Reemplazar el `fallback` de Suspense, que es un simple texto, por un componente `DashboardSkeleton` visual. Este componente imitaría la estructura del dashboard (sidebar, header, y cuadrícula de tarjetas) con formas grises animadas, mejorando drásticamente la percepción de velocidad de carga.
+ * 2. Página de Onboarding para Nuevos Usuarios: Añadir una comprobación después de obtener el `user`. Si es la primera visita del usuario (se puede comprobar con un campo `last_login_at` o similar en la tabla `profiles`), redirigirlo a una página `/welcome` para un tour guiado o configuración inicial, en lugar de al dashboard principal.
+ * 3. Gestión de Errores de Carga de Sesión: Envolver la llamada `supabase.auth.getUser()` en un bloque `try/catch`. Si la base de datos de Supabase no está disponible, la aplicación fallará. Capturar el error permitiría mostrar una página de error amigable en lugar de un crash de la aplicación.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Esqueleto de Carga (Skeleton) Sofisticado:** Reemplazar el `fallback` de Suspense, que es un simple texto, por un componente `DashboardSkeleton` visual. Este componente imitaría la estructura del dashboard (sidebar, header, y cuadrícula de tarjetas) con formas grises animadas, mejorando drásticamente la percepción de velocidad de carga.
  * 2. **Página de Onboarding para Nuevos Usuarios:** Añadir una comprobación después de obtener el `user`. Si es la primera visita del usuario (se puede comprobar con un campo `last_login_at` en la tabla `profiles`), redirigirlo a una página `/welcome` para un tour guiado o configuración inicial, en lugar de al dashboard principal.

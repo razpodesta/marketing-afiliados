@@ -1,28 +1,12 @@
 // app/[locale]/admin/dashboard.tsx
-/**
- * @file Componente Cliente del Dashboard de Administración
- * @description Interfaz para la administración de todos los sitios de la plataforma.
- * Ha sido refactorizado para ser totalmente compatible con Supabase Auth,
- * utilizando el objeto `User` de Supabase y la `signOutAction` nativa.
- *
- * @author Metashark
- * @version 3.0.0 (Supabase Auth Integration)
- */
+
 "use client";
 
-import type { User } from "@supabase/supabase-js";
 import {
-  ExternalLink,
-  Loader2,
-  LogOut,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
-import toast from "react-hot-toast";
-
-import { deleteSiteAsAdminAction, signOutAction } from "@/app/actions";
+  type ActionResult,
+  deleteSiteAsAdminAction,
+  signOutAction,
+} from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,25 +26,43 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { protocol, rootDomain } from "@/lib/utils";
+import type { User } from "@supabase/supabase-js";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  LogOut,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import toast from "react-hot-toast";
 
 /**
- * @description Tipo para los datos de sitios transformados para la visualización en el cliente.
+ * @file Componente Cliente del Dashboard de Administración
+ * @description Interfaz para la administración de sitios, con paginación.
+ * REFACTORIZACIÓN COMPLETA: Se ha reintroducido la funcionalidad de paginación
+ * para alinear este componente con su Server Component (`page.tsx`), resolviendo
+ * errores de props no coincidentes. Adicionalmente, se ha corregido el tipado
+ * en el manejador de eliminación de sitios para garantizar la seguridad de tipos.
+ *
+ * @author Metashark
+ * @version 5.0.0 (Pagination & Type Safety Restoration)
  */
+
 type TransformedSite = {
   subdomain: string;
   icon: string | null;
   createdAt: number;
 };
 
-/**
- * @description Renderiza el encabezado del dashboard, mostrando el título,
- * mensaje de bienvenida y botón de cierre de sesión.
- * @param {object} props - Propiedades del componente.
- * @param {User} props.user - El objeto de usuario autenticado de Supabase.
- */
+// --- SUB-COMPONENTES ---
+
 const DashboardHeader = ({ user }: { user: User }) => {
   const t = useTranslations("AdminDashboard");
-  // Obtenemos el nombre de los metadatos del usuario de Supabase, con un fallback a su email.
   const username = user.user_metadata?.full_name || user.email || "Admin";
 
   return (
@@ -86,13 +88,6 @@ const DashboardHeader = ({ user }: { user: User }) => {
   );
 };
 
-/**
- * @description Renderiza un diálogo de confirmación para eliminar un sitio.
- * @param {object} props - Propiedades del componente.
- * @param {TransformedSite} props.site - El sitio a eliminar.
- * @param {(formData: FormData) => void} props.onDelete - La función a llamar al confirmar.
- * @param {boolean} props.isPending - Estado de la transición para mostrar el loader.
- */
 const DeleteSiteDialog = ({
   site,
   onDelete,
@@ -103,7 +98,6 @@ const DeleteSiteDialog = ({
   isPending: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-
   const formAction = (formData: FormData) => {
     onDelete(formData);
     setIsOpen(false);
@@ -154,18 +148,60 @@ const DeleteSiteDialog = ({
   );
 };
 
-/**
- * @description Componente principal del dashboard de administración.
- * @param {object} props - Propiedades del componente.
- * @param {TransformedSite[]} props.sites - Lista de sitios a mostrar.
- * @param {User} props.user - El objeto de usuario autenticado de Supabase.
- */
+const PaginationControls = ({
+  page,
+  totalCount,
+  limit,
+}: {
+  page: number;
+  totalCount: number;
+  limit: number;
+}) => {
+  const totalPages = Math.ceil(totalCount / limit);
+  const hasPreviousPage = page > 1;
+  const hasNextPage = page < totalPages;
+  const startItem = (page - 1) * limit + 1;
+  const endItem = Math.min(page * limit, totalCount);
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between mt-8">
+      <p className="text-sm text-muted-foreground">
+        Mostrando {startItem}-{endItem} de {totalCount} sitios
+      </p>
+      <div className="flex items-center gap-2">
+        <Button asChild variant="outline" disabled={!hasPreviousPage}>
+          <Link href={`/admin?page=${page - 1}`}>
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Anterior
+          </Link>
+        </Button>
+        <Button asChild variant="outline" disabled={!hasNextPage}>
+          <Link href={`/admin?page=${page + 1}`}>
+            Siguiente
+            <ChevronRight className="h-4 w-4 ml-2" />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// --- COMPONENTE PRINCIPAL ---
+
 export function AdminDashboard({
   sites,
   user,
+  totalCount,
+  page,
+  limit,
 }: {
   sites: TransformedSite[];
   user: User;
+  totalCount: number;
+  page: number;
+  limit: number;
 }) {
   const [isPending, startTransition] = useTransition();
   const format = useFormatter();
@@ -173,10 +209,11 @@ export function AdminDashboard({
 
   const handleDelete = (formData: FormData) => {
     startTransition(async () => {
-      const result = await deleteSiteAsAdminAction(formData);
-      if (result.success) {
-        toast.success(result.success);
-      } else if (result.error) {
+      const result: ActionResult<{ message: string }> =
+        await deleteSiteAsAdminAction(formData);
+      if (result.success && result.data?.message) {
+        toast.success(result.data.message);
+      } else if (!result.success && result.error) {
         toast.error(result.error);
       }
     });
@@ -187,41 +224,48 @@ export function AdminDashboard({
       <div className="mx-auto w-full max-w-7xl">
         <DashboardHeader user={user} />
         {sites.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sites.map((site) => (
-              <Card key={site.subdomain}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle>{site.subdomain}</CardTitle>
-                      <CardDescription>
-                        {t("created")}:{" "}
-                        {format.dateTime(new Date(site.createdAt), "short")}
-                      </CardDescription>
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {sites.map((site) => (
+                <Card key={site.subdomain}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle>{site.subdomain}</CardTitle>
+                        <CardDescription>
+                          {t("created")}:{" "}
+                          {format.dateTime(new Date(site.createdAt), "short")}
+                        </CardDescription>
+                      </div>
+                      <div className="text-4xl">{site.icon}</div>
                     </div>
-                    <div className="text-4xl">{site.icon}</div>
-                  </div>
-                </CardHeader>
-                <CardFooter className="justify-between">
-                  <a
-                    href={`${protocol}://${site.subdomain}.${rootDomain}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      {t("visitSubdomain")}
-                    </Button>
-                  </a>
-                  <DeleteSiteDialog
-                    site={site}
-                    onDelete={handleDelete}
-                    isPending={isPending}
-                  />
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                  </CardHeader>
+                  <CardFooter className="justify-between">
+                    <a
+                      href={`${protocol}://${site.subdomain}.${rootDomain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" size="sm">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {t("visitSubdomain")}
+                      </Button>
+                    </a>
+                    <DeleteSiteDialog
+                      site={site}
+                      onDelete={handleDelete}
+                      isPending={isPending}
+                    />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+            <PaginationControls
+              page={page}
+              totalCount={totalCount}
+              limit={limit}
+            />
+          </>
         ) : (
           <Card className="flex h-64 flex-col items-center justify-center p-8 text-center">
             <h3 className="text-xl font-semibold">{t("noSubdomains")}</h3>
@@ -235,7 +279,25 @@ export function AdminDashboard({
   );
 }
 
-/* MEJORAS PROPUESTAS
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Estado de Carga por Tarjeta: En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 2. Acciones de Suplantación (Impersonation): Para soporte avanzado, un administrador (`developer`) podría tener un botón para "Iniciar sesión como propietario", lo cual requeriría una Server Action y una función avanzada de Supabase Auth para generar un token de sesión para otro usuario.
+ * 3. Indicador de Página Numérico: El componente de paginación podría mejorarse para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Paginación: Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación (pasando `page` y `limit` a una función `getAllSites` actualizada) es crucial para la escalabilidad.
+ * 2. Búsqueda y Filtros: Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio. Esto requeriría modificar la capa de acceso a datos para aceptar un parámetro de búsqueda.
+ * 3. Estado de Carga por Tarjeta: En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Estado de Carga por Tarjeta: En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 2. Acciones de Suplantación (Impersonation): Para soporte avanzado, un administrador (`developer`) podría tener un botón para "Iniciar sesión como propietario", lo cual requeriría una Server Action y una función avanzada de Supabase Auth para generar un token de sesión para otro usuario.
+ * 3. Indicador de Página Numérico: El componente de paginación podría mejorarse para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Estado de Carga por Tarjeta: En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 2. Acciones de Suplantación (Impersonation): Para soporte avanzado, un administrador (`developer`) podría tener un botón para "Iniciar sesión como propietario", lo cual requeriría una Server Action y una función avanzada de Supabase Auth para generar un token de sesión para otro usuario.
+ * 3. Indicador de Página Numérico: El componente de paginación podría mejorarse para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.
  * 1. **Paginación:** Si la lista de sitios crece, esta página se volverá lenta. Implementar paginación en la función `getAllSites` del backend y añadir controles de paginación en la UI del `AdminDashboard` es crucial para la escalabilidad.
  * 2. **Búsqueda y Filtros:** Añadir un campo de búsqueda en el `DashboardHeader` para filtrar sitios por subdominio. Esto requeriría modificar `getAllSites` para aceptar un parámetro de búsqueda y pasarlo a la consulta de Supabase.
  * 3. **Estado de Carga por Tarjeta:** En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.

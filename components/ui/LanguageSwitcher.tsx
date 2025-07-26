@@ -79,7 +79,11 @@ export function LanguageSwitcher() {
     </DropdownMenu>
   );
 }
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Persistir Preferencia de Idioma: Al cambiar de idioma, se podría guardar la preferencia del usuario en una cookie. El `middleware` de `next-intl` puede ser configurado para leer esta cookie en visitas posteriores y redirigir automáticamente al usuario a su idioma preferido, en lugar de depender únicamente de la detección del navegador. Esto mejora la consistencia de la experiencia para usuarios recurrentes.
+ * 2. Accesibilidad de los Emojis: Los emojis de banderas son visuales, pero no accesibles para lectores de pantalla. Se podría mejorar la accesibilidad envolviendo el emoji en un `<span>` con `role="img"` y un `aria-label` que describa la bandera, por ejemplo: `<span role="img" aria-label="Bandera de Estados Unidos">🇺🇸</span>`.
+ * 3. Extracción de Tipos de `locale`: Para una seguridad de tipos aún mayor en toda la aplicación, el tipo para los `locales` soportados (`"en-US" | "es-ES" | "pt-BR"`) podría definirse una sola vez en `navigation.ts` y ser exportado para ser utilizado aquí y en otros lugares donde se maneje el `locale`, evitando la necesidad de inferirlo del array.
+ */
 /*
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Guardar Preferencia de Idioma:** Guardar la preferencia del usuario en una cookie o `localStorage`.

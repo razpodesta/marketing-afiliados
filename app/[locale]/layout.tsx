@@ -47,7 +47,11 @@ export default async function LocaleLayout({
   );
 }
 /* Ruta: app/[locale]/layout.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Proveedor de Estado Global: Este es el lugar ideal para inicializar un proveedor de estado global (como Zustand o Jotai). Podría gestionar estados que necesitan ser compartidos en toda la aplicación, como el perfil del usuario, notificaciones en tiempo real o el plan de suscripción activo, haciéndolos disponibles a través de un hook personalizado.
+ * 2. Gestión de Zona Horaria en `next-intl`: Para una internacionalización completa, se puede añadir la propiedad `timeZone` a `NextIntlClientProvider`. Esta zona horaria podría obtenerse de las preferencias del perfil del usuario en la base de datos o inferirse de la sesión, asegurando que todas las fechas y horas se muestren correctamente en la zona horaria local del usuario.
+ * 3. Precarga de Assets Críticos: Para optimizar aún más el LCP (Largest Contentful Paint), se podrían añadir etiquetas `<link rel="preload">` en el `head` de este layout (a través de los metadatos) para las fuentes principales o imágenes críticas (como el logo), indicando al navegador que las descargue con alta prioridad.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Proveedor de Estado Global:** Este es el lugar ideal para inicializar un proveedor de estado global (como Zustand o Jotai). Podría gestionar estados que necesitan ser compartidos en toda la aplicación, como el perfil del usuario, notificaciones o el plan de suscripción activo.
  * 2. **Precarga de Fuentes y Assets Críticos:** Para optimizar el LCP (Largest Contentful Paint), se pueden añadir etiquetas `<link rel="preload">` en el `head` de este layout para las fuentes principales o imágenes críticas, indicando al navegador que las descargue con alta prioridad.

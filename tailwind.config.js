@@ -90,7 +90,11 @@ module.exports = {
   plugins: [require("tailwindcss-animate")],
 };
 /* Ruta: tailwind.config.js */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Plugin de Tipografía (`@tailwindcss/typography`): Para futuras páginas con contenido de texto largo, como un blog, la documentación o los términos de servicio, instalar y configurar este plugin oficial es una mejora de alta calidad. Proporciona una clase `prose` que aplica automáticamente estilos de tipografía hermosos y legibles (márgenes, espaciado, tamaño de fuente, etc.) al contenido renderizado desde Markdown o un CMS.
+ * 2. Plugin de Consultas de Contenedor (`@tailwindcss/container-queries`): Para crear componentes de UI aún más modulares y reutilizables, este plugin permitiría que los componentes se adapten a su propio tamaño en lugar del tamaño de la ventana del navegador. Por ejemplo, una tarjeta podría cambiar de una disposición vertical a una horizontal cuando su contenedor supere un cierto ancho, independientemente de la resolución de la pantalla.
+ * 3. Paleta de Colores Extendida: Para mayor flexibilidad en el diseño, la paleta de colores podría extenderse. En lugar de solo tener `primary`, se podrían definir tonos más claros y más oscuros (ej. `primary-50`, `primary-100`, ..., `primary-900`) como variables CSS y mapearlos aquí. Existen herramientas en línea que pueden generar estas paletas a partir de un color base.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Fuentes de Marca:** Considerar añadir una fuente de exhibición (display font) para los títulos principales (H1, H2) para reforzar la identidad de marca. Se definiría como una variable CSS (`--font-display`) y se añadiría a la configuración de `fontFamily` aquí.
  * 2. **Plugin de Contenedores Fluidos:** Para un diseño más avanzado, investigar `@tailwindcss/container-queries`. Esto permitiría que los componentes se adapten a su contenedor en lugar de a la ventana del navegador, creando UIs más modulares y reutilizables.

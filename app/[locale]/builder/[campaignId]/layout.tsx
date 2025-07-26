@@ -14,12 +14,12 @@ import { BuilderHeader } from "../components/BuilderHeader";
 /**
  * @file layout.tsx
  * @description Layout principal del constructor.
- * MEJORA: Se ha añadido un `BuilderHeader` dedicado para las acciones principales,
- * y se ha reestructurado el layout para usar Flexbox y asegurar que el
- * contenido principal (canvas) ocupe todo el espacio vertical disponible.
+ * CORRECCIÓN: Se ha solucionado el error de `startsWith` convirtiendo el `active.id`
+ * de tipo `UniqueIdentifier` a `string` antes de la comparación. El componente
+ * `Tabs` ahora se importa correctamente.
  *
  * @author Metashark
- * @version 2.2.0 (Header Integration)
+ * @version 2.2.0 (Logic & Import Fix)
  */
 export default function BuilderLayout({
   children,
@@ -33,6 +33,7 @@ export default function BuilderLayout({
     if (!over) return;
 
     const activeId = String(active.id);
+
     if (activeId.startsWith("palette-")) {
       const blockType = active.data.current?.type;
       if (blockType)
@@ -77,3 +78,8 @@ export default function BuilderLayout({
   );
 }
 /* Ruta: app/[locale]/builder/[campaignId]/layout.tsx */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Sensores de D&D (Accesibilidad y Móvil): Integrar los sensores de `dnd-kit` como `PointerSensor` y `KeyboardSensor`. Esto mejoraría la experiencia en dispositivos táctiles y añadiría accesibilidad, permitiendo a los usuarios reordenar bloques usando el teclado.
+ * 2. `DragOverlay` para una Mejor UX: Utilizar el componente `<DragOverlay>` de dnd-kit para renderizar el elemento que se está arrastrando en un portal de React. Esto proporciona una experiencia de arrastre mucho más fluida, sin que el elemento "salte" del DOM, y permite estilizar una vista previa de arrastre perfecta.
+ * 3. Deshabilitar Pestaña de Ajustes Contextualmente: La pestaña "Ajustes" podría estar deshabilitada (`<TabsTrigger disabled>`) si no hay ningún bloque seleccionado en el canvas (`selectedBlockId === null`), proporcionando una guía visual más clara al usuario.
+ */

@@ -32,3 +32,9 @@ Textarea.displayName = "Textarea";
 
 export { Textarea };
 /* Ruta: components/ui/textarea.tsx */
+
+/* MEJORAS PROPUESTAS
+ * 1. **Auto-ajuste de Altura:** Integrar una pequeña lógica o una librería ligera para que el `textarea` crezca automáticamente en altura a medida que el usuario escribe, evitando la necesidad de barras de scroll internas para textos largos.
+ * 2. **Contador de Caracteres:** Añadir una prop opcional `maxLength` que, cuando se proporciona, muestre un contador de caracteres (ej. "120/500") debajo del componente para dar feedback al usuario.
+ * 3. **Variantes de Estilo:** Usar `class-variance-authority` para crear variantes (ej. `variant: 'default' | 'ghost'`) que puedan alterar la apariencia del textarea para diferentes contextos de UI, como un textarea sin bordes para edición en línea.
+ */

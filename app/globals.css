@@ -91,8 +91,10 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
-/* Ruta: app/globals.css */
-/*
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Definición de Variables de Fuentes: Para una gestión aún más centralizada, las familias de fuentes (`--font-geist-sans`) se podrían definir aquí en el bloque `:root`, en lugar de depender únicamente de la clase inyectada por `next/font` en el layout. Esto permitiría a la configuración de Tailwind (`tailwind.config.js`) referenciarlas directamente.
+ * 2. Variables para Espaciado y Radios: Para un sistema de diseño aún más estricto, se podrían definir variables CSS para el espaciado y los radios de borde (ej. `--spacing-1: 0.25rem;`, `--radius-md: 0.5rem;`) y luego usarlas en la configuración de Tailwind. Esto asegura una consistencia absoluta en el espaciado y las formas en toda la UI.
+ * 3. Animaciones y Transiciones como Variables: Las duraciones y funciones de easing para las animaciones y transiciones también pueden ser definidas como variables CSS (ej. `--transition-duration-fast: 150ms;`). Esto permite mantener la "sensación" del movimiento de la UI consistente en todos los componentes.
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Implementación de Tema Claro:** Usar un selector como `[data-theme='light']` para sobreescribir las variables de CSS y soportar un tema claro.
 2.  **Organización de Variables:** A medida que el tema crezca, organizar las variables dentro de `@theme` con comentarios por secciones.

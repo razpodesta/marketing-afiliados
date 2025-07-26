@@ -43,7 +43,11 @@ export default async function HomePage() {
   );
 }
 /* Ruta: app/[locale]/page.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Carga de Sesión Optimizada: La llamada `getSession()` se realiza aquí y también en el `middleware`. Para optimizar en el borde, se podría pasar la información de la sesión desde el middleware a la página a través de cabeceras de petición personalizadas, evitando una lectura duplicada de la cookie.
+ * 2. Pruebas A/B en la Sección Hero: La sección `Hero` es la más crítica para la conversión. Se podría implementar un sistema de pruebas A/B (utilizando Vercel Edge Config o una herramienta de terceros como Optimizely) para renderizar diferentes versiones del componente `Hero` a diferentes segmentos de usuarios y medir cuál convierte mejor.
+ * 3. Landing Page Alternativa para Usuarios Autenticados: En lugar de una redirección inmediata, una estrategia alternativa es mostrar una versión ligeramente modificada de la landing para usuarios que ya han iniciado sesión. Por ejemplo, el `LandingHeader` podría mostrar "Ir al Dashboard" y la sección `Hero` un mensaje de bienvenida personalizado, manteniendo el resto del contenido por si el usuario busca información sobre nuevas características.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Carga de Sesión Optimizada:** La llamada `getSession()` se realiza aquí y también en el middleware. Para optimizar, se podría pasar la información de la sesión desde el middleware a la página a través de cabeceras de petición, evitando una consulta duplicada a la base de datos o a la cookie.
  * 2. **Página de Carga (Loading UI):** Añadir un archivo `loading.tsx` en esta ruta (`app/[locale]/loading.tsx`) que muestre un esqueleto de la landing page. Esto mejoraría la experiencia de usuario percibida mientras se ejecuta la lógica del servidor (como la comprobación de sesión).

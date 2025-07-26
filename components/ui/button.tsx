@@ -57,3 +57,8 @@ function Button({
 }
 
 export { Button, buttonVariants }
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Estado de Carga (Loading State): Se podría añadir una prop `isLoading: boolean`. Cuando sea `true`, el botón se deshabilitaría automáticamente y mostraría un componente de spinner (como `<Loader2 className="animate-spin" />`) en lugar de su contenido normal. Esto estandarizaría el feedback de carga en todos los botones de la aplicación.
+ * 2. Variantes Adicionales: A medida que la aplicación crezca, se pueden añadir más variantes semánticas según sea necesario, como una variante de "éxito" (`success`) con un color de fondo verde, o una variante "premium" para acciones relacionadas con planes de pago.
+ * 3. Soporte para Grupos de Botones: Crear un componente `<ButtonGroup>` que envuelva múltiples botones y aplique automáticamente los estilos correctos para que parezcan un conjunto unificado (por ejemplo, ajustando los radios de borde de los botones internos).
+ */

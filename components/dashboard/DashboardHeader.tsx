@@ -63,6 +63,12 @@ export function DashboardHeader({ user, workspaces, activeWorkspace }: Props) {
 }
 /* Ruta: components/dashboard/DashboardHeader.tsx */
 
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Paleta de Comandos Global (`Ctrl+K`): Integrar un botón de búsqueda que abra una paleta de comandos (usando `cmdk`). Esto permitiría a los usuarios buscar sitios, navegar a páginas o ejecutar acciones rápidamente desde cualquier lugar del dashboard, una característica clave en las aplicaciones SaaS modernas para usuarios avanzados.
+ * 2. Centro de Notificaciones: El espacio a la derecha es ideal para añadir un menú de notificaciones en tiempo real (usando un icono de campana y Supabase Realtime). Este mostraría un indicador cuando haya nuevas actualizaciones relevantes para el usuario (ej. "Tu campaña ha sido analizada por L.I.A.").
+ * 3. Breadcrumbs Dinámicos: Debajo de este encabezado, se podría añadir un componente de "breadcrumbs" (migas de pan) que muestre la ruta de navegación actual del usuario (ej. `Dashboard > Mis Sitios > Campañas de MiSitio`). Esto mejora enormemente la orientación del usuario dentro de la aplicación a medida que la jerarquía de rutas se vuelve más profunda.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Paleta de Comandos Global (`Ctrl+K`):** Integrar un botón de búsqueda que abra una paleta de comandos (usando `cmdk`). Esto permitiría a los usuarios buscar sitios, navegar a páginas o ejecutar acciones rápidamente desde cualquier lugar del dashboard, una característica clave en las aplicaciones SaaS modernas.
  * 2. **Menú de Notificaciones:** Reemplazar el espacio vacío con un menú de notificaciones en tiempo real (usando Supabase Realtime) que muestre un indicador cuando haya nuevas actualizaciones relevantes para el usuario.

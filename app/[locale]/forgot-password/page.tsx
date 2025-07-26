@@ -1,3 +1,5 @@
+/* Ruta: app/[locale]/forgot-password/page.tsx */
+
 "use client";
 
 import { requestPasswordResetAction } from "@/app/actions";
@@ -5,42 +7,57 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTranslations } from "next-intl";
-import { useTransition, useState } from "react";
-import toast from "react-hot-toast";
-import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import { useEffect } from "react";
+import { useFormState, useFormStatus } from "react-dom";
+import toast from "react-hot-toast";
 
 /**
  * @file page.tsx
  * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
- * REVISIÓN DE DISEÑO: Se ha rediseñado para alinearse con la identidad de marca
- * del portal de autenticación, proporcionando una experiencia de usuario coherente.
+ * REFACTORIZACIÓN A REACT 19: Se ha actualizado el manejo del estado del formulario
+ * para utilizar los hooks `useFormState` y `useFormStatus`. Esto simplifica el código,
+ * elimina la necesidad de `useState` y `useTransition` manuales, y se alinea con
+ * las mejores prácticas modernas para el manejo de Server Actions en formularios,
+ * resolviendo así el error de compilación `ts2769`.
  *
  * @author Metashark
- * @version 2.0.0 (Branded Design)
+ * @version 3.0.0 (React 19 Form Handling)
  */
+
+/**
+ * @description Componente interno que muestra el botón de envío y su estado de carga.
+ * Utiliza el hook `useFormStatus` para reaccionar al estado pendiente del formulario padre.
+ * @returns {JSX.Element}
+ */
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  const t = useTranslations("ForgotPasswordPage");
+
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? t("sendingButton") : t("submitButton")}
+    </Button>
+  );
+}
+
 export default function ForgotPasswordPage() {
   const t = useTranslations("ForgotPasswordPage");
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
-  /**
-   * @description Maneja el envío del formulario, llamando a la Server Action
-   * `requestPasswordResetAction` y gestionando los estados de carga y error.
-   * @param {FormData} formData - Los datos del formulario.
-   */
-  const handleSubmit = (formData: FormData) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await requestPasswordResetAction(formData);
-      if (result?.error) {
-        setError(result.error);
-        toast.error(result.error);
-      }
-      // La redirección en caso de éxito la maneja la Server Action.
-    });
-  };
+  const initialState = { error: undefined };
+  const [state, formAction] = useFormState(
+    requestPasswordResetAction,
+    initialState
+  );
+
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    }
+  }, [state]);
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -65,7 +82,7 @@ export default function ForgotPasswordPage() {
       <Card className="w-full max-w-md border-border/60 bg-card/50 backdrop-blur-lg">
         <CardHeader />
         <CardContent>
-          <form action={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             <div>
               <Label htmlFor="email">{t("emailLabel")}</Label>
               <Input
@@ -75,22 +92,29 @@ export default function ForgotPasswordPage() {
                 placeholder="tu@email.com"
                 required
                 className="mt-1"
-                disabled={isPending}
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? t("sendingButton") : t("submitButton")}
-            </Button>
+            {state?.error && (
+              <p className="text-sm text-destructive">{state.error}</p>
+            )}
+            <SubmitButton />
           </form>
         </CardContent>
       </Card>
     </main>
   );
 }
-/* Ruta: app/[locale]/forgot-password/page.tsx */
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Prevención de Enumeración de Usuarios: Para mayor seguridad, la `Server Action` `requestPasswordResetAction` debería ser modificada para que NUNCA devuelva un error si el email no existe. Siempre debería redirigir a la página de notificación con un mensaje genérico (ej. "Si tu correo está en nuestro sistema, recibirás un enlace"), previniendo que actores maliciosos puedan descubrir qué correos están registrados.
+ * 2. Rate Limiting del Lado del Servidor: Implementar un sistema de limitación de tasa (utilizando una herramienta como Upstash Redis) en la `Server Action` para prevenir que se abuse de la función de reseteo de contraseña, evitando el envío masivo de correos a un mismo destinatario o desde una misma IP.
+ * 3. Autofoco en el Campo de Email: Añadir la prop `autoFocus` al componente `<Input>` para mejorar la experiencia de usuario y la accesibilidad, permitiendo que el usuario pueda empezar a escribir inmediatamente sin necesidad de hacer clic.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Prevención de Enumeración de Usuarios: Para mayor seguridad, la `Server Action` `requestPasswordResetAction` debería ser modificada para que NUNCA devuelva un error si el email no existe. Siempre debería redirigir a la página de notificación con un mensaje genérico (ej. "Si tu correo está en nuestro sistema, recibirás un enlace"), previniendo que actores maliciosos puedan descubrir qué correos están registrados.
+ * 2. Rate Limiting del Lado del Servidor: Implementar un sistema de limitación de tasa (utilizando una herramienta como Upstash Redis) en la `Server Action` para prevenir que se abuse de la función de reseteo de contraseña, evitando el envío masivo de correos a un mismo destinatario o desde una misma IP.
+ * 3. Autofoco en el Campo de Email: Añadir la prop `autoFocus` al componente `<Input>` para mejorar la experiencia de usuario y la accesibilidad, permitiendo que el usuario pueda empezar a escribir inmediatamente sin necesidad de hacer clic.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Prevención de Enumeración de Usuarios:** La Server Action actualmente podría indicar si un correo existe o no. Para mayor seguridad, debería mostrar siempre un mensaje genérico de éxito (ej. "Si tu correo está en nuestro sistema, recibirás un enlace"), previniendo que actores maliciosos puedan descubrir qué correos están registrados.
  * 2. **Rate Limiting:** Implementar un sistema de limitación de tasa (rate limiting) en la Server Action para prevenir que se abuse de la función de reseteo de contraseña, evitando el envío masivo de correos.

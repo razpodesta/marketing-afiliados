@@ -1,78 +1,140 @@
-// app/[locale]/admin/page.tsx
-/**
- * @file Página del Dashboard de Administración (Server Component)
- * @description Carga todos los sitios de la plataforma. La lógica de autorización
- * ahora se basa en el rol del usuario obtenido de la tabla `profiles` de Supabase.
- *
- * @author Metashark
- * @version 3.0.0 (Supabase Auth Integration)
- */
+/* Ruta: app/[locale]/admin/page.tsx */
+
+import { Card } from "@/components/ui/card";
+import { getAllSites } from "@/lib/data/sites";
+import type { Database } from "@/lib/database.types";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { rootDomain } from "@/lib/utils";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getAllSites } from "@/lib/data/sites";
-import { rootDomain } from "@/lib/utils";
+import { Suspense } from "react";
 import { AdminDashboard } from "./dashboard";
-import { logger } from "@/lib/logging";
 
+/**
+ * @file page.tsx
+ * @description Página del Dashboard de Administración (Server Component).
+ * REFACTORIZACIÓN DE ESCALABILIDAD: Se ha integrado la lógica de paginación.
+ * Ahora lee el parámetro 'page' de la URL, lo pasa a `getAllSites`, y envía
+ * los metadatos de paginación al componente cliente.
+ *
+ * @author Metashark
+ * @version 6.0.0 (Pagination Integration)
+ */
 export const metadata: Metadata = {
   title: `Admin Dashboard | ${rootDomain}`,
   description: `Gestionar todos los sitios en la plataforma ${rootDomain}.`,
 };
 
-export default async function AdminPage() {
+const ADMIN_SITES_PER_PAGE = 12;
+
+const AdminDashboardSkeleton = () => (
+  <div className="p-4 md:p-8">
+    <div className="mx-auto w-full max-w-7xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <div className="h-9 w-48 bg-muted rounded-md animate-pulse"></div>
+          <div className="h-5 w-64 bg-muted rounded-md mt-2 animate-pulse"></div>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i} className="h-40 animate-pulse bg-muted" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+async function AdminDashboardLoader({
+  searchParams,
+}: {
+  searchParams: { page?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return redirect("/login");
-  }
+  if (!user) return redirect("/login");
 
-  // Verificación de rol a nivel de aplicación consultando la tabla de perfiles
   const { data: profile } = await supabase
     .from("profiles")
     .select("app_role")
     .eq("id", user.id)
     .single();
 
-  if (profile?.app_role !== "developer") {
+  const allowedRoles: Array<Database["public"]["Enums"]["app_role"]> = [
+    "admin",
+    "developer",
+  ];
+
+  if (!profile || !allowedRoles.includes(profile.app_role)) {
     logger.warn(
       `Acceso denegado a /admin para el usuario ${user.id} con rol '${profile?.app_role}'`
     );
-    // Si un usuario normal intenta acceder, lo redirigimos a su propio dashboard.
     return redirect("/dashboard");
   }
 
-  const rawSites = await getAllSites();
+  try {
+    const page = Number(searchParams.page) || 1;
+    const { sites: rawSites, totalCount } = await getAllSites({
+      page,
+      limit: ADMIN_SITES_PER_PAGE,
+    });
 
-  // Transformar los datos para el componente cliente.
-  const sites = rawSites.map((site) => ({
-    subdomain: site.subdomain || "N/A",
-    icon: site.icon || "❓",
-    createdAt: new Date(site.created_at).getTime(),
-  }));
+    const sites = rawSites.map((site) => ({
+      subdomain: site.subdomain || "N/A",
+      icon: site.icon || "❓",
+      createdAt: new Date(site.created_at).getTime(),
+    }));
 
+    // CORRECCIÓN: Se pasan las props de paginación a AdminDashboard
+    return (
+      <AdminDashboard
+        sites={sites}
+        user={user}
+        totalCount={totalCount}
+        page={page}
+        limit={ADMIN_SITES_PER_PAGE}
+      />
+    );
+  } catch (error) {
+    logger.error("Error al cargar los datos del dashboard de admin:", error);
+    return (
+      <p className="text-destructive p-8">
+        Error al cargar los datos de la plataforma.
+      </p>
+    );
+  }
+}
+
+export default function AdminPage({
+  searchParams,
+}: {
+  searchParams: { page?: string };
+}) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AdminDashboard sites={sites} user={user} />
+    <div className="min-h-screen bg-card">
+      <Suspense fallback={<AdminDashboardSkeleton />}>
+        <AdminDashboardLoader searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }
 
-/* MEJORAS PROPUESTAS
- * 1. **Streaming con Suspense:** Envolver `AdminDashboard` en un `<Suspense>` con un esqueleto de carga para mejorar la experiencia de usuario percibida.
- * 2. **Manejo de Errores de Carga:** Envolver `getAllSites` y la consulta de perfil en un `try/catch` para mostrar un mensaje de error amigable en la UI si la base de datos no está disponible.
- * 3. **RLS para Perfiles:** Asegurarse de que las Políticas de Seguridad a Nivel de Fila (RLS) en la tabla `profiles` permitan a los usuarios leer su propio perfil.
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
+ * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
+ * 3. Ordenamiento: Añadir parámetros de ordenamiento a la URL (ej. `?sort=createdAt&order=asc`) para permitir al administrador ordenar la lista de sitios por diferentes columnas.
  */
-/* MEJORAS PROPUESTAS
- * 1. **Paginación:** La carga de `getAllSites` debería implementarse con paginación para manejar un gran número de sitios sin degradar el rendimiento del dashboard de administración.
- * 2. **Streaming con Suspense:** Envolver `AdminDashboard` en un `<Suspense>` con un `fallback` de esqueleto de carga para mejorar la experiencia de usuario percibida durante la carga de datos.
- * 3. **Manejo de Errores de Carga:** Envolver `getAllSites` en un `try/catch` para manejar elegantemente los casos en que la base de datos no esté disponible, mostrando un mensaje de error amigable en la UI.
- * 1. **Streaming con Suspense:** Envolver `AdminDashboard` en `<Suspense>` con un esqueleto de carga para mejorar la experiencia de usuario mientras `getAllSubdomains` se resuelve.
- * 2. **Manejo de Errores de Carga de Datos:** Añadir un `try/catch` alrededor de `getAllSubdomains` y mostrar un mensaje de error amigable en la UI si la conexión a Redis falla.
- * 1. **Streaming con Suspense:** Envolver `AdminDashboard` en un `<Suspense>` con un `fallback` (ej. un esqueleto de carga) para mejorar la percepción de velocidad mientras se carga `getAllSubdomains`.
- * 2. **Paginación de Datos:** Si la cantidad de tenants crece mucho, implementar paginación en `getAllSubdomains` y pasar los parámetros de página desde esta página.
- * 3. **Server-Side-Props específicos de Rol:** Si se introducen roles, la data que se obtiene aquí (`getAllSubdomains`) podría variar según el rol del usuario en la sesión.
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Estado de Carga por Tarjeta: En lugar de un estado `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 2. Acciones de Suplantación (Impersonation): Para soporte avanzado, un administrador (`developer`) podría tener un botón para "Iniciar sesión como propietario", lo cual requeriría una Server Action y una función avanzada de Supabase Auth para generar un token de sesión para otro usuario.
+ * 3. Indicador de Página Numérico: El componente de paginación podría mejorarse para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
+ * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
+ * 3. Ordenamiento: Añadir parámetros de ordenamiento a la URL (ej. `?sort=createdAt&order=asc`) para permitir al administrador ordenar la lista de sitios por diferentes columnas.
  */

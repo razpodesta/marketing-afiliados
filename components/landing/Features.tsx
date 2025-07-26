@@ -100,7 +100,11 @@ export function Features() {
   );
 }
 /* Ruta: components/landing/Features.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Efecto de Borde Iluminado (`Spotlight`): Para una estética aún más premium, se podría implementar un efecto "spotlight" en el hover de las tarjetas. Este efecto consiste en un gradiente cónico que sigue al cursor dentro de los límites de la tarjeta, creando una ilusión de iluminación sofisticada y atrayendo la atención del usuario.
+ * 2. Contenido Dinámico desde un CMS: Para una máxima flexibilidad, el array `features` podría ser extraído y cargado desde un CMS Headless (como Contentful) o incluso desde una tabla en Supabase. Esto permitiría al equipo de marketing actualizar las características, iconos y descripciones en tiempo real sin necesidad de solicitar un cambio en el código ni un nuevo despliegue.
+ * 3. Modal con Detalles Adicionales: Al hacer clic en una tarjeta, se podría abrir un modal (`Dialog` de Shadcn/UI) que muestre más detalles sobre esa característica específica. El modal podría contener una lista de sub-funcionalidades, capturas de pantalla o incluso un video corto de demostración, proporcionando una capa más profunda de información para los usuarios interesados.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Efecto de Borde Iluminado (`Spotlight`):** Implementar un efecto "spotlight" en el hover de las tarjetas, donde un gradiente cónico sigue al cursor dentro de los límites de la tarjeta, creando un efecto de iluminación muy sofisticado.
  * 2. **Contenido Dinámico desde CMS:** Mover el array `features` a un sistema de gestión de contenidos (CMS) como Contentful o incluso a una tabla en Supabase. Esto permitiría al equipo de marketing actualizar las características sin necesidad de un despliegue de código.

@@ -89,7 +89,11 @@ export default async function LoginPage() {
   );
 }
 /* Ruta: app/[locale]/login/page.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Gestión del Parámetro `next` para Redirección Inteligente: Este componente podría leer un parámetro de búsqueda `next` de la URL (ej. `/login?next=/dashboard/settings`). Este parámetro podría ser pasado al `LoginForm` y, a su vez, a la prop `redirectTo` de Supabase, asegurando que después de un inicio de sesión exitoso, el usuario sea redirigido a la página que intentaba acceder originalmente, en lugar de siempre a `/dashboard`.
+ * 2. Esqueleto de Carga con Suspense: Envolver la `<Card>` que contiene el `LoginForm` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga del formulario. Esto mejoraría la experiencia de usuario percibida (LCP) mientras se ejecuta la lógica de `getSession` en el servidor.
+ * 3. Metadatos de Página Dinámicos: Utilizar la función `generateMetadata` de Next.js en este archivo para establecer el título de la página de forma dinámica usando las traducciones (ej. `t('metadataTitle')`). Esto es una mejor práctica para el SEO y la accesibilidad, en lugar de depender únicamente de los metadatos globales del layout raíz.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Componente de Carga con Suspense:** Envolver la `<Card>` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga (skeleton). Esto mejoraría la experiencia de usuario percibida mientras se verifica la sesión del servidor.
  * 2. **Metadatos de Página Dinámicos:** Utilizar la función `generateMetadata` para establecer el título de la página de forma dinámica usando las traducciones, lo cual es una mejor práctica para el SEO y la accesibilidad.

@@ -36,26 +36,36 @@ import React from "react";
 
 /**
  * @file dashboard-client.tsx
- * @description Dashboard principal "Centro de Comando".
- * ARQUITECTURA REFACTORIZADA: Se ha extraído la lógica de las tarjetas a un
- * sub-componente `ModuleCard` y se ha memoizado con `React.memo` para un rendimiento
- * óptimo. Se ha optimizado el uso de `TooltipProvider` y se han refinado las
- * animaciones para una experiencia de usuario superior.
+ * @description Dashboard principal "Centro de Comando" del usuario.
+ * REFACTORIZACIÓN DE FOCO Y NAVEGABILIDAD: Este componente ha sido refactorizado
+ * para centrar la experiencia del usuario en la funcionalidad principal: el
+ * constructor de páginas. Se han desactivado los módulos secundarios marcándolos
+ * como "Próximamente" y se ha corregido la ruta del módulo "Suite de Landings"
+ * para dirigir al usuario al flujo correcto de gestión de sitios, reparando la
+ * navegación rota de la aplicación.
  *
  * @author Metashark
- * @version 8.1.0 (Architectural Refactor & Optimization)
+ * @version 8.3.0 (Feature Focus & Navigation Fix)
  */
 
 // --- TIPOS Y DATOS ---
 
 /**
- * @description Define el estado de disponibilidad de un módulo.
+ * @typedef {"active" | "beta" | "soon"} ModuleStatus
+ * @description Define el estado de disponibilidad de un módulo de funcionalidad.
  */
 type ModuleStatus = "active" | "beta" | "soon";
 
 /**
+ * @typedef {object} FeatureModule
  * @description Define la estructura de datos para cada módulo de funcionalidad.
  * Centralizar esta estructura facilita la gestión y una futura migración a una API.
+ * @property {string} title - El título del módulo que se muestra en la tarjeta.
+ * @property {string} description - La descripción corta del módulo.
+ * @property {string} tooltip - Texto informativo que aparece al pasar el cursor sobre el icono de ayuda.
+ * @property {React.ElementType} icon - El componente de icono (de lucide-react) a mostrar.
+ * @property {string} href - La ruta de destino a la que navegará el usuario.
+ * @property {ModuleStatus} status - El estado actual del módulo.
  */
 type FeatureModule = {
   title: string;
@@ -66,43 +76,52 @@ type FeatureModule = {
   status: ModuleStatus;
 };
 
+/**
+ * @const {FeatureModule[]} featureModules
+ * @description Array que contiene la configuración de todos los módulos del dashboard.
+ * Es la fuente de verdad para renderizar la cuadrícula de funcionalidades.
+ */
 const featureModules: FeatureModule[] = [
   {
     title: "Suite de Landings",
     description: "Constructor guiado para páginas de venta.",
-    tooltip: "Crea y publica landing pages optimizadas para la conversión.",
+    tooltip: "Accede para crear y gestionar todos tus sitios de landing pages.",
     icon: LayoutTemplate,
-    href: "/dashboard/sites/new",
+    href: "/dashboard/sites",
     status: "active",
   },
   {
     title: "Bridge Pages",
     description: "Calienta el tráfico antes de la oferta.",
-    tooltip: "Genera páginas puente para mejorar la calidad del tráfico y el EPC.",
+    tooltip:
+      "Genera páginas puente para mejorar la calidad del tráfico y el EPC.",
     icon: Puzzle,
-    href: "/dashboard/tools/bridge-pages",
-    status: "active",
+    href: "#",
+    status: "soon",
   },
   {
     title: "Generador de Quizzes",
     description: "Segmenta tu audiencia con quizzes.",
-    tooltip: "Crea cuestionarios interactivos para capturar leads cualificados.",
+    tooltip:
+      "Crea cuestionarios interactivos para capturar leads cualificados.",
     icon: TestTube2,
-    href: "/dashboard/tools/quizzes",
-    status: "active",
+    href: "#",
+    status: "soon",
   },
   {
     title: "AI Copywriter Pro",
     description: "Genera copys persuasivos al instante.",
-    tooltip: "Accede a nuestro motor de IA para crear textos de venta efectivos.",
+    tooltip:
+      "Accede a nuestro motor de IA para crear textos de venta efectivos.",
     icon: PenSquare,
-    href: "/dashboard/tools/copywriter",
-    status: "beta",
+    href: "#",
+    status: "soon",
   },
   {
     title: "Creador de Imágenes IA",
     description: "Diseña imágenes únicas para tus campañas.",
-    tooltip: "Genera imágenes libres de derechos con IA para tus anuncios y landings.",
+    tooltip:
+      "Genera imágenes libres de derechos con IA para tus anuncios y landings.",
     icon: ImageIcon,
     href: "#",
     status: "soon",
@@ -110,7 +129,8 @@ const featureModules: FeatureModule[] = [
   {
     title: "Auditor de Conversión",
     description: "Analiza tu URL y recibe un análisis CRO.",
-    tooltip: "Nuestra IA auditará tu página y te dará un plan de acción para mejorar la conversión.",
+    tooltip:
+      "Nuestra IA auditará tu página y te dará un plan de acción para mejorar la conversión.",
     icon: Search,
     href: "#",
     status: "soon",
@@ -118,7 +138,8 @@ const featureModules: FeatureModule[] = [
   {
     title: "Analista de Nichos IA",
     description: "Descubre nichos rentables y audiencias.",
-    tooltip: "Encuentra oportunidades de mercado, audiencias y ángulos de marketing.",
+    tooltip:
+      "Encuentra oportunidades de mercado, audiencias y ángulos de marketing.",
     icon: Target,
     href: "#",
     status: "soon",
@@ -126,7 +147,8 @@ const featureModules: FeatureModule[] = [
   {
     title: "Analista de Ads IA",
     description: "Traduce métricas de Ads en insights.",
-    tooltip: "Conecta tus cuentas de Google/FB Ads para obtener un análisis claro.",
+    tooltip:
+      "Conecta tus cuentas de Google/FB Ads para obtener un análisis claro.",
     icon: PieChart,
     href: "#",
     status: "soon",
@@ -134,7 +156,8 @@ const featureModules: FeatureModule[] = [
   {
     title: "Ajustes del Sitio",
     description: "Personaliza tu workspace y perfil.",
-    tooltip: "Gestiona el nombre, dominio, facturación y miembros de tu workspace.",
+    tooltip:
+      "Gestiona el nombre, dominio, facturación y miembros de tu workspace.",
     icon: Settings,
     href: "/dashboard/settings",
     status: "active",
@@ -148,8 +171,7 @@ const featureModules: FeatureModule[] = [
  * Encapsula la lógica de presentación y animación de una única tarjeta.
  * Está envuelto en `React.memo` para prevenir re-renders innecesarios si sus props no cambian,
  * una optimización clave para listas y cuadrículas.
- * @param {object} props - Propiedades del componente.
- * @param {FeatureModule} props.module - Los datos del módulo a renderizar.
+ * @param {{ module: FeatureModule }} props - Propiedades del componente.
  * @returns {JSX.Element} La tarjeta del módulo interactiva.
  */
 const ModuleCard = React.memo(({ module }: { module: FeatureModule }) => {
@@ -163,11 +185,14 @@ const ModuleCard = React.memo(({ module }: { module: FeatureModule }) => {
     >
       <Link
         href={module.status !== "soon" ? module.href : "#"}
-        className={cn("group", module.status === "soon" && "pointer-events-none")}
+        className={cn(
+          "group",
+          module.status === "soon" && "pointer-events-none"
+        )}
       >
         <Card
           className={cn(
-            "relative flex h-full flex-col justify-between p-3 transition-all duration-300", // Padding reducido
+            "relative flex h-full flex-col justify-between p-3 transition-all duration-300",
             module.status === "soon"
               ? "border-dashed bg-card/50"
               : "bg-card hover:border-primary/80 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10"
@@ -189,7 +214,9 @@ const ModuleCard = React.memo(({ module }: { module: FeatureModule }) => {
               <module.icon
                 className={cn(
                   "h-5 w-5 transition-colors",
-                  module.status === "soon" ? "text-muted-foreground/50" : "text-primary"
+                  module.status === "soon"
+                    ? "text-muted-foreground/50"
+                    : "text-primary"
                 )}
               />
               {module.status === "beta" && (
@@ -205,8 +232,10 @@ const ModuleCard = React.memo(({ module }: { module: FeatureModule }) => {
             </div>
             <CardTitle
               className={cn(
-                "pt-2 text-sm font-semibold", // Padding reducido
-                module.status === "soon" ? "text-muted-foreground/80" : "text-foreground"
+                "pt-2 text-sm font-semibold",
+                module.status === "soon"
+                  ? "text-muted-foreground/80"
+                  : "text-foreground"
               )}
             >
               {module.title}
@@ -236,6 +265,11 @@ ModuleCard.displayName = "ModuleCard";
 
 // --- COMPONENTE PRINCIPAL ---
 
+/**
+ * @description El componente principal que renderiza el "Centro de Comando".
+ * @param {{ user: User }} props - Propiedades del componente.
+ * @returns {JSX.Element} La interfaz completa del dashboard.
+ */
 export function DashboardClient({ user }: { user: User }) {
   const username = user.user_metadata?.full_name || user.email;
 
@@ -247,7 +281,7 @@ export function DashboardClient({ user }: { user: User }) {
         </h1>
         <p className="text-sm text-muted-foreground">Centro de Comando de IA</p>
       </div>
-      
+
       <TooltipProvider delayDuration={100}>
         <motion.div
           initial="hidden"
@@ -266,8 +300,18 @@ export function DashboardClient({ user }: { user: User }) {
     </div>
   );
 }
-/* Ruta: app/[locale]/dashboard/dashboard-client.tsx */
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Carga de Módulos desde la Base de Datos: El array `featureModules` está codificado en duro. La mejor práctica es mover esta configuración a una tabla en Supabase. Esto permitiría al equipo de producto habilitar/deshabilitar módulos, cambiar su estado (`beta`, `soon`) o actualizar sus descripciones sin necesidad de un despliegue de código.
+ * 2. Módulos Basados en Permisos del Plan: Para la monetización, la consulta que obtenga los módulos de la base de datos debería hacer un `JOIN` con el plan de suscripción del usuario actual. Esto permitiría filtrar la lista de `featureModules` y mostrar solo aquellos a los que el usuario tiene acceso, mostrando los demás como "bloqueados" con una invitación a actualizar su plan.
+ * 3. Paleta de Comandos (`Ctrl+K`): Implementar una paleta de comandos (con `cmdk`) que permita a los usuarios buscar y navegar a cualquier módulo escribiendo su nombre. Esto transformaría el dashboard en una herramienta de productividad para usuarios avanzados, en lugar de depender solo de la navegación por clic.
+ */
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Carga de Módulos desde la Base de Datos: El array `featureModules` está codificado en duro. La mejor práctica es mover esta configuración a una tabla en Supabase. Esto permitiría al equipo de producto habilitar/deshabilitar módulos, cambiar su estado (`beta`, `soon`) o actualizar sus descripciones sin necesidad de un despliegue de código.
+ * 2. Módulos Basados en Permisos del Plan: Para la monetización, la consulta que obtenga los módulos de la base de datos debería hacer un `JOIN` con el plan de suscripción del usuario actual. Esto permitiría filtrar la lista de `featureModules` y mostrar solo aquellos a los que el usuario tiene acceso, mostrando los demás como "bloqueados" con una invitación a actualizar su plan.
+ * 3. Personalización del Dashboard (Drag-and-Drop): Implementar una librería como `dnd-kit` para permitir a los usuarios arrastrar y soltar los módulos para reorganizar su dashboard. La preferencia de orden se podría guardar como un JSON en la tabla `profiles` del usuario.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Analíticas de Módulos:** Integrar un hook de analíticas (como Vercel Analytics o PostHog) dentro del `onClick` del `Link` en `ModuleCard`. Esto permitiría rastrear qué módulos son los más utilizados por los usuarios, proporcionando datos valiosos para la toma de decisiones de producto.
  * 2. **Carga de Datos de Módulos desde API:** El siguiente paso evolutivo es mover el array `featureModules` a una tabla en Supabase. El componente de servidor (`page.tsx`) podría obtener estos datos y pasarlos como prop. Esto permitiría al equipo de producto habilitar/deshabilitar módulos o cambiar su estado (`beta`, `soon`) sin necesidad de un despliegue de código.

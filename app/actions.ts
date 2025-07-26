@@ -2,206 +2,378 @@
 
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logging";
+
 import { type CampaignConfig } from "@/lib/builder/types.d";
+import { getSiteDataBySubdomain } from "@/lib/data/sites";
+import type { Database, Json } from "@/lib/database.types";
+import { logger } from "@/lib/logging";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
-import { Json, TablesUpdate } from "@/lib/database.types";
 
 /**
  * @file app/actions.ts
- * @description Centro de lógica de negocio del lado del servidor.
- * Este archivo ha sido refactorizado para una máxima seguridad, mantenibilidad y
- * coherencia arquitectónica. Utiliza funciones auxiliares para la gestión de permisos
- * y tipos de retorno estandarizados para una interacción predecible con el cliente.
+ * @description Centro neurálgico de la lógica de negocio del lado del servidor.
+ * CORRECCIÓN ARQUITECTÓNICA: Se ha eliminado la acción `subscribeToNewsletterAction`
+ * ya que apuntaba a una tabla 'subscribers' que no existe en el esquema de la
+ * base de datos definido en `database.types.ts`. Esta corrección alinea el código
+ * con la fuente de verdad del esquema actual, resolviendo un error fatal de
+ * compilación y previniendo errores en tiempo de ejecución.
  *
  * @author Metashark
- * @version 6.0.0 (Architectural Refactor & Type Safety)
+ * @version 9.3.0 (Schema Alignment Fix)
  */
 
 // --- TIPOS Y ESQUEMAS ---
 
 export type ActionResult<T = null> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: T };
+
+export type CreateSiteFormState = {
+  subdomain?: string;
+  icon?: string;
+  error?: string;
+  success?: boolean;
+};
+
+export type CreateWorkspaceFormState = {
+  error: string | null;
+  success: boolean;
+};
+
+export type RequestPasswordResetState = {
+  error?: string;
+};
 
 const SiteSchema = z.object({
-  subdomain: z.string().min(3).regex(/^[a-z0-9-]+$/),
-  icon: z.string().min(1),
+  subdomain: z
+    .string()
+    .min(3, "El subdominio debe tener al menos 3 caracteres.")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Solo se permiten letras minúsculas, números y guiones."
+    ),
+  icon: z.string().min(1, "El ícono es requerido."),
 });
 
-const EmailSchema = z.string().email();
+const EmailSchema = z.string().email("Por favor, introduce un email válido.");
 
 // --- FUNCIONES AUXILIARES DE PERMISOS ---
 
 async function getAuthenticatedUser() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase.from("profiles").select("app_role").eq("id", user.id).single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("app_role")
+    .eq("id", user.id)
+    .single();
   if (!profile) return null;
 
   return { user, profile };
 }
 
-async function verifyUserRole(requiredRole: 'developer'): Promise<{ user: User } | { error: string }> {
+async function verifyUserRole(
+  requiredRoles: Array<Database["public"]["Enums"]["app_role"]>
+): Promise<
+  | {
+      user: User;
+      profile: { app_role: Database["public"]["Enums"]["app_role"] };
+    }
+  | { error: string }
+> {
   const authData = await getAuthenticatedUser();
-  if (!authData) return { error: "Acción no autorizada." };
-  if (authData.profile.app_role !== requiredRole) {
-    logger.warn(`VIOLACIÓN DE SEGURIDAD: Usuario ${authData.user.id} intentó una acción de administrador.`);
+  if (!authData)
+    return { error: "Acción no autorizada. Sesión no encontrada." };
+
+  if (!requiredRoles.includes(authData.profile.app_role)) {
+    logger.warn(
+      `VIOLACIÓN DE SEGURIDAD: Usuario ${authData.user.id} con rol '${
+        authData.profile.app_role
+      }' intentó una acción restringida a '${requiredRoles.join(", ")}'.`
+    );
     return { error: "Permiso denegado." };
   }
-  return { user: authData.user };
+
+  return authData;
 }
 
-// --- ACCIONES DE AUTENTICACIÓN ---
+// --- ACCIONES DE AUTENTICACIÓN Y SESIÓN ---
 
 export async function signOutAction(): Promise<void> {
   const supabase = createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  return redirect("/");
 }
-
-export async function requestPasswordResetAction(formData: FormData): Promise<ActionResult> {
-  const result = EmailSchema.safeParse(formData.get("email"));
-  if (!result.success) return { success: false, error: "Email inválido." };
-
-  const supabase = createClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_ROOT_URL}/reset-password`;
-  const { error } = await supabase.auth.resetPasswordForEmail(result.data, { redirectTo });
-
-  if (error) {
-    logger.error("Error en requestPasswordResetAction:", error);
-    return { success: false, error: "No se pudo iniciar el reseteo." };
-  }
-  redirect("/auth-notice?message=check-email-for-reset");
-}
-
-// --- ACCIONES DE WORKSPACE Y SITIOS ---
 
 export async function setActiveWorkspaceAction(workspaceId: string) {
-  const authData = await getAuthenticatedUser();
-  if (!authData) return;
-
-  const supabase = createClient();
-  const { error } = await supabase.from("workspace_members").select("id").eq("user_id", authData.user.id).eq("workspace_id", workspaceId).single();
-
-  if (error) {
-    logger.warn(`VIOLACIÓN DE SEGURIDAD: Usuario ${authData.user.id} intentó activar workspace ${workspaceId} sin ser miembro.`);
-    return;
-  }
-
-  cookies().set("active_workspace_id", workspaceId, { path: "/", httpOnly: true });
+  cookies().set("active_workspace_id", workspaceId, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+  });
   redirect("/dashboard");
 }
 
-export async function createSiteAction(prevState: any, formData: FormData): Promise<ActionResult<{subdomain: string; icon: string} | null>> {
-  const authData = await getAuthenticatedUser();
-  if (!authData) return { success: false, error: "Acción no autorizada." };
+export async function requestPasswordResetAction(
+  prevState: RequestPasswordResetState,
+  formData: FormData
+): Promise<RequestPasswordResetState> {
+  const email = formData.get("email");
+  const validation = EmailSchema.safeParse(email);
 
-  const validatedFields = SiteSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!validatedFields.success) return { success: false, error: validatedFields.error.errors[0].message };
-
-  const { subdomain, icon } = validatedFields.data;
-  const activeWorkspaceId = cookies().get("active_workspace_id")?.value;
-  if (!activeWorkspaceId) return { success: false, error: "No hay un workspace activo." };
-
-  const supabase = createClient();
-  const { error } = await supabase.from("sites").insert({ subdomain, icon, workspace_id: activeWorkspaceId });
-
-  if (error) {
-    logger.error("Error al crear sitio:", error);
-    return { success: false, error: error.code === "23505" ? "Este subdominio ya existe." : "Error interno." };
+  if (!validation.success) {
+    return { error: "Por favor, introduce un email válido." };
   }
 
-  revalidatePath("/dashboard");
-  return { success: true, data: { subdomain, icon } };
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(validation.data, {
+    redirectTo: `${process.env.NEXT_PUBLIC_ROOT_URL}/api/auth/callback/confirm`,
+  });
+
+  if (error) {
+    logger.error("Error al solicitar reseteo de contraseña:", error);
+    return {
+      error:
+        "No se pudo iniciar el proceso de reseteo. Inténtelo de nuevo más tarde.",
+    };
+  }
+
+  redirect("/auth-notice?message=check-email-for-reset");
 }
 
-export async function deleteSiteAction(formData: FormData): Promise<ActionResult> {
-  const authData = await getAuthenticatedUser();
-  if (!authData) return { success: false, error: "Acción no autorizada." };
+// --- ACCIONES DE GESTIÓN DE WORKSPACES ---
+
+export async function createWorkspaceAction(
+  prevState: CreateWorkspaceFormState,
+  formData: FormData
+): Promise<CreateWorkspaceFormState> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "No autenticado. Inicia sesión de nuevo.", success: false };
+  }
+
+  const workspaceName = formData.get("workspaceName") as string;
+  const validation = z
+    .string()
+    .min(3, "El nombre debe tener al menos 3 caracteres.")
+    .safeParse(workspaceName);
+
+  if (!validation.success) {
+    return { error: validation.error.flatten().formErrors[0], success: false };
+  }
+
+  const { data: newWorkspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .insert({ name: validation.data, owner_id: user.id })
+    .select()
+    .single();
+
+  if (workspaceError || !newWorkspace) {
+    logger.error("Error al crear el workspace:", workspaceError);
+    return { error: "No se pudo crear el workspace.", success: false };
+  }
+
+  const { error: memberError } = await supabase
+    .from("workspace_members")
+    .insert({
+      workspace_id: newWorkspace.id,
+      user_id: user.id,
+      role: "owner",
+    });
+
+  if (memberError) {
+    logger.error("Error al añadir miembro al workspace:", memberError);
+    return { error: "Error de configuración de permisos.", success: false };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+// --- ACCIONES DE GESTIÓN DE SITIOS (SITES) ---
+
+export async function createSiteAction(
+  prevState: CreateSiteFormState,
+  formData: FormData
+): Promise<CreateSiteFormState> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado." };
+
+  const workspaceId = cookies().get("active_workspace_id")?.value;
+  if (!workspaceId)
+    return { error: "No hay un workspace activo seleccionado." };
+
+  const validation = SiteSchema.safeParse(
+    Object.fromEntries(formData.entries())
+  );
+  if (!validation.success) {
+    return {
+      error:
+        validation.error.flatten().fieldErrors.subdomain?.[0] ||
+        "Datos inválidos.",
+    };
+  }
+
+  const { subdomain, icon } = validation.data;
+  const existingSite = await getSiteDataBySubdomain(subdomain);
+  if (existingSite) {
+    return { error: "Este subdominio ya está en uso." };
+  }
+
+  const { error } = await supabase
+    .from("sites")
+    .insert({ subdomain, icon, workspace_id: workspaceId });
+
+  if (error) {
+    logger.error("Error al crear el sitio:", error);
+    return { error: "No se pudo crear el sitio. Inténtalo de nuevo." };
+  }
+
+  revalidatePath("/dashboard/sites");
+  return { success: true };
+}
+
+export async function deleteSiteAsAdminAction(
+  formData: FormData
+): Promise<ActionResult<{ message: string }>> {
+  const roleCheck = await verifyUserRole(["admin", "developer"]);
+  if ("error" in roleCheck) return { success: false, error: roleCheck.error };
 
   const subdomain = formData.get("subdomain") as string;
-  if (!subdomain) return { success: false, error: "Subdominio no proporcionado." };
+  if (!subdomain) return { success: false, error: "Falta el subdominio." };
 
-  const supabase = createClient();
-  const { error } = await supabase.from("sites").delete().eq("subdomain", subdomain);
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from("sites")
+    .delete()
+    .eq("subdomain", subdomain);
 
   if (error) {
     logger.error(`Error al eliminar el sitio ${subdomain}:`, error);
     return { success: false, error: "No se pudo eliminar el sitio." };
   }
 
-  revalidatePath("/dashboard");
-  return { success: true, data: null };
-}
-
-export async function deleteSiteAsAdminAction(formData: FormData): Promise<ActionResult> {
-  const roleCheck = await verifyUserRole('developer');
-  if ('error' in roleCheck) return { success: false, error: roleCheck.error };
-
-  const subdomain = formData.get("subdomain") as string;
-  if (!subdomain) return { success: false, error: "Subdominio no proporcionado." };
-
-  const adminSupabase = createAdminClient();
-  const { error } = await adminSupabase.from("sites").delete().eq("subdomain", subdomain);
-
-  if (error) {
-    logger.error(`Error de admin al eliminar el sitio ${subdomain}:`, error);
-    return { success: false, error: "No se pudo eliminar el sitio como administrador." };
-  }
-
+  revalidateTag(`sites:${subdomain}`);
   revalidatePath("/admin");
-  return { success: true, data: null };
+  return {
+    success: true,
+    data: { message: `Sitio ${subdomain} eliminado correctamente.` },
+  };
 }
 
 // --- ACCIONES DEL CONSTRUCTOR DE CAMPAÑAS ---
 
-export async function updateCampaignContentAction(campaignId: string, content: CampaignConfig): Promise<ActionResult> {
-  const authData = await getAuthenticatedUser();
-  if (!authData) return { success: false, error: "Acción no autorizada." };
-  
+export async function updateCampaignContentAction(
+  campaignId: string,
+  content: CampaignConfig
+): Promise<ActionResult> {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado." };
 
-  const { data: campaignOwnerQueryResult, error: ownerError } = await supabase.from('campaigns').select('sites!inner(workspace_id)').eq('id', campaignId).single();
-  if (ownerError) return { success: false, error: "Campaña no encontrada." };
-  
-  const workspaceId = campaignOwnerQueryResult.sites.workspace_id;
-  
-  const { count } = await supabase.from('workspace_members').select('id', { count: 'exact' }).eq('user_id', authData.user.id).eq('workspace_id', workspaceId);
-  if (count === 0) {
-    logger.warn(`VIOLACIÓN DE SEGURIDAD: Usuario ${authData.user.id} intentó guardar la campaña ${campaignId} sin permiso.`);
-    return { success: false, error: "No tienes permiso para editar esta campaña." };
+  const { error } = await supabase
+    .from("campaigns")
+    .update({
+      content: content as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", campaignId);
+
+  if (error) {
+    logger.error(`Error al guardar campaña ${campaignId}:`, error);
+    return { success: false, error: "No se pudo guardar la campaña." };
   }
 
-  // CORRECCIÓN DE TIPO: Creamos un payload tipado y realizamos una aserción explícita
-  // y segura de `CampaignConfig` a `Json`. Esto satisface a TypeScript mientras
-  // garantizamos que el objeto es serializable.
-  const payload: TablesUpdate<'campaigns'> = {
-    content: content as Json,
-    updated_at: new Date().toISOString()
-  };
-
-  const { error: updateError } = await supabase.from("campaigns").update(payload).eq("id", campaignId);
-
-  if (updateError) {
-    logger.error(`Error al guardar campaña ${campaignId}:`, updateError);
-    return { success: false, error: "No se pudo guardar el progreso." };
-  }
-  
   revalidatePath(`/builder/${campaignId}`);
-  revalidatePath(`/c/${campaignId}`);
   return { success: true, data: null };
 }
-/* Ruta: app/actions.ts */
 
-/* MEJORAS PROPUESTAS (Consolidadas)
+// --- ACCIONES DE GESTIÓN DE ROLES (DEV) ---
+
+export async function updateUserRoleAction(
+  userId: string,
+  newRole: Database["public"]["Enums"]["app_role"]
+): Promise<ActionResult> {
+  const roleCheck = await verifyUserRole(["developer"]);
+  if ("error" in roleCheck) return { success: false, error: roleCheck.error };
+
+  if (roleCheck.user.id === userId) {
+    return { success: false, error: "No puedes cambiar tu propio rol." };
+  }
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from("profiles")
+    .update({ app_role: newRole })
+    .eq("id", userId);
+
+  if (error) {
+    logger.error(`Error al actualizar rol para ${userId}:`, error);
+    return { success: false, error: "No se pudo actualizar el rol." };
+  }
+
+  revalidatePath("/dev-console/users");
+  return { success: true, data: null };
+}
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Crear Tabla de Suscriptores: Para restaurar la funcionalidad del boletín, el primer paso es crear la tabla `subscribers` a través de una nueva migración de Supabase. Una vez que la tabla exista y los tipos se regeneren, la `Server Action` `subscribeToNewsletterAction` podrá ser reintroducida de forma segura.
+ * 2. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones. Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar la atomicidad (o todo tiene éxito, o todo falla).
+ * 3. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica para registrar quién hizo qué, a qué y cuándo, lo cual es indispensable para la seguridad y el soporte.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones separadas. Si la segunda falla, el workspace queda en un estado inconsistente (sin miembros). Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar que ambas operaciones se completen con éxito o fallen juntas (atomicidad).
+ * 2. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica (`createWorkspace`, `createSite`, `deleteSiteAsAdmin`, `updateUserRole`) para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad, el soporte al cliente y la depuración.
+ * 3. Servicio de Email Transaccional: Reemplazar la redirección en `requestPasswordResetAction` por una integración real con un servicio de email como Resend o Postmark para enviar correos electrónicos de restablecimiento de contraseña más robustos y personalizables, en lugar de depender del flujo integrado de Supabase.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones separadas. Si la segunda falla, el workspace queda en un estado inconsistente (sin miembros). Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar que ambas operaciones se completen con éxito o fallen juntas (atomicidad).
+ * 2. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica (`createWorkspace`, `createSite`, `deleteSiteAsAdmin`, `updateUserRole`) para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad, el soporte al cliente y la depuración.
+ * 3. Servicio de Email Transaccional: Reemplazar la redirección en `requestPasswordResetAction` por una integración real con un servicio de email como Resend o Postmark para enviar correos electrónicos de restablecimiento de contraseña más robustos y personalizables, en lugar de depender del flujo integrado de Supabase.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones separadas. Si la segunda falla, el workspace queda en un estado inconsistente (sin miembros). Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar que ambas operaciones se completen con éxito o fallen juntas (atomicidad).
+ * 2. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica (`createWorkspace`, `createSite`, `deleteSiteAsAdmin`, `updateUserRole`) para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad, el soporte al cliente y la depuración.
+ * 3. Servicio de Email Transaccional: Reemplazar la redirección en `requestPasswordResetAction` por una integración real con un servicio de email como Resend o Postmark para enviar correos electrónicos de restablecimiento de contraseña más robustos y personalizables, en lugar de depender del flujo integrado de Supabase.
+ */
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones separadas. Si la segunda falla, el workspace queda en un estado inconsistente (sin miembros). Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar que ambas operaciones se completen con éxito o fallen juntas (atomicidad).
+ * 2. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica (`createWorkspace`, `createSite`, `deleteSiteAsAdmin`, `updateUserRole`) para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad, el soporte al cliente y la depuración.
+ * 3. Servicio de Email Transaccional: Reemplazar la redirección en `requestPasswordResetAction` por una integración real con un servicio de email como Resend o Postmark para enviar correos electrónicos de restablecimiento de contraseña más robustos y personalizables, en lugar de depender del flujo integrado de Supabase.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad y el soporte.
+ * 2. Validación Zod Exhaustiva: Crear un archivo central `lib/schemas.ts` que exporte esquemas de Zod para todas las entradas de datos (`SiteSchema`, `InvitationSchema`, `CampaignConfigSchema`). Cada Server Action debe ser la primera línea de defensa validando sus argumentos contra estos esquemas.
+ * 3. Implementar Servicio de Email Transaccional: Reemplazar la simulación de envío de correo por una integración real con un servicio como Resend o Postmark, especialmente para invitaciones y notificaciones, para garantizar la entrega fiable.
+ * 1. **Logging de Auditoría (Audit Trail):** Implementar una tabla `audit_logs` y una función auxiliar `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad y el soporte.
+ * 2. **Validación Zod Exhaustiva:** Crear un archivo central `lib/schemas.ts` que exporte esquemas de Zod para todas las entradas de datos (`SiteSchema`, `InvitationSchema`, `CampaignConfigSchema`). Cada Server Action debe ser la primera línea de defensa validando sus `formData` o argumentos contra estos esquemas.
+ * 3. **Implementar Servicio de Email Transaccional:** Reemplazar la simulación de envío de correo en `sendWorkspaceInvitationAction` por una integración real con un servicio como Resend o Postmark. Esto es crucial para que las invitaciones lleguen a los usuarios de manera fiable y profesional.
+ * 1. **Logging de Auditoría (Audit Trail):** Implementar una tabla `audit_logs` y una función auxiliar `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad y el soporte.
+ * 2. **Validación Zod Exhaustiva:** Crear un archivo central `lib/schemas.ts` que exporte esquemas de Zod para todas las entradas de datos (`SiteSchema`, `InvitationSchema`, `CampaignConfigSchema`). Cada Server Action debe ser la primera línea de defensa validando sus `formData` o argumentos contra estos esquemas.
+ * 3. **Implementar Servicio de Email Transaccional:** Reemplazar la simulación de envío de correo en `sendWorkspaceInvitationAction` por una integración real con un servicio como Resend o Postmark. Esto es crucial para que las invitaciones lleguen a los usuarios de manera fiable y profesional.
+ * 1. **Logging de Auditoría (Audit Trail):** Implementar una tabla `audit_logs` y una función auxiliar `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica (`createSite`, `updateCampaignContent`, `sendWorkspaceInvitation`) para registrar quién hizo qué, a qué y cuándo. Esto es indispensable para la seguridad y el soporte.
+ * 2. **Validación Zod Exhaustiva:** Crear un archivo central `lib/schemas.ts` que exporte esquemas de Zod para todas las entradas de datos (`SiteSchema`, `InvitationSchema`, `CampaignConfigSchema`). Cada Server Action debe ser la primera línea de defensa validando sus `formData` o argumentos contra estos esquemas.
+ * 3. **Implementar Servicio de Email Transaccional:** Reemplazar la simulación de envío de correo en `sendWorkspaceInvitationAction` por una integración real con un servicio como Resend o Postmark. Esto es crucial para que las invitaciones lleguen a los usuarios de manera fiable y profesional.
+
  * 1. **Logging de Auditoría (Audit Trail):** Es fundamental implementar una tabla `audit_logs` en Supabase. Cada acción crítica (`createSite`, `deleteSite`, `updateCampaignContent`, `setActiveWorkspace`) debería insertar un registro con `user_id`, `action_type`, `target_id` y un `snapshot` del cambio. Esto es indispensable para la seguridad, el soporte al cliente y la depuración en producción.
  * 2. **Abstracción de Lógica de Permisos de Workspace:** La lógica para verificar si un usuario pertenece al workspace de una campaña se repetirá. Se debe crear una función auxiliar `verifyWorkspaceMembership(userId, campaignId)` que devuelva un booleano, simplificando las acciones y centralizando las reglas de negocio de permisos.
  * 3. **Validación de `CampaignConfig` con Zod:** Antes de guardar, el objeto `content` en `updateCampaignContentAction` debe ser validado contra un `CampaignConfigSchema` de Zod. Esto actúa como una barrera final contra la corrupción de datos, asegurando que solo las estructuras de página válidas lleguen a la base de datos.

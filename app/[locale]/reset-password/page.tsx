@@ -143,7 +143,11 @@ export default function ResetPasswordPage() {
   );
 }
 /* Ruta: app/[locale]/reset-password/page.tsx */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Indicador de Fortaleza de Contraseña: Integrar un componente visual que dé feedback en tiempo real sobre la fortaleza de la nueva contraseña (débil, media, fuerte) a medida que el usuario escribe. Esto se puede lograr con una librería como `zxcvbn` y ayuda a los usuarios a crear contraseñas más seguras.
+ * 2. Prevención de Reutilización de Contraseña: Para una seguridad de nivel empresarial, la lógica de actualización podría ser migrada a una Server Action. Esta acción podría consultar un hash de las contraseñas anteriores del usuario (si se guardan de forma segura) para prevenir que reutilicen una contraseña reciente, una práctica de seguridad recomendada.
+ * 3. Manejo de Token Expirado/Inválido: El mensaje de error actual de Supabase puede ser técnico. La lógica podría interceptar específicamente los errores de token inválido y mostrar un mensaje más amigable como: "Este enlace de restablecimiento ha expirado o ya ha sido utilizado. Por favor, solicita uno nuevo.", con un enlace conveniente para reiniciar el proceso.
+ */
 /* MEJORAS PROPUESTAS
  * 1. **Indicador de Fortaleza de Contraseña:** Integrar un componente visual que dé feedback en tiempo real sobre la fortaleza de la nueva contraseña (débil, media, fuerte) a medida que el usuario escribe, basándose en criterios como longitud, uso de mayúsculas, números y símbolos.
  * 2. **Migración a Server Action:** Para alinear este formulario con las mejores prácticas del proyecto, la lógica de `handleSubmit` debería ser migrada a una Server Action. Esto eliminaría la necesidad de `useEffect` y `useTransition` en el cliente, simplificando el componente y mejorando la seguridad.

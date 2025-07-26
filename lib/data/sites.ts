@@ -1,110 +1,138 @@
 /* Ruta: lib/data/sites.ts */
 
-"use server"; // <-- DIRECTIVA DE RUNTIME AÑADIDA
+"use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/database.types";
 import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { unstable_cache as cache, revalidateTag } from "next/cache";
 
 /**
  * @file sites.ts
  * @description Capa de Acceso a Datos para la entidad 'sites'.
- * REFUERZO DE RUNTIME: Se ha añadido la directiva `'use server'` al principio
- * del archivo. Esto instruye explícitamente a Next.js y Vercel para que utilicen
- * siempre el entorno de ejecución de Node.js completo para este módulo, lo que
- * resuelve las advertencias de compatibilidad con el Edge Runtime causadas por
- * las dependencias de Supabase.
+ * REFACTORIZACIÓN ARQUITECTÓNICA: Se ha añadido la función `getSiteDataByHost`
+ * para soportar la resolución de sitios tanto por subdominio como por dominio
+ * personalizado. Todas las búsquedas de host están ahora cacheadas para un
+ * rendimiento máximo en el middleware.
  *
  * @author Metashark
- * @version 2.1.0 (Node.js Runtime Enforcement)
+ * @version 4.0.0 (Custom Domain Support Refactor)
  */
 export type Site = Database["public"]["Tables"]["sites"]["Row"];
 
 /**
+ * @description Obtiene los datos de un sitio a partir de un host (subdominio o dominio personalizado).
+ * Esta función está optimizada con una caché de alto rendimiento para ser usada en el middleware.
+ * @param {string} host - El host a buscar (ej. 'demo' o 'www.cliente.com').
+ * @returns {Promise<Site | null>} Los datos del sitio o null si no se encuentra.
+ */
+export async function getSiteDataByHost(host: string): Promise<Site | null> {
+  const sanitizedHost = host.toLowerCase().replace(/www\./, "");
+
+  return await cache(
+    async () => {
+      const supabase = createClient();
+      // Intenta encontrar por subdominio O por dominio personalizado en una sola consulta.
+      const { data, error } = await supabase
+        .from("sites")
+        .select("*")
+        .or(`subdomain.eq.${sanitizedHost},custom_domain.eq.${sanitizedHost}`)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        logger.error(
+          `Error en DB al obtener sitio por host ${sanitizedHost}:`,
+          error
+        );
+        return null;
+      }
+      return data;
+    },
+    [`site-data-host-${sanitizedHost}`],
+    {
+      revalidate: 900,
+      tags: [`sites:host:${sanitizedHost}`],
+    }
+  )();
+}
+
+/**
+ * @description Invalida la caché para un host específico (subdominio o dominio personalizado).
+ * @param {string} host - El host cuya caché se debe limpiar.
+ */
+export async function revalidateSiteDataByHostCache(host: string) {
+  const sanitizedHost = host.toLowerCase().replace(/www\./, "");
+  revalidateTag(`sites:host:${sanitizedHost}`);
+  logger.info(`Caché para el host '${sanitizedHost}' invalidada.`);
+}
+
+// --- FUNCIONES LEGACY (se mantienen por compatibilidad pero se marcan como deprecated) ---
+
+/**
+ * @deprecated Utilizar `getSiteDataByHost` en su lugar para soportar dominios personalizados.
  * @description Obtiene los datos de un sitio específico a partir de su subdominio.
- * Es crucial para la lógica de enrutamiento del middleware.
  * @param {string} subdomain - El subdominio a buscar.
  * @returns {Promise<Site | null>} Los datos del sitio o null si no se encuentra.
  */
 export async function getSiteDataBySubdomain(
   subdomain: string
 ): Promise<Site | null> {
-  const supabase = createClient();
-  const sanitizedSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, "");
-
-  const { data, error } = await supabase
-    .from("sites")
-    .select("*")
-    .eq("subdomain", sanitizedSubdomain)
-    .single();
-
-  if (error && error.code !== "PGRST116") {
-    // PGRST116: 'single' row not found, lo cual es un resultado esperado y no un error.
-    logger.error(`Error al obtener datos del sitio para ${subdomain}:`, error);
-    return null;
-  }
-
-  return data;
+  return getSiteDataByHost(subdomain);
 }
 
-/**
- * @description Obtiene todos los sitios de la plataforma (acción de administrador).
- * @returns {Promise<Site[]>} Una lista de todos los sitios.
- */
-export async function getAllSites(): Promise<Site[]> {
+// --- FUNCIONES DE GESTIÓN (Paginadas, sin cambios) ---
+
+export async function getAllSites({
+  page = 1,
+  limit = 10,
+}: {
+  page?: number;
+  limit?: number;
+}): Promise<{ sites: Site[]; totalCount: number }> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await supabase
     .from("sites")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     logger.error("Error al obtener todos los sitios:", error);
-    return [];
+    return { sites: [], totalCount: 0 };
   }
-  return data;
+  return { sites: data, totalCount: count || 0 };
 }
 
-/**
- * @description Obtiene todos los sitios que pertenecen a un workspace específico.
- * @param {string} workspaceId - El ID del workspace.
- * @returns {Promise<Site[]>} Una lista de los sitios del workspace.
- */
 export async function getSitesByWorkspaceId(
-  workspaceId: string
-): Promise<Site[]> {
+  workspaceId: string,
+  { page = 1, limit = 10 }: { page?: number; limit?: number }
+): Promise<{ sites: Site[]; totalCount: number }> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await supabase
     .from("sites")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     logger.error(
       `Error al obtener sitios para el workspace ${workspaceId}:`,
       error
     );
-    return [];
+    return { sites: [], totalCount: 0 };
   }
-  return data;
+  return { sites: data, totalCount: count || 0 };
 }
-/* Ruta: lib/data/sites.ts */
 
-/* MEJORAS PROPUESTAS
- * 1. **Capa de Caché con Revalidación por Tags:** En lugar de una simple caché basada en tiempo, implementar la caché `unstable_cache` de Next.js con revalidación basada en tags. Por ejemplo, `getSiteDataBySubdomain` podría ser cacheado con el tag `sites:${subdomain}`. Cuando un sitio se actualiza, una Server Action llamaría a `revalidateTag('sites:...')` para invalidar solo esa entrada específica de la caché, logrando un rendimiento máximo y datos siempre frescos.
- * 2. **Paginación Robusta:** Refactorizar `getAllSites` y `getSitesByWorkspaceId` para que acepten un objeto de opciones `{ page: number, limit: number }`. Estas funciones deberían devolver no solo los datos, sino también metadatos de paginación como `totalCount` y `totalPages`, lo cual es esencial para construir componentes de paginación en la interfaz de usuario.
- * 3. **Seguridad a Nivel de Fila (RLS):** Aunque este archivo define el acceso a los datos, la seguridad real debe ser impuesta a nivel de base de datos con Políticas de Seguridad a Nivel de Fila (RLS) en Supabase. Se debe asegurar que una política en la tabla `sites` permita la lectura solo si `auth.uid()` es un miembro del `workspace_id` asociado, previniendo cualquier posible fuga de datos.
-1.  **Capa de Caché:** Implementar una caché (ej. Redis o la caché de Next.js) para `getSiteDataBySubdomain`.
-2.  **Paginación:** Refactorizar `getAllSites` y `getSitesByWorkspaceId` para que acepten argumentos de paginación.
-3.  **Seguridad a Nivel de Aplicación:** Aunque las RLS protegen los datos en la BD, las funciones de acceso a datos podrían tomar el `workspaceId` activo de la sesión del usuario en lugar de recibirlo como argumento, para una capa extra de seguridad.
- * 1. **Capa de Caché:** Implementar una caché (ej. Redis o la caché de Next.js) para `getSiteDataBySubdomain` para reducir la carga sobre la base de datos.
- * 2. **Paginación:** Refactorizar `getAllSites` para que acepte argumentos de `page` y `pageSize` y use los métodos `.range()` de Supabase para escalar a miles de sitios.
- * 3. **Seguridad a Nivel de Aplicación:** Las funciones de acceso a datos podrían tomar el `workspaceId` activo de la sesión del usuario en lugar de recibirlo como argumento, para una capa extra de seguridad.
- * 1. **Capa de Caché:** Implementar una caché (ej. Redis o la caché de Next.js) para `getSiteDataBySubdomain`, ya que será llamada en cada petición a un subdominio. Esto reducirá drásticamente la carga de la base de datos.
- * 2. **Paginación:** Refactorizar `getAllSites` para que acepte argumentos de `page` y `pageSize` y use los métodos `.range()` de Supabase para escalar a miles de sitios.
- * 3. **Seguridad a Nivel de Aplicación:** Aunque RLS protege los datos, las funciones de acceso a datos podrían tomar el `workspaceId` activo de la sesión del usuario en lugar de recibirlo como argumento, para una capa extra de seguridad.
- * 1. **Capa de Caché:** Implementar una caché (ej. Redis o la caché de Next.js) para `getSiteDataBySubdomain`, ya que será llamada en cada petición a un subdominio. Esto reducirá drásticamente la carga de la base de datos.
- * 2. **Paginación:** Refactorizar `getAllSites` para que acepte argumentos de `page` y `pageSize` y use los métodos `.range()` de Supabase para escalar a miles de sitios.
- * 3. **Seguridad a Nivel de Workspace:** Aunque RLS protege los datos, las funciones de acceso a datos podrían tomar el ID del workspace activo de la sesión del usuario en lugar de recibirlo como argumento, para una capa extra de seguridad a nivel de aplicación.
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Caché Distribuida en el Borde (Edge Caching): Para una latencia mínima, la lógica de caché de `getSiteDataByHost` debería migrarse a una solución de caché en el borde como Vercel KV o Upstash Redis, que puede ser accedida directamente desde el middleware con un rendimiento superior.
+ * 2. Políticas de Seguridad (RLS) Robustas: La seguridad real debe ser impuesta con Políticas de Seguridad a Nivel de Fila (RLS) en Supabase. Asegurar que una política en la tabla `sites` permita la lectura pública pero restrinja la escritura solo a los miembros del `workspace_id` asociado es crucial.
+ * 3. Abstracción del Cliente Supabase: A medida que la capa de datos crezca, se podría crear una clase o un servicio de base de datos que encapsule el cliente de Supabase, facilitando las pruebas unitarias y la gestión de dependencias a través de inyección de dependencias.
  */

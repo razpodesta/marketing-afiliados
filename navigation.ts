@@ -32,8 +32,10 @@ export const pathnames = {
 
 export const { Link, redirect, usePathname, useRouter } =
   createLocalizedPathnamesNavigation({ locales, localePrefix, pathnames });
-/* Ruta: navigation.ts */
-/*
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Localización Completa de URLs: El siguiente paso natural es utilizar plenamente la capacidad de `pathnames` para traducir las URLs. Por ejemplo: `"/login": { "en-US": "/login", "es-ES": "/iniciar-sesion", "pt-BR": "/entrar" }`. Esto mejora significativamente la experiencia del usuario y el SEO en mercados internacionales.
+ * 2. Tipado Seguro de Rutas (Type-Safe Routing): Para proyectos de gran escala, se podría implementar una solución de enrutamiento con seguridad de tipos (type-safe routing). Esto generaría tipos para todas las rutas válidas de la aplicación, permitiendo que el compilador de TypeScript detecte errores en los `href` de los componentes `<Link>` durante el desarrollo, previniendo enlaces rotos en producción.
+ * 3. Manejo de Rutas Dinámicas: A medida que se añadan más rutas con segmentos dinámicos (ej. `/dashboard/sites/[siteId]`), esta configuración se puede expandir para manejar la localización de esas rutas también, asegurando una experiencia internacionalizada consistente en toda la aplicación.
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Pathnames Localizados:** Para un SEO óptimo, se podrían traducir las rutas en este archivo.
  *    Ejemplo: `/login`: { `en-US`: `/login`, `es-ES`: `/iniciar-sesion`, `pt-BR`: `/entrar` }.
