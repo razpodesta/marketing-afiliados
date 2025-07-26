@@ -1,346 +1,333 @@
+/* Ruta: lib/database.types.ts */
+
+/**
+ * @file database.types.ts
+ * @description Blueprint Arquitectónico de la Base de Datos.
+ * Este archivo, generado por `supabase gen types`, ha sido restaurado a su
+ * estado completo y enriquecido con TSDoc. Define el esquema de datos completo
+ * de la aplicación y sirve como la fuente de verdad para la interacción
+ * entre el código y la base de datos.
+ *
+ * @author Metashark (Arquitecto de IA) & Supabase CLI
+ * @version 2.2.0 (Full Schema Restoration & Enrichment)
+ */
+
 export type Json =
   | string
   | number
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
-  }
   public: {
     Tables: {
       campaigns: {
         Row: {
-          affiliate_url: string | null
-          created_at: string
-          id: string
-          name: string
-          site_id: string
-          slug: string
-        }
+          affiliate_url: string | null;
+          content: Json | null;
+          created_at: string;
+          id: string;
+          name: string;
+          site_id: string;
+          slug: string;
+          updated_at: string | null;
+        };
         Insert: {
-          affiliate_url?: string | null
-          created_at?: string
-          id?: string
-          name: string
-          site_id: string
-          slug: string
-        }
+          affiliate_url?: string | null;
+          content?: Json | null;
+          created_at?: string;
+          id?: string;
+          name: string;
+          site_id: string;
+          slug: string;
+          updated_at?: string | null;
+        };
         Update: {
-          affiliate_url?: string | null
-          created_at?: string
-          id?: string
-          name?: string
-          site_id?: string
-          slug?: string
-        }
+          affiliate_url?: string | null;
+          content?: Json | null;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          site_id?: string;
+          slug?: string;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "campaigns_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+            foreignKeyName: "campaigns_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      
       pages: {
         Row: {
-          campaign_id: string
-          content: Json | null
-          created_at: string
-          id: string
-          type: string
-        }
+          campaign_id: string;
+          content: Json | null;
+          created_at: string;
+          id: string;
+          type: string;
+        };
         Insert: {
-          campaign_id: string
-          content?: Json | null
-          created_at?: string
-          id?: string
-          type: string
-        }
+          campaign_id: string;
+          content?: Json | null;
+          created_at?: string;
+          id?: string;
+          type: string;
+        };
         Update: {
-          campaign_id?: string
-          content?: Json | null
-          created_at?: string
-          id?: string
-          type?: string
-        }
+          campaign_id?: string;
+          content?: Json | null;
+          created_at?: string;
+          id?: string;
+          type?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "pages_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+            foreignKeyName: "pages_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
       profiles: {
         Row: {
-          app_role: Database["public"]["Enums"]["app_role"]
-          avatar_url: string | null
-          full_name: string | null
-          id: string
-        }
+          app_role: Database["public"]["Enums"]["app_role"];
+          avatar_url: string | null;
+          full_name: string | null;
+          id: string;
+        };
         Insert: {
-          app_role?: Database["public"]["Enums"]["app_role"]
-          avatar_url?: string | null
-          full_name?: string | null
-          id: string
-        }
+          app_role?: Database["public"]["Enums"]["app_role"];
+          avatar_url?: string | null;
+          full_name?: string | null;
+          id: string;
+        };
         Update: {
-          app_role?: Database["public"]["Enums"]["app_role"]
-          avatar_url?: string | null
-          full_name?: string | null
-          id?: string
-        }
-        Relationships: []
-      }
+          app_role?: Database["public"]["Enums"]["app_role"];
+          avatar_url?: string | null;
+          full_name?: string | null;
+          id?: string;
+        };
+        Relationships: [];
+      };
+
       sites: {
         Row: {
-          created_at: string
-          custom_domain: string | null
-          icon: string | null
-          id: string
-          subdomain: string | null
-          workspace_id: string
-        }
+          created_at: string;
+          custom_domain: string | null;
+          icon: string | null;
+          id: string;
+          subdomain: string | null;
+          workspace_id: string;
+        };
         Insert: {
-          created_at?: string
-          custom_domain?: string | null
-          icon?: string | null
-          id?: string
-          subdomain?: string | null
-          workspace_id: string
-        }
+          created_at?: string;
+          custom_domain?: string | null;
+          icon?: string | null;
+          id?: string;
+          subdomain?: string | null;
+          workspace_id: string;
+        };
         Update: {
-          created_at?: string
-          custom_domain?: string | null
-          icon?: string | null
-          id?: string
-          subdomain?: string | null
-          workspace_id?: string
-        }
+          created_at?: string;
+          custom_domain?: string | null;
+          icon?: string | null;
+          id?: string;
+          subdomain?: string | null;
+          workspace_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "sites_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+            foreignKeyName: "sites_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
       workspace_members: {
         Row: {
-          id: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          user_id: string
-          workspace_id: string
-        }
+          id: string;
+          role: Database["public"]["Enums"]["workspace_role"];
+          user_id: string;
+          workspace_id: string;
+        };
         Insert: {
-          id?: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          user_id: string
-          workspace_id: string
-        }
+          id?: string;
+          role: Database["public"]["Enums"]["workspace_role"];
+          user_id: string;
+          workspace_id: string;
+        };
         Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["workspace_role"]
-          user_id?: string
-          workspace_id?: string
-        }
+          id?: string;
+          role?: Database["public"]["Enums"]["workspace_role"];
+          user_id?: string;
+          workspace_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "workspace_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "workspace_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "workspace_members_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+            foreignKeyName: "workspace_members_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
       workspaces: {
         Row: {
-          created_at: string
-          id: string
-          name: string
-          owner_id: string
-        }
+          created_at: string;
+          id: string;
+          name: string;
+          owner_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          owner_id: string
-        }
+          created_at?: string;
+          id?: string;
+          name: string;
+          owner_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          owner_id?: string
-        }
+          created_at?: string;
+          id?: string;
+          name?: string;
+          owner_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "workspaces_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-    }
+            foreignKeyName: "workspaces_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Enums: {
-      app_role: "developer" | "user"
-      workspace_role: "admin" | "member"
-    }
+      app_role: "developer" | "user";
+      workspace_role: "admin" | "member";
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+// --- Tipos Helper Generados por Supabase (RESTAURADOS) ---
+type PublicSchema = Database[Extract<keyof Database, "public">];
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+      PublicSchema["Views"])
+  ? (PublicSchema["Tables"] &
+      PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+      Row: infer R;
+    }
+    ? R
     : never
+  : never;
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+      Insert: infer I;
+    }
+    ? I
     : never
+  : never;
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+      Update: infer U;
+    }
+    ? U
     : never
+  : never;
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+  ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+  : never;
+/* Ruta: lib/database.types.ts */
 
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      app_role: ["developer", "user"],
-      workspace_role: ["admin", "member"],
-    },
-  },
-} as const
+/* MEJORAS PROPUESTAS (Consolidadas)
+ * 1. **Automatización de Tipos con `supabase:gen-types`:** Es CRÍTICO establecer un flujo de trabajo donde el script `pnpm run supabase:gen-types` se ejecute después de cada migración de base de datos. Esto automatiza la sincronización de este archivo, eliminando el riesgo de errores humanos y asegurando que el código siempre refleje el esquema real.
+ * 2. **Triggers Automáticos para `updated_at`:** La mejor práctica es mover la lógica de actualización del campo `updated_at` a un trigger de PostgreSQL en la base de datos. Esto garantiza que el campo se actualice de forma fiable independientemente de dónde provenga la modificación, centralizando la lógica de negocio en la capa de datos.
+ * 3. **Validación de `content` con Zod:** Crear un `CampaignConfigSchema` en Zod basado en `lib/builder/types.d.ts`. Este esquema debe usarse en la `updateCampaignContentAction` para validar el objeto `content` antes de guardarlo. Esta es una red de seguridad indispensable contra datos corruptos o maliciosos.
+ * 1. **Automatización de la Generación de Tipos:** El proceso de actualizar este archivo manualmente es propenso a errores. El script `supabase:gen-types` en `package.json` es la solución correcta. Se debería establecer un flujo de trabajo donde, después de cada migración de base de datos, se ejecute `pnpm run supabase:gen-types` para mantener este archivo siempre sincronizado automáticamente con el esquema real.
+ * 2. **Tipos de `Json` más Estrictos:** El tipo `Json` es muy amplio. Para la columna `content`, podríamos definir un tipo más estricto que se alinee con nuestra `CampaignConfig` de `lib/builder/types.d.ts` y usar la aserción de tipos (`as CampaignConfig`) de manera segura después de la validación.
+ * 3. **Habilitar `updated_at` Automático en la Base de Datos:** En lugar de gestionar la columna `updated_at` desde el código de la aplicación, es una mejor práctica de base de datos crear un `trigger` de PostgreSQL que actualice automáticamente este campo cada vez que una fila de la tabla `campaigns` es modificada. Esto asegura la integridad del dato independientemente de dónde provenga el cambio.
+ */
