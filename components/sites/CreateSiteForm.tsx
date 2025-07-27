@@ -1,4 +1,4 @@
-// Ruta: components/sites/CreateSiteForm.tsx
+/* Ruta: components/sites/CreateSiteForm.tsx */
 
 "use client";
 
@@ -15,17 +15,19 @@ import {
 import { rootDomain } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 
 /**
  * @file CreateSiteForm.tsx
  * @description Componente de cliente para crear un nuevo sitio (subdominio).
- * OPTIMIZADO: Se ha refactorizado para utilizar el hook `useActionState` de React 19,
- * lo que simplifica enormemente el manejo de estado pendiente, errores y éxito.
+ * CORRECCIÓN DE BUILD: Se ha revertido el uso de los hooks experimentales
+ * `useActionState` y `useFormStatus` a un patrón más estable con `useState` y
+ * `useTransition`. Esto resuelve el error de compilación fatal durante el
+ * despliegue en Vercel, garantizando la compatibilidad.
  *
  * @author Metashark
- * @version 4.0.0 (React 19 useActionState Refactor)
+ * @version 4.1.0 (Build Compatibility Fix)
  */
 
 function SubdomainInput({ defaultValue }: { defaultValue?: string }) {
@@ -83,25 +85,23 @@ function IconPicker({ defaultValue }: { defaultValue?: string }) {
 
 export function CreateSiteForm() {
   const t = useTranslations("SubdomainForm");
-  const initialState: CreateSiteFormState = {};
+  const [state, setState] = useState<CreateSiteFormState>({});
+  const [isPending, startTransition] = useTransition();
 
-  const [state, formAction, isPending] = useActionState(
-    createSiteAction,
-    initialState
-  );
-
-  useEffect(() => {
-    if (state.success) {
-      toast.success("¡Sitio creado exitosamente!");
-      // El reseteo del formulario se puede manejar aquí si es necesario,
-      // o dejar que el componente se desmonte/remonte tras la revalidación.
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state]);
+  const handleSubmit = (formData: FormData) => {
+    startTransition(async () => {
+      const result = await createSiteAction({}, formData);
+      setState(result);
+      if (result.success) {
+        toast.success("¡Sitio creado exitosamente!");
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    });
+  };
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={handleSubmit} className="space-y-4">
       <SubdomainInput defaultValue={state?.subdomain} />
       <IconPicker defaultValue={state?.icon} />
       {state?.error && (
@@ -117,6 +117,11 @@ export function CreateSiteForm() {
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Validación en Tiempo Real: Implementar validación del lado del cliente con `Zod` y `react-hook-form` para dar feedback instantáneo (ej. "el subdominio es muy corto") sin esperar la respuesta del servidor.
+ * 2. Comprobación de Disponibilidad Asíncrona: Añadir un "debounce" en el campo de subdominio que, tras una pausa en la escritura del usuario, llame a una `Server Action` `checkSubdomainAvailability` para verificar si el nombre está disponible, mostrando un tick verde o una cruz roja.
+ * 3. Reset del Formulario Post-Éxito: Después de una creación exitosa, el formulario podría resetearse. Esto se puede lograr asignando una `key` al formulario que cambie cuando la creación sea exitosa, forzando un re-renderizado del componente con su estado inicial.
+ */
 /*
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Reset de Formulario Post-Éxito:** Investigar el mejor patrón para resetear el formulario

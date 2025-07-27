@@ -1,79 +1,82 @@
 // scripts/check-db-connection.ts
-/**
- * @file Script de Verificación de Base de Datos
- * @description Este script realiza una prueba de conexión básica a Supabase
- * y verifica si puede leer datos de la tabla 'profiles'. Es una herramienta de
- * diagnóstico para asegurar que las variables de entorno y la conexión a la BD
- * están configuradas correctamente.
- */
+
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 // Cargar variables de entorno desde .env.local
 dotenv.config({ path: ".env.local" });
 
+/**
+ * @file Script de Verificación de Base de Datos (Mejorado)
+ * @description Realiza una prueba de conexión a Supabase y verifica la
+ * existencia y contenido de tablas cruciales como `profiles` y `workspaces`.
+ *
+ * @author Code-Pilot Pro
+ * @version 2.0.0
+ */
 async function main() {
   console.log("🚀 Iniciando script de verificación de base de datos...");
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (
-    !supabaseUrl ||
-    !supabaseServiceKey ||
-    supabaseServiceKey === "tu_clave_secreta_de_servicio_de_supabase"
-  ) {
+  if (!supabaseUrl || !supabaseServiceKey) {
     console.error(
-      "❌ ERROR: Las variables de entorno de Supabase no están configuradas correctamente en .env.local."
-    );
-    console.log(
-      "   Asegúrate de que NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY tengan valores reales."
+      "❌ ERROR: Las variables de entorno de Supabase no están configuradas correctamente."
     );
     return;
   }
-
   console.log("   - Variables de entorno cargadas.");
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  console.log("   - Cliente de Supabase creado.");
+  console.log("   - Cliente de Supabase creado con Service Role Key.");
 
   try {
-    const { data: profiles, error } = await supabase
+    // 1. Verificar la tabla 'profiles'
+    console.log("\n--- Verificando tabla 'profiles' ---");
+    const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, full_name, app_role")
       .limit(5);
 
-    if (error) {
+    if (profilesError) {
       console.error(
         "❌ ERROR al consultar la tabla 'profiles':",
-        error.message
+        profilesError.message
       );
-      console.log("   Posibles causas:");
-      console.log(
-        "   1. La clave de servicio (SUPABASE_SERVICE_ROLE_KEY) es incorrecta."
-      );
-      console.log(
-        "   2. La tabla 'profiles' no existe o tiene un nombre diferente."
-      );
-      console.log(
-        "   3. Las políticas de Row Level Security (RLS) están bloqueando el acceso (aunque la clave de servicio debería saltárselas)."
-      );
-      return;
-    }
-
-    console.log("✅ ¡Conexión a la base de datos exitosa!");
-    console.log(
-      `   - Se encontraron ${profiles.length} perfiles en la base de datos.`
-    );
-
-    if (profiles.length > 0) {
-      console.log("   - Mostrando algunos perfiles encontrados:");
-      console.table(profiles);
     } else {
-      console.log(
-        "   - La tabla 'profiles' está vacía. ¡Esto es normal si aún no has registrado usuarios!"
-      );
+      console.log("✅ Consulta a 'profiles' exitosa.");
+      if (profiles.length > 0) {
+        console.table(profiles);
+      } else {
+        console.log(
+          "   - La tabla 'profiles' está vacía. Esto es normal si no hay usuarios registrados."
+        );
+      }
     }
+
+    // 2. Verificar la tabla 'workspaces'
+    console.log("\n--- Verificando tabla 'workspaces' ---");
+    const { data: workspaces, error: workspacesError } = await supabase
+      .from("workspaces")
+      .select("id, name, owner_id")
+      .limit(5);
+
+    if (workspacesError) {
+      console.error(
+        "❌ ERROR al consultar la tabla 'workspaces':",
+        workspacesError.message
+      );
+    } else {
+      console.log("✅ Consulta a 'workspaces' exitosa.");
+      if (workspaces.length > 0) {
+        console.table(workspaces);
+      } else {
+        console.log("   - La tabla 'workspaces' está vacía.");
+      }
+    }
+
+    console.log("\nVerificación de base de datos completada.");
   } catch (e) {
     console.error("❌ Ocurrió un error inesperado durante la conexión:", e);
   }
