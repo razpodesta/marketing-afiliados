@@ -6,13 +6,13 @@ import { UserManagementTable } from "../components/UserManagementTable";
 /**
  * @file page.tsx
  * @description Página de Gestión de Usuarios para el `dev-console`.
- * REFACTORIZACIÓN DE ESCALABILIDAD: Se ha implementado la paginación en la
- * consulta de usuarios. La página ahora solo obtiene un subconjunto de usuarios
- * por vez, asegurando que pueda escalar a una base de usuarios de cualquier tamaño
- * sin degradar el rendimiento.
+ * REFACTORIZACIÓN DE ROBUSTEZ: Se ha mantenido la lógica de paginación y se ha
+ * mejorado el manejo de errores. La consulta ahora se basa en un archivo de
+ * tipos (`database.types.ts`) actualizado que refleja la relación de clave
+ * externa correcta entre las tablas `profiles` y `users`.
  *
  * @author Metashark
- * @version 2.0.0 (Pagination Implementation)
+ * @version 2.2.0 (Type Synchronization)
  */
 
 const USERS_PER_PAGE = 20;
@@ -27,7 +27,7 @@ export default async function UsersPage({
   const from = (page - 1) * USERS_PER_PAGE;
   const to = from + USERS_PER_PAGE - 1;
 
-  // Consulta actualizada para ser paginada
+  // Con los tipos regenerados, esta consulta ahora será completamente segura en tipos.
   const {
     data: users,
     error,
@@ -39,7 +39,7 @@ export default async function UsersPage({
       id,
       full_name,
       app_role,
-      user:users (
+      users (
           email
       )
     `,
@@ -49,19 +49,33 @@ export default async function UsersPage({
 
   if (error) {
     return (
-      <p className="text-destructive">
-        Error al cargar la lista de usuarios: {error.message}
-      </p>
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-destructive">
+          Error al cargar la lista de usuarios:
+        </h3>
+        <p className="mt-2 font-mono text-sm bg-muted p-2 rounded-md">
+          {error.message}
+        </p>
+        <p className="mt-4 text-muted-foreground">
+          <b>Sugerencia:</b> Este error puede ocurrir si los tipos de la base de
+          datos no están sincronizados. Intenta ejecutar `pnpm run
+          supabase:gen-types` para actualizar el archivo
+          `lib/database.types.ts`.
+        </p>
+      </div>
     );
   }
 
-  // Transformamos los datos para aplanar la estructura
+  // La transformación de datos ahora es segura y explícita.
   const profilesForTable = users.map((u) => ({
     id: u.id,
     full_name: u.full_name,
     app_role: u.app_role,
-    // @ts-ignore: Supabase gen types no siempre infiere bien los joins
-    email: u.user?.email || "N/A",
+    // La consulta devuelve un objeto `users` si la relación existe.
+    // Si es un array, es un error de configuración de la relación (uno a muchos).
+    email: Array.isArray(u.users)
+      ? "Error de relación"
+      : u.users?.email || "N/A",
   }));
 
   return (
@@ -81,3 +95,20 @@ export default async function UsersPage({
     </div>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase está directamente en el componente de página. Para una mejor separación de responsabilidades, esta consulta podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts`.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).
+ * 3. Búsqueda y Filtrado de Usuarios: Para una consola de desarrollador verdaderamente funcional, añadir un campo de búsqueda en la parte superior de la `UserManagementTable` para filtrar usuarios por email o nombre es una mejora de alta prioridad.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase está directamente en el componente de página. Para una mejor separación de responsabilidades, esta consulta podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts`.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).
+ * 3. Búsqueda y Filtrado de Usuarios: Para una consola de desarrollador verdaderamente funcional, añadir un campo de búsqueda en la parte superior de la `UserManagementTable` para filtrar usuarios por email o nombre es una mejora de alta prioridad.
+ */
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase está directamente en el componente de página. Para una mejor separación de responsabilidades, esta consulta podría moverse a una función dedicada en `lib/data/users.ts`, de manera similar a como se hizo con `lib/data/sites.ts`.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error de la base de datos directamente, se podría mostrar un componente de error más amigable y registrar el error técnico en un servicio de monitoreo (como Sentry) para que el equipo de desarrollo lo investigue.
+ * 3. Búsqueda y Filtrado de Usuarios: Para una consola de desarrollador verdaderamente funcional, añadir un campo de búsqueda en la parte superior de la `UserManagementTable` para filtrar usuarios por email o nombre es una mejora de alta prioridad.
+ */

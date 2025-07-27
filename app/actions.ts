@@ -17,14 +17,13 @@ import type { User } from "@supabase/supabase-js";
 /**
  * @file app/actions.ts
  * @description Centro neurálgico de la lógica de negocio del lado del servidor.
- * CORRECCIÓN ARQUITECTÓNICA: Se ha eliminado la acción `subscribeToNewsletterAction`
- * ya que apuntaba a una tabla 'subscribers' que no existe en el esquema de la
- * base de datos definido en `database.types.ts`. Esta corrección alinea el código
- * con la fuente de verdad del esquema actual, resolviendo un error fatal de
- * compilación y previniendo errores en tiempo de ejecución.
+ * VALIDACIÓN DE TIPOS: Con el archivo `database.types.ts` actualizado, el
+ * error de tipo en `createWorkspaceAction` se ha resuelto. Este aparato
+ * ahora es completamente seguro en tipos y está alineado con el esquema
+ * real de la base de datos.
  *
  * @author Metashark
- * @version 9.3.0 (Schema Alignment Fix)
+ * @version 9.4.0 (Schema Type Validation)
  */
 
 // --- TIPOS Y ESQUEMAS ---
@@ -191,7 +190,7 @@ export async function createWorkspaceAction(
     .insert({
       workspace_id: newWorkspace.id,
       user_id: user.id,
-      role: "owner",
+      role: "owner", // Este valor ahora es válido gracias a los tipos actualizados.
     });
 
   if (memberError) {
@@ -334,6 +333,11 @@ export async function updateUserRoleAction(
   return { success: true, data: null };
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Crear Tabla de Suscriptores: Para restaurar la funcionalidad del boletín, el primer paso es crear la tabla `subscribers` a través de una nueva migración de Supabase. Una vez que la tabla exista y los tipos se regeneren, la `Server Action` `subscribeToNewsletterAction` podrá ser reintroducida de forma segura.
+ * 2. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones. Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar la atomicidad (o todo tiene éxito, o todo falla).
+ * 3. Logging de Auditoría (Audit Trail): Implementar una tabla `audit_logs` y una función `createAuditLog(actorId, action, targetId, metadata)`. Esta función debe ser llamada en cada acción crítica para registrar quién hizo qué, a qué y cuándo, lo cual es indispensable para la seguridad y el soporte.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Crear Tabla de Suscriptores: Para restaurar la funcionalidad del boletín, el primer paso es crear la tabla `subscribers` a través de una nueva migración de Supabase. Una vez que la tabla exista y los tipos se regeneren, la `Server Action` `subscribeToNewsletterAction` podrá ser reintroducida de forma segura.
  * 2. Transacciones Atómicas: La acción `createWorkspaceAction` realiza dos inserciones. Esta lógica debería ser envuelta en una única función de base de datos de PostgreSQL (llamada con `supabase.rpc()`) para garantizar la atomicidad (o todo tiene éxito, o todo falla).

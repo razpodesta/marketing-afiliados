@@ -3,20 +3,20 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { brandTheme } from "@/lib/supabase/auth-theme"; // <-- IMPORTACIÓN CLAVE
-import { rootDomain } from "@/lib/utils";
+import { brandTheme } from "@/lib/supabase/auth-theme";
 import { Auth } from "@supabase/auth-ui-react";
 import type { Provider } from "@supabase/supabase-js";
 
 /**
  * @file login-form.tsx
  * @description Componente de Cliente para el Formulario de Autenticación de Supabase.
- * REFACTORIZADO: Se ha eliminado la configuración de estilo en línea (`variables`) y
- * se ha reemplazado por la importación de un objeto de tema de marca centralizado
- * (`brandTheme`). Esto mejora drásticamente la mantenibilidad y la coherencia del diseño.
+ * REFACTORIZACIÓN DE ROBUSTEZ: Se ha modificado la construcción de la `redirectUrl`
+ * para que dependa de una única y canónica variable de entorno `NEXT_PUBLIC_SITE_URL`.
+ * Esto previene errores de redirección a `localhost` en entornos de producción
+ * y hace la configuración más explícita y segura.
  *
  * @author Metashark
- * @version 4.0.0 (Branded Theme Refactor)
+ * @version 5.0.0 (Canonical URL Refactor)
  */
 
 /**
@@ -26,8 +26,17 @@ import type { Provider } from "@supabase/supabase-js";
 function getOAuthProviders(): Provider[] {
   const providersEnv = process.env.NEXT_PUBLIC_OAUTH_PROVIDERS || "google";
   const validProviders: Provider[] = [
-    "google", "github", "azure", "bitbucket", "gitlab", "slack", "spotify",
-    "twitch", "twitter", "discord", "apple",
+    "google",
+    "github",
+    "azure",
+    "bitbucket",
+    "gitlab",
+    "slack",
+    "spotify",
+    "twitch",
+    "twitter",
+    "discord",
+    "apple",
   ];
 
   return providersEnv
@@ -38,15 +47,24 @@ function getOAuthProviders(): Provider[] {
 
 export function LoginForm({ localization }: { localization: any }) {
   const providers = getOAuthProviders();
-  const redirectUrl = `${
-    process.env.NEXT_PUBLIC_ROOT_URL || `http://${rootDomain}`
-  }/api/auth/callback`;
+
+  // CORRECCIÓN: La URL de redirección ahora se construye de forma segura.
+  // Es IMPERATIVO que la variable NEXT_PUBLIC_SITE_URL esté configurada en Vercel.
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!siteUrl) {
+    // Esto mostrará un error claro en la consola si la variable no está configurada.
+    console.error(
+      "FATAL: NEXT_PUBLIC_SITE_URL environment variable is not set."
+    );
+    // Opcionalmente, podrías renderizar un mensaje de error aquí.
+  }
+  const redirectUrl = siteUrl ? `${siteUrl}/api/auth/callback` : undefined;
 
   return (
     <Auth
       supabaseClient={createClient()}
-      appearance={{ theme: brandTheme }} // <-- USO DEL TEMA DE MARCA
-      theme="dark" // Base para que Supabase aplique nuestras variables oscuras
+      appearance={{ theme: brandTheme }}
+      theme="dark"
       providers={providers}
       redirectTo={redirectUrl}
       localization={localization}
@@ -54,6 +72,12 @@ export function LoginForm({ localization }: { localization: any }) {
     />
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=...`) utilizando `useSearchParams` y mostrar un componente `<Alert>` con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
+ * 2. Vista por Defecto Dinámica: Añadir una prop `defaultView` al componente para que la página contenedora decida si el formulario debe mostrar "Sign In" o "Sign Up" por defecto (ej. para rutas `/login` vs `/signup`).
+ * 3. Fallback de URL Grácil: En lugar de un `console.error`, se podría renderizar un estado de error en la UI si `NEXT_PUBLIC_SITE_URL` no está definida, informando al administrador del sitio de la mala configuración.
+ */
 /* Ruta: app/[locale]/login/login-form.tsx */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=confirmation-failed`) utilizando el hook `useSearchParams`. Si se detecta un error, podría mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback mucho más claro al usuario que una simple redirección.

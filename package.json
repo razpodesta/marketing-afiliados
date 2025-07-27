@@ -6,7 +6,7 @@
     "postbuild": "node scripts/generate-routes-manifest.mjs",
     "start": "next start",
     "test:db": "tsx scripts/check-db-connection.ts",
-    "supabase:gen-types": "supabase gen types typescript --project-id \"zntxtfebxfilambirjjp\" > lib/database.types.ts"
+    "supabase:gen-types": "supabase gen types typescript --project-id \"tgvutsbkqzxszfzkmrec\" > lib/database.types.ts"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.10.0",

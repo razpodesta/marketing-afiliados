@@ -15,19 +15,20 @@ import {
 import { rootDomain } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
 /**
  * @file CreateSiteForm.tsx
  * @description Componente de cliente para crear un nuevo sitio (subdominio).
- * CORRECCIÓN DE BUILD: Se ha revertido el uso de los hooks experimentales
- * `useActionState` y `useFormStatus` a un patrón más estable con `useState` y
- * `useTransition`. Esto resuelve el error de compilación fatal durante el
- * despliegue en Vercel, garantizando la compatibilidad.
+ * REFACTORIZACIÓN A REACT 19: Se ha refactorizado para utilizar los hooks
+ * `useFormState` y `useFormStatus`. Esto simplifica enormemente el manejo de
+ * estado pendiente, errores y éxito, alineándose con las mejores prácticas
+ * modernas de React y Next.js.
  *
  * @author Metashark
- * @version 4.1.0 (Build Compatibility Fix)
+ * @version 5.0.0 (React 19 Hooks Refactor)
  */
 
 function SubdomainInput({ defaultValue }: { defaultValue?: string }) {
@@ -83,25 +84,33 @@ function IconPicker({ defaultValue }: { defaultValue?: string }) {
   );
 }
 
-export function CreateSiteForm() {
+function SubmitButton() {
   const t = useTranslations("SubdomainForm");
-  const [state, setState] = useState<CreateSiteFormState>({});
-  const [isPending, startTransition] = useTransition();
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? t("creatingButton") : t("createButton")}
+    </Button>
+  );
+}
 
-  const handleSubmit = (formData: FormData) => {
-    startTransition(async () => {
-      const result = await createSiteAction({}, formData);
-      setState(result);
-      if (result.success) {
-        toast.success("¡Sitio creado exitosamente!");
-      } else if (result.error) {
-        toast.error(result.error);
-      }
-    });
-  };
+export function CreateSiteForm() {
+  const initialState: CreateSiteFormState = {};
+  const [state, formAction] = useFormState(createSiteAction, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success("¡Sitio creado exitosamente!");
+      formRef.current?.reset(); // Resetea el formulario en caso de éxito.
+    } else if (state.error) {
+      toast.error(state.error);
+    }
+  }, [state]);
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form ref={formRef} action={formAction} className="space-y-4">
       <SubdomainInput defaultValue={state?.subdomain} />
       <IconPicker defaultValue={state?.icon} />
       {state?.error && (
@@ -109,14 +118,16 @@ export function CreateSiteForm() {
           {state.error}
         </p>
       )}
-      <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {isPending ? t("creatingButton") : t("createButton")}
-      </Button>
+      <SubmitButton />
     </form>
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Validación en Tiempo Real: Implementar validación del lado del cliente con `Zod` y `react-hook-form` para dar feedback instantáneo (ej. "el subdominio es muy corto") sin esperar la respuesta del servidor.
+ * 2. Comprobación de Disponibilidad Asíncrona: Añadir un "debounce" en el campo de subdominio que, tras una pausa en la escritura del usuario, llame a una `Server Action` `checkSubdomainAvailability` para verificar si el nombre está disponible, mostrando un tick verde o una cruz roja.
+ * 3. Cierre del Modal al Crear: El formulario se usa dentro de un modal (`Dialog`). La prop `onSuccess` que existía en el `CreateWorkspaceForm` debería añadirse aquí para que, en caso de éxito, se pueda cerrar el modal desde el componente padre (`sites-client.tsx`).
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Validación en Tiempo Real: Implementar validación del lado del cliente con `Zod` y `react-hook-form` para dar feedback instantáneo (ej. "el subdominio es muy corto") sin esperar la respuesta del servidor.
  * 2. Comprobación de Disponibilidad Asíncrona: Añadir un "debounce" en el campo de subdominio que, tras una pausa en la escritura del usuario, llame a una `Server Action` `checkSubdomainAvailability` para verificar si el nombre está disponible, mostrando un tick verde o una cruz roja.

@@ -1,3 +1,25 @@
+Functions 22
+
+/[locale]
+/[locale]/admin
+/[locale]/auth-notice
+/[locale]/builder/[campaignId]
+/[locale]/dashboard
+/[locale]/dashboard/settings
+/[locale]/dashboard/sites
+/[locale]/dashboard/sites/[siteId]/campaigns
+/[locale]/dev-console
+/[locale]/dev-console/campaigns
+/[locale]/dev-console/logs
+/[locale]/dev-console/users
+/[locale]/forgot-password
+/[locale]/lia-chat
+/[locale]/login
+/[locale]/reset-password
+
+
+
+
 # Manifiesto de Rutas de la Aplicación - Metashark
 
 Este documento describe la estructura de enrutamiento y los niveles de acceso para todas las páginas clave de la plataforma Metashark. Sirve como una referencia rápida para el equipo de desarrollo.
