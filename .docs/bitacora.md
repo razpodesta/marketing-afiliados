@@ -11,20 +11,17 @@ Se ha completado la primera fase de refactorización del proyecto "Metashark" pa
 ### Detalles Técnicos
 
 1.  **Migración de Base de Datos:**
-
     - Se eliminó la dependencia de Upstash Redis.
     - Se definió un nuevo esquema de base de datos SQL para Supabase, creando las tablas `profiles` y `tenants`.
     - Se implementó Row Level Security (RLS) en ambas tablas para garantizar la privacidad y el aislamiento de los datos del tenant.
     - Se crearon clientes de Supabase para el servidor (`server.ts`) y se generaron los tipos de la base de datos para seguridad en TypeScript.
 
 2.  **Sistema de Autenticación y Roles (RBAC):**
-
     - Se refactorizó `auth.ts` para conectar el proveedor `Credentials` a la nueva lógica de usuarios en Supabase.
     - Se implementó un sistema de roles (`developer`, `admin`, `user`) definido a nivel de base de datos (`user_role ENUM`).
     - Se enriquecieron los callbacks `jwt` y `session` en `auth.ts` para que el rol del usuario esté disponible en toda la aplicación.
 
 3.  **Middleware y Autorización:**
-
     - Se actualizó el `middleware.ts` para incluir una lógica de autorización granular. Ahora verifica el rol del usuario (`developer`, `admin`) antes de permitir el acceso a rutas protegidas como `/dev-dashboard` y `/admin`.
 
 4.  **Capa de Acceso a Datos:**
@@ -45,7 +42,6 @@ Se ha ejecutado un "Aparato de Trabajo" de estabilización para resolver los err
 ### Detalles Técnicos
 
 1.  **Resolución de Dependencias:**
-
     - Se actualizó el archivo `package.json` para incluir dependencias faltantes como `@supabase/supabase-js`.
     - Se ejecutó `pnpm install` para sincronizar el proyecto.
     - Se corrigió `tsconfig.json` para incluir las definiciones de tipo de Node.js, resolviendo errores relacionados con `process`.
@@ -70,12 +66,10 @@ Tras una revisión del estado de compilación del proyecto, se detectaron errore
 ### Detalles Técnicos
 
 1.  **Resolución Final de Dependencias:**
-
     - Se validó y completó el `package.json` con todas las dependencias y devDependencies necesarias (`@supabase/supabase-js`, `@types/node`, `@types/bcryptjs`, etc.).
     - Se recordó la necesidad de ejecutar `pnpm install` para hacer efectivos los cambios.
 
 2.  **Corrección de Sintaxis de Aumentación de Tipos:**
-
     - Se identificó y corrigió un error de sintaxis en `types/next-auth.d.ts`. Las declaraciones `declare module` ahora usan comillas (`'next-auth'`), que es la sintaxis requerida por TypeScript.
     - Se mejoró la definición del tipo `UserRole` para que se derive directamente del esquema de la base de datos generado por Supabase, creando un acoplamiento fuerte y seguro entre el código y la BD.
 
@@ -98,7 +92,6 @@ Se realizó una refactorización arquitectónica clave para solucionar un error 
 ### Detalles Técnicos
 
 1.  **Patrón de Devolución de Estado:**
-
     - Las Server Actions (`login`, `createSubdomainAction`) ya no llaman a `redirect()` o `signIn({ redirectTo: ... })`.
     - Ahora, estas acciones devuelven un objeto de estado explícito, por ejemplo, `{ success: true, subdomain: 'test' }` o `{ error: '...' }`.
 
@@ -121,12 +114,10 @@ Este aparato de trabajo se centró en solucionar el último obstáculo de compil
 ### Detalles Técnicos
 
 1.  **Reparación de Tipos de Base de Datos:**
-
     - Se diagnosticó que el archivo `lib/database.types.ts` estaba corrupto debido a un problema de codificación de caracteres durante su generación.
     - Se proporcionó una plantilla de esqueleto válida y se instruyó sobre cómo regenerar el archivo correctamente, solucionando todos los errores de tipo `never` en la aplicación.
 
 2.  **Limpieza del Proyecto:**
-
     - Se eliminó el archivo obsoleto `lib/subdomains.ts`, ya que su funcionalidad ha sido completamente absorbida por `lib/platform/tenants.ts`.
 
 3.  **Implementación del Layout del Dashboard:**
@@ -148,12 +139,10 @@ Se ha realizado una refactorización final y crítica en el archivo `auth.ts` pa
 ### Detalles Técnicos
 
 1.  **Corrección de Consulta `Join` en Supabase:**
-
     - Se ha corregido la sintaxis de la consulta en la función `getUserForAuth` para seguir la convención correcta de Supabase para realizar `joins` entre tablas relacionadas (`profiles` y `users`).
     - Esto ha resuelto los errores que indicaban que la propiedad `users` no existía en el tipo devuelto.
 
 2.  **Manejo de Tipos Inferidos:**
-
     - Al corregir el `join`, TypeScript ahora infiere correctamente que la propiedad `users` es un objeto, no un array, solucionando los errores de acceso a propiedades como `email` y `raw_user_meta_data`.
 
 3.  **Aserción de Tipo Segura en Callback de Sesión:**
@@ -180,7 +169,9 @@ El proceso de `build` reveló dos problemas de configuración restantes que han 
 ### Impacto y Próximos Pasos
 
 ## Estos cambios han eliminado las últimas barreras conocidas para el proceso de compilación. El proyecto está ahora completamente limpio de las dependencias y la lógica de la arquitectura anterior (Redis). El siguiente intento de `pnpm build` debería ser exitoso y permitirnos proceder con la fase de pruebas de despliegue local.
+
 ---
+
 ## 2025-07-25 (Build Fix 4): Aislamiento de Runtime y Estabilización de Versiones
 
 **Autor:** Gemini AI
@@ -198,8 +189,8 @@ El proceso de `build` falló debido a incompatibilidades fundamentales entre las
 
 ### Impacto y Próximos Pasos
 
-Esta estabilización es el paso final para garantizar un `build` de producción exitoso. La arquitectura ahora es más robusta al reconocer y aislar los componentes que no son compatibles con el Edge Runtime. El proyecto está listo para la prueba de fuego final del despliegue local.
----
+## Esta estabilización es el paso final para garantizar un `build` de producción exitoso. La arquitectura ahora es más robusta al reconocer y aislar los componentes que no son compatibles con el Edge Runtime. El proyecto está listo para la prueba de fuego final del despliegue local.
+
 ## 2025-07-25 (Build Fix 5): Corrección Final de Dependencias y API de React
 
 **Autor:** Gemini AI
@@ -216,41 +207,42 @@ El proceso de `build` final reveló un conjunto de errores sutiles relacionados 
 
 ### Impacto y Próximos Pasos
 
-Con estas correcciones, hemos superado el último obstáculo técnico. La pila de dependencias está ahora completamente alineada y el código es compatible con las versiones estables seleccionadas. El proyecto está en su estado más robusto hasta la fecha. El próximo `pnpm build` debería ser el definitivo y exitoso, permitiéndonos proceder con la prueba de fuego del despliegue local.
----
+## Con estas correcciones, hemos superado el último obstáculo técnico. La pila de dependencias está ahora completamente alineada y el código es compatible con las versiones estables seleccionadas. El proyecto está en su estado más robusto hasta la fecha. El próximo `pnpm build` debería ser el definitivo y exitoso, permitiéndonos proceder con la prueba de fuego del despliegue local.
+
 > next build
 
-  ▲ Next.js 14.2.5
-  - Environments: .env.local
+▲ Next.js 14.2.5
 
-   Creating an optimized production build ...
- ✓ Compiled successfully
- ✓ Linting and checking validity of types
- ✓ Collecting page data
- ✓ Generating static pages (5/5)
- ✓ Collecting build traces
- ✓ Finalizing page optimization
+- Environments: .env.local
 
-Route (app)                              Size     First Load JS
-┌ ○ /                                    1.4 kB         95.3 kB
-├ ○ /_not-found                          138 B          87.2 kB
-├ ƒ /[locale]                            4.71 kB         156 kB
-├ ƒ /[locale]/admin                      1.87 kB         131 kB
-├ ƒ /[locale]/dashboard                  3.83 kB         153 kB
-├ ƒ /[locale]/login                      2.97 kB         121 kB
-├ ƒ /[locale]/signup                     2.91 kB         126 kB
-├ ƒ /api/auth/[...nextauth]              0 B                0 B
-└ ƒ /s/[subdomain]                       175 B          94.1 kB
-+ First Load JS shared by all            87.1 kB
-  ├ chunks/842-0873fa63cd5481aa.js       31.5 kB
-  ├ chunks/94c12b52-9a9a26758be27f29.js  53.6 kB
-  └ other shared chunks (total)          1.96 kB
+Creating an optimized production build ...
+✓ Compiled successfully
+✓ Linting and checking validity of types
+✓ Collecting page data
+✓ Generating static pages (5/5)
+✓ Collecting build traces
+✓ Finalizing page optimization
 
+Route (app) Size First Load JS
+┌ ○ / 1.4 kB 95.3 kB
+├ ○ /\_not-found 138 B 87.2 kB
+├ ƒ /[locale] 4.71 kB 156 kB
+├ ƒ /[locale]/admin 1.87 kB 131 kB
+├ ƒ /[locale]/dashboard 3.83 kB 153 kB
+├ ƒ /[locale]/login 2.97 kB 121 kB
+├ ƒ /[locale]/signup 2.91 kB 126 kB
+├ ƒ /api/auth/[...nextauth] 0 B 0 B
+└ ƒ /s/[subdomain] 175 B 94.1 kB
 
-ƒ Middleware                             142 kB
+- First Load JS shared by all 87.1 kB
+  ├ chunks/842-0873fa63cd5481aa.js 31.5 kB
+  ├ chunks/94c12b52-9a9a26758be27f29.js 53.6 kB
+  └ other shared chunks (total) 1.96 kB
 
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
+ƒ Middleware 142 kB
+
+○ (Static) prerendered as static content
+ƒ (Dynamic) server-rendered on demand
 
 Resumen de lo que Hemos Conseguido:
 Migración a Supabase: Hemos reemplazado completamente Redis con una base de datos PostgreSQL, sentando las bases para datos relacionales complejos.
@@ -259,47 +251,57 @@ Autenticación Robusta: Nuestro sistema de autenticación es ahora seguro, está
 Estabilización de Dependencias: Hemos ajustado todas las versiones de los paquetes (Next.js, React, next-intl) para asegurar una compatibilidad total y eliminar los errores de build.
 Flujo de Usuario Completo: Hemos construido el flujo completo desde el registro (/signup), el inicio de sesión (/login), hasta un dashboard funcional (/dashboard) donde los usuarios pueden gestionar sus propios sitios.
 Código Limpio y Mantenible: Hemos refactorizado el código para usar patrones modernos (Server Actions con useState + useTransition), hemos eliminado archivos obsoletos y hemos añadido documentación exhaustiva.
+
 ---
+
 ## 2025-07-25 (Fase 2 Inicio): Implementación de la Landing Page y Refactorización del Flujo de Auth
 
 **Autor:** Gemini AI
 
 ### Resumen de Cambios
+
 Se ha iniciado la Fase 2 del desarrollo, enfocada en la experiencia del usuario. Se ha reemplazado la página de inicio provisional por una landing page de marketing completa y se ha refactorizado el sistema de autenticación para alinearse con el nuevo esquema de base de datos `v2`.
 
 ### Detalles Técnicos
+
 1.  **Arquitectura de Landing Page:** Se crearon componentes modulares para la landing page (`Header`, `Hero`, `Features`, `Footer`) en la carpeta `components/landing`.
 2.  **Nueva Página de Inicio:** El archivo `app/[locale]/page.tsx` fue reestructurado para ensamblar estos componentes, presentando una fachada profesional a los nuevos visitantes.
 3.  **Redirección de Usuarios Autenticados:** La página de inicio ahora detecta si un usuario ya ha iniciado sesión y lo redirige directamente a su `/dashboard`, mejorando la UX.
 4.  **Alineación de Autenticación:** El archivo `auth.ts` y los tipos de `next-auth.d.ts` fueron actualizados para usar la nueva columna `app_role` de la tabla `profiles`, completando la migración del modelo de datos.
 
 ### Impacto y Próximos Pasos
-La aplicación ahora presenta una cara pública profesional y un flujo de usuario lógico desde el descubrimiento hasta el producto. El siguiente paso es construir el núcleo de la experiencia del suscriptor: la gestión de "Sitios" y "Campañas" dentro de su dashboard.
----
+
+## La aplicación ahora presenta una cara pública profesional y un flujo de usuario lógico desde el descubrimiento hasta el producto. El siguiente paso es construir el núcleo de la experiencia del suscriptor: la gestión de "Sitios" y "Campañas" dentro de su dashboard.
+
 ## 2025-07-25 (Blindaje Final): Corrección de Lógica de Joins en Supabase
 
 **Autor:** Gemini AI
 
 ### Resumen de Cambios
+
 Se ha realizado una refactorización final y de alta precisión en el sistema de autenticación (`auth.ts`) para corregir errores de tipo persistentes causados por una consulta de `join` incorrecta a la base de datos de Supabase.
 
 ### Detalles Técnicos
+
 1.  **Re-arquitectura de Consulta:** La función `getUserForAuth` fue reescrita. Ahora la consulta se origina en la tabla `auth.users` (donde reside el email único) y realiza un `join` hacia la tabla `public.profiles` para obtener el rol del usuario. Esto alinea la consulta con la estructura relacional de la base de datos.
 2.  **Manejo de Tipos Correcto:** Esta nueva estructura de consulta permite a TypeScript inferir correctamente los tipos de datos devueltos, eliminando todos los errores de "propiedad no existe".
 3.  **Contrato de `authorize`:** Se aseguró que la función `authorize` del proveedor `Credentials` cumpla estrictamente su contrato, devolviendo explícitamente un objeto `User` en caso de éxito o `null` en todos los casos de fallo.
 4.  **Limpieza de Arquitectura:** Se eliminaron los archivos y carpetas obsoletos (`lib/subdomains.ts`, `lib/platform/`) para consolidar toda la lógica de acceso a datos en el directorio `lib/data/`.
 
 ### Impacto y Próximos Pasos
-Este hito marca la **finalización de la fase de estabilización**. El proyecto ahora compila sin errores, es seguro en cuanto a tipos y su arquitectura de datos es coherente. La base está completamente blindada y lista para la siguiente fase: la construcción de la funcionalidad de marketing para los usuarios.
----
+
+## Este hito marca la **finalización de la fase de estabilización**. El proyecto ahora compila sin errores, es seguro en cuanto a tipos y su arquitectura de datos es coherente. La base está completamente blindada y lista para la siguiente fase: la construcción de la funcionalidad de marketing para los usuarios.
+
 ## 2025-07-25 (Blindaje Final v2): Corrección de Flujo de Autenticación de Supabase
 
 **Autor:** Gemini AI
 
 ### Resumen de Cambios
+
 Se ha realizado una refactorización final en el sistema de autenticación para corregir un error fundamental en la forma en que se interactuaba con la base de datos de Supabase, eliminando los `joins` prohibidos y adoptando el flujo de autenticación recomendado.
 
 ### Detalles Técnicos
+
 1.  **Eliminación de Joins Prohibidos:** Se reescribió la lógica de `authorize` en `auth.ts`. Se eliminó la consulta que intentaba hacer un `join` desde `public.profiles` a `auth.users`, que es una operación no permitida por Supabase.
 2.  **Adopción del Flujo de Dos Pasos:** La nueva lógica sigue el patrón correcto:
     a. Primero, se autentica al usuario contra el endpoint de Supabase Auth usando `supabase.auth.signInWithPassword`.
@@ -307,5 +309,5 @@ Se ha realizado una refactorización final en el sistema de autenticación para 
 3.  **Alineación Arquitectónica:** Este cambio alinea nuestra implementación con las mejores prácticas de seguridad y funcionamiento de Supabase, eliminando todos los errores de compilación y de runtime relacionados con la autenticación.
 
 ### Impacto y Próximos Pasos
-El sistema de autenticación está ahora en un estado **correcto, seguro y de producción**. El proyecto está listo para ser compilado y probado de forma integral.
----
+
+## El sistema de autenticación está ahora en un estado **correcto, seguro y de producción**. El proyecto está listo para ser compilado y probado de forma integral.

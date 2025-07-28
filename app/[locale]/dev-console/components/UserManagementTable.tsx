@@ -1,10 +1,33 @@
-/* Ruta: app/[locale]/dev-console/components/UserManagementTable.tsx */
+// Ruta: app/[locale]/dev-console/components/UserManagementTable.tsx
+/**
+ * @file UserManagementTable.tsx
+ * @description Componente de cliente para mostrar, buscar, filtrar y gestionar usuarios y sus roles.
+ * REFACTORIZACIÓN 360: Se han corregido todos los errores de tipos. Se ha
+ * implementado la funcionalidad de "Suplantación de Usuario", permitiendo a los
+ * desarrolladores iniciar sesión como otro usuario a través de un modal seguro.
+ * Se ha añadido la búsqueda y filtrado en tiempo real para una gestión eficiente.
+ *
+ * @author Metashark
+ * @version 4.0.0 (User Impersonation & Full Stability)
+ */
 
 "use client";
 
-import { updateUserRoleAction } from "@/app/actions";
+import {
+  impersonateUserAction,
+  updateUserRoleAction,
+} from "@/app/actions/admin.actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,28 +43,84 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Database } from "@/lib/database.types";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { type Database, type Tables } from "@/lib/types/database";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Search,
+  UserCog,
+} from "lucide-react";
 import Link from "next/link";
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
 
 /**
- * @file UserManagementTable.tsx
- * @description Componente de cliente para mostrar y gestionar usuarios y sus roles.
- * REFACTORIZACIÓN DE ESCALABILIDAD: Se ha añadido la lógica de paginación en la UI.
- * El componente ahora acepta props de paginación y renderiza controles para
- * navegar entre las páginas de usuarios.
- *
- * @author Metashark
- * @version 2.0.0 (Pagination UI Implementation)
+ * @typedef {object} ProfileRow
+ * @description El tipo de datos para un usuario en la tabla. Ahora usa la vista.
  */
+type ProfileRow = Tables<"user_profiles_with_email">;
 
-type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "full_name" | "app_role"
-> & { email?: string };
+/**
+ * @description Modal para confirmar y ejecutar la suplantación de usuario.
+ * @param {{ profile: ProfileRow }} props
+ * @returns {JSX.Element}
+ */
+const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
+  const [isPending, startTransition] = useTransition();
+  const [isOpen, setIsOpen] = useState(false);
 
+  const handleImpersonate = () => {
+    if (!profile.id) return;
+    startTransition(async () => {
+      const result = await impersonateUserAction(profile.id!);
+      if (result.success) {
+        toast.success(
+          "Enlace de inicio de sesión generado. Abriendo en una nueva pestaña..."
+        );
+        window.open(result.data.signInLink, "_blank");
+        setIsOpen(false);
+      } else {
+        toast.error(result.error);
+      }
+    });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Suplantar usuario">
+          <UserCog className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Suplantar Usuario</DialogTitle>
+          <DialogDescription>
+            ¿Estás seguro de que quieres iniciar sesión como{" "}
+            <strong className="text-foreground">{profile.email}</strong>? Serás
+            redirigido en una nueva pestaña.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setIsOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleImpersonate} disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Sí, suplantar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/**
+ * @description Controles de paginación para la tabla de usuarios.
+ * @param {{ page: number, totalCount: number, limit: number }} props
+ * @returns {JSX.Element | null}
+ */
 const PaginationControls = ({
   page,
   totalCount,
@@ -60,7 +139,7 @@ const PaginationControls = ({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between mt-4 px-2">
+    <div className="flex items-center justify-between mt-4 px-4 pb-4">
       <p className="text-sm text-muted-foreground">
         Mostrando {startItem}-{endItem} de {totalCount} usuarios
       </p>
@@ -80,6 +159,33 @@ const PaginationControls = ({
   );
 };
 
+/**
+ * @description Barra de herramientas para la tabla, incluyendo el campo de búsqueda.
+ * @param {{ searchQuery: string, setSearchQuery: (query: string) => void }} props
+ * @returns {JSX.Element}
+ */
+const TableToolbar = ({
+  searchQuery,
+  setSearchQuery,
+}: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}) => {
+  return (
+    <div className="flex items-center p-4 border-b">
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por email o nombre..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+    </div>
+  );
+};
+
 export function UserManagementTable({
   profiles,
   totalCount,
@@ -92,6 +198,18 @@ export function UserManagementTable({
   limit: number;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProfiles = useMemo(() => {
+    if (!searchQuery) {
+      return profiles;
+    }
+    return profiles.filter(
+      (profile) =>
+        profile.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        profile.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [profiles, searchQuery]);
 
   const handleRoleChange = (
     userId: string,
@@ -109,50 +227,89 @@ export function UserManagementTable({
 
   return (
     <Card>
+      <TableToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User ID</TableHead>
-            <TableHead>Email</TableHead>
+            <TableHead>Email / User ID</TableHead>
             <TableHead>Full Name</TableHead>
             <TableHead className="w-[180px]">Role</TableHead>
+            <TableHead className="text-right w-[80px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {profiles.map((profile) => (
-            <TableRow key={profile.id}>
-              <TableCell className="font-mono text-xs">{profile.id}</TableCell>
-              <TableCell>{profile.email || "N/A"}</TableCell>
-              <TableCell>{profile.full_name || "N/A"}</TableCell>
-              <TableCell>
-                <Select
-                  defaultValue={profile.app_role}
-                  onValueChange={(value) =>
-                    handleRoleChange(
-                      profile.id,
-                      value as Database["public"]["Enums"]["app_role"]
-                    )
-                  }
-                  disabled={isPending}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="developer">Developer</SelectItem>
-                  </SelectContent>
-                </Select>
+          {filteredProfiles.length > 0 ? (
+            filteredProfiles.map((profile) => (
+              <TableRow key={profile.id}>
+                <TableCell>
+                  <div className="font-medium">{profile.email || "N/A"}</div>
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {profile.id}
+                  </div>
+                </TableCell>
+                <TableCell>{profile.full_name || "N/A"}</TableCell>
+                <TableCell>
+                  <Select
+                    defaultValue={profile.app_role!}
+                    onValueChange={(value) =>
+                      handleRoleChange(
+                        profile.id!,
+                        value as Database["public"]["Enums"]["app_role"]
+                      )
+                    }
+                    disabled={isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="developer">Developer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="text-right">
+                  <ImpersonationDialog profile={profile} />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={4} className="h-24 text-center">
+                No se encontraron usuarios que coincidan con la búsqueda.
               </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
-      <PaginationControls page={page} totalCount={totalCount} limit={limit} />
+      {!searchQuery && (
+        <PaginationControls page={page} totalCount={totalCount} limit={limit} />
+      )}
     </Card>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
+ * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
+ * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
+ * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
+ * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
+ * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
+ * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Acción de Suplantación (Impersonation): Añadir un botón de acción en cada fila que permita a un `developer` iniciar sesión temporalmente como ese usuario para depurar problemas, utilizando una Server Action y funciones avanzadas de Supabase Auth.
+ * 2. Búsqueda del Lado del Servidor (Server-Side Search): Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro de búsqueda en la URL y modificar la consulta de Supabase en `users/page.tsx` para usar `.ilike()`.
+ * 3. Edición en Línea (Inline Editing): Para cambios rápidos, se podría permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Acción de Suplantación (Impersonation): Añadir un botón de acción en cada fila que permita a un `developer` iniciar sesión temporalmente como ese usuario para depurar problemas, utilizando una Server Action y funciones avanzadas de Supabase Auth.
  * 2. Búsqueda de Usuarios: Implementar un campo de búsqueda para filtrar la lista de usuarios por email o nombre, lo cual es esencial para gestionar una gran cantidad de usuarios.

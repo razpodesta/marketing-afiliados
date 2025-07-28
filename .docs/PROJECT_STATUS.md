@@ -85,19 +85,16 @@ Este patrón es eficiente, seguro, mantenible y, lo más importante, satisface c
 Con la infraestructura completa y estable, el camino a seguir está claro. Nos enfocaremos en construir la funcionalidad que aporta valor directo al usuario.
 
 1.  **Aparato #68: Gestión de Sitios en el Dashboard:**
-
     - Hacer que el botón "Crear Nuevo Sitio" en el dashboard sea completamente funcional.
     - Mostrar la lista de sitios existentes del usuario, cargada desde la base de datos.
     - Implementar la funcionalidad de eliminación de sitios.
 
 2.  **Aparato #69: Vista Detallada del Sitio y Gestión de Campañas:**
-
     - Crear una nueva ruta dinámica: `/dashboard/sites/[siteId]`.
     - En esta página, mostrar los detalles del sitio (subdominio, dominio personalizado) y una lista de sus "Campañas".
     - Implementar la funcionalidad para crear y eliminar campañas asociadas a ese sitio.
 
 3.  **Aparato #70: Integración de la Suite de Diseño (El "Canva"):**
-
     - Crear la ruta de edición: `/dashboard/sites/[siteId]/campaigns/[campaignId]/edit`.
     - Migrar los componentes visuales de `GlobalFitWell` (Hero, Features, etc.) y crear una interfaz que permita al usuario seleccionarlos y añadirlos a su página.
     - El estado del diseño de la página se guardará como un objeto JSON en la columna `content` de la tabla `pages`.

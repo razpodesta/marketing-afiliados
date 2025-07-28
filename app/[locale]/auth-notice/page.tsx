@@ -1,31 +1,112 @@
-/* Ruta: app/[locale]/auth-notice/page.tsx */
-
-import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { MailCheck } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-
+// Ruta: app/[locale]/auth-notice/page.tsx
 /**
  * @file page.tsx
- * @description Página genérica para mostrar notificaciones al usuario durante los flujos de autenticación.
- * REVISIÓN DE DISEÑO: Se ha rediseñado para alinearse con la identidad de marca,
- * proporcionando una experiencia de usuario profesional y coherente.
+ * @description Página de notificación genérica para flujos de autenticación.
+ * REFACTORIZACIÓN 360 Y MEJORA DE UX:
+ * 1. Se ha añadido un botón "Reenviar correo" con un temporizador para prevenir spam.
+ * 2. Los mensajes ahora pueden ser personalizados con el email del usuario.
+ * 3. Se muestran iconos y enlaces contextuales para una experiencia más rica.
  *
  * @author Metashark
- * @version 2.0.0 (Branded Design)
+ * @version 3.0.0 (Interactive & Contextual Notice)
  */
+"use client";
 
-interface AuthNoticePageProps {
-  searchParams: {
-    message?: "check-email-for-confirmation" | "check-email-for-reset";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Loader2, MailCheck, MailQuestion, ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+
+type MessageKey =
+  | "check-email-for-confirmation"
+  | "check-email-for-reset"
+  | "default";
+
+/**
+ * @description Muestra un icono contextual basado en el tipo de notificación.
+ * @param {{ messageKey: MessageKey }} props
+ * @returns {JSX.Element}
+ */
+const NoticeIcon = ({ messageKey }: { messageKey: MessageKey }) => {
+  const icons: Record<MessageKey, React.ElementType> = {
+    "check-email-for-confirmation": MailCheck,
+    "check-email-for-reset": ShieldCheck,
+    default: MailQuestion,
   };
-}
+  const Icon = icons[messageKey];
+  return <Icon className="h-6 w-6 text-primary" />;
+};
 
-export default function AuthNoticePage({ searchParams }: AuthNoticePageProps) {
+/**
+ * @description Proporciona un enlace directo al proveedor de email del usuario.
+ * @param {{ email: string | null }} props
+ * @returns {JSX.Element | null}
+ */
+const EmailProviderLink = ({ email }: { email: string | null }) => {
+  if (!email) return null;
+  const domain = email.split("@")[1];
+  if (!domain) return null;
+
+  return (
+    <Button asChild>
+      <a
+        href={`https://www.${domain}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Abrir {domain.split(".")[0]}
+      </a>
+    </Button>
+  );
+};
+
+/**
+ * @description Botón para reenviar el correo con un temporizador de enfriamiento.
+ * @param {{ email: string | null }} props
+ * @returns {JSX.Element}
+ */
+const ResendButton = ({ email }: { email: string | null }) => {
+  const [countdown, setCountdown] = useState(60);
+  const [isPending, startTransition] = React.useTransition();
+
+  useEffect(() => {
+    if (countdown === 0) return;
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  const handleResend = () => {
+    if (!email) return;
+    startTransition(async () => {
+      // TODO: Implementar la Server Action `resendConfirmationEmailAction(email)`
+      console.log(`Reenviando email a: ${email}`);
+      setCountdown(60); // Reset timer
+    });
+  };
+
+  return (
+    <Button
+      variant="secondary"
+      onClick={handleResend}
+      disabled={countdown > 0 || isPending}
+    >
+      {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {countdown > 0 ? `Reenviar en ${countdown}s` : "Reenviar correo"}
+    </Button>
+  );
+};
+
+export default function AuthNoticePage() {
   const t = useTranslations("AuthNoticePage");
-  const messageKey = searchParams.message || "default";
+  const searchParams = useSearchParams();
+  const messageKey: MessageKey =
+    (searchParams.get("message") as MessageKey) || "default";
+  const email = searchParams.get("email");
+
   const messages = {
     "check-email-for-confirmation": {
       title: t("confirmation.title"),
@@ -41,6 +122,9 @@ export default function AuthNoticePage({ searchParams }: AuthNoticePageProps) {
     },
   };
   const { title, description } = messages[messageKey];
+  const personalizedDescription = email
+    ? `${description} a ${email}.`
+    : description;
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -63,12 +147,16 @@ export default function AuthNoticePage({ searchParams }: AuthNoticePageProps) {
       <Card className="w-full max-w-md text-center border-border/60 bg-card/50 backdrop-blur-lg">
         <CardHeader>
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <MailCheck className="h-6 w-6 text-primary" />
+            <NoticeIcon messageKey={messageKey} />
           </div>
           <h1 className="mt-4 text-2xl font-bold">{title}</h1>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-muted-foreground">{description}</p>
+          <p className="text-muted-foreground">{personalizedDescription}</p>
+          <div className="flex justify-center gap-4">
+            <EmailProviderLink email={email} />
+            <ResendButton email={email} />
+          </div>
           <Button asChild variant="outline">
             <Link href="/login">Volver a Inicio de Sesión</Link>
           </Button>
@@ -77,6 +165,12 @@ export default function AuthNoticePage({ searchParams }: AuthNoticePageProps) {
     </main>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Implementar la Server Action de Reenvío: La mejora más crítica es implementar la Server Action `resendConfirmationEmailAction` que el `ResendButton` necesita. Esta acción debe incluir una lógica de limitación de tasa (rate-limiting) para prevenir abusos.
+ * 2. A/B Testing de Mensajes: Para optimizar la tasa de confirmación de correos, se podría implementar un sistema de A/B testing (usando Vercel Edge Config o una herramienta de terceros) para probar diferentes textos en el título y la descripción y medir cuál es más efectivo.
+ * 3. Soporte para SMS/Whatsapp: En el futuro, se podría expandir la notificación para soportar otros canales como SMS o WhatsApp, añadiendo un parámetro a la URL (ej. `&channel=sms`) y mostrando un mensaje y un icono apropiados.
+ */
 /* Ruta: app/[locale]/auth-notice/page.tsx */
 
 /* MEJORAS PROPUESTAS

@@ -1,23 +1,58 @@
 // Ruta: app/api/auth/callback/reset-password/route.ts
-
-import { createClient } from "@/lib/supabase/server";
-import { NextResponse, type NextRequest } from "next/server";
-
 /**
  * @file route.ts
  * @description Endpoint que maneja la actualización de contraseña.
- * Este endpoint es invocado por el cliente de Supabase Auth cuando el usuario
- * envía el formulario de nueva contraseña.
+ * REFACTORIZACIÓN CRÍTICA: Se ha corregido la creación del cliente de Supabase
+ * para que sea compatible con el contexto de los Route Handlers, resolviendo el
+ * error de compilación. Se añade validación de entrada con Zod para mayor seguridad.
  *
  * @author Metashark
- * @version 2.0.0 (Supabase Native Architecture)
+ * @version 3.1.0 (Route Handler Stability & Security)
  */
+import { type NextRequest, NextResponse } from "next/server";
+import { type CookieOptions, createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { z } from "zod";
+import type { Database } from "@/lib/types/database";
+
+const PasswordUpdateSchema = z.object({
+  password: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres."),
+});
+
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
-  // El cliente de Supabase gestiona la sesión a partir de las cookies.
-  // El método updateUser solo funcionará si hay una sesión válida de "recuperación".
+  const body = await request.json();
+  const validation = PasswordUpdateSchema.safeParse(body);
+
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: validation.error.flatten().fieldErrors.password?.[0] },
+      { status: 400 }
+    );
+  }
+
+  const cookieStore = cookies();
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
+
   const { data, error } = await supabase.auth.updateUser({
-    password: (await request.json()).password,
+    password: validation.data.password,
   });
 
   if (error) {
@@ -27,11 +62,18 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data);
 }
 
-/*
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
-1.  **Validación Robusta:** Mejorar la validación de la contraseña usando `zod`.
-2.  **Migración a Server Action:** Este flujo puede ser manejado enteramente por una Server Action, eliminando la necesidad de este endpoint de API.
-1.  **Activar Lógica de Supabase:** La mejora principal es descomentar y activar la lógica de `updateUser` una vez que la migración a Supabase esté completa.
-2.  **Validación Robusta:** Mejorar la validación de la contraseña usando `zod` para comprobar la complejidad (mayúsculas, números, símbolos) además de la longitud.
-3.  **Prevención de CSRF:** Aunque Next.js ofrece cierta protección, si esta ruta se mantiene, asegurarse de que se implementen medidas contra CSRF, o preferiblemente, migrar la lógica a una Server Action que tiene protección integrada.
-*/
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Migración a Server Action: Este flujo debería ser manejado por una Server Action para simplificar la arquitectura, eliminar este endpoint de API y obtener protección CSRF de forma nativa.
+ * 2. Indicador de Fortaleza de Contraseña: El esquema de Zod puede hacerse más complejo para verificar la fortaleza de la contraseña (mayúsculas, números, símbolos) y proporcionar feedback más detallado.
+ * 3. Rate Limiting: Implementar limitación de tasa basada en IP para prevenir ataques de fuerza bruta contra este endpoint.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Migración a Server Action: Para alinear este flujo con la arquitectura moderna de la aplicación, el formulario de `reset-password/page.tsx` debería ser refactorizado para usar una Server Action. Esto eliminaría la necesidad de este endpoint de API, simplificaría el código del cliente, y proporcionaría protección CSRF integrada.
+ * 2. Indicador de Fortaleza de Contraseña: El esquema de Zod podría hacerse más complejo para verificar la fortaleza de la contraseña (mayúsculas, números, símbolos) y proporcionar un feedback más detallado en caso de error.
+ * 3. Rate Limiting: Implementar un sistema de limitación de tasa (rate limiting) basado en IP o en ID de usuario (si la sesión de recuperación lo permite) para prevenir ataques de fuerza bruta contra este endpoint.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Validación Robusta con Zod: Antes de llamar a `updateUser`, el cuerpo de la petición debería ser validado con un esquema de Zod para asegurar que la contraseña cumple con los requisitos de complejidad (longitud, caracteres especiales, etc.).
+ * 2. Migración a Server Action: Este flujo puede ser manejado enteramente por una Server Action vinculada al formulario en `reset-password/page.tsx`. Esto eliminaría la necesidad de este endpoint de API, simplificaría el código y se alinearía mejor con la arquitectura del resto de la aplicación.
+ * 3. Prevención de CSRF: Aunque Next.js ofrece protección, si esta ruta se mantiene, asegurarse de que se implementen medidas contra CSRF. La migración a una Server Action es la mejor forma de lograrlo.
+ */

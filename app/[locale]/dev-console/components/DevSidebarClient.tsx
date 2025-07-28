@@ -2,6 +2,7 @@
 
 "use client";
 
+import { signOutAction } from "@/app/actions/auth.actions";
 import {
   Accordion,
   AccordionContent,
@@ -11,19 +12,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  File,
   FileText,
+  Folder,
   Home,
   LayoutGrid,
   LogOut,
   ShieldCheck,
   Users,
-  Folder,
-  File,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { signOutAction } from "@/app/actions";
 
 /**
  * @file DevSidebarClient.tsx

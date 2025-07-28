@@ -1,104 +1,76 @@
-/* Ruta: middleware.ts */
-
-import { createClient } from "@/lib/supabase/middleware";
-import createIntlMiddleware from "next-intl/middleware";
-import { type NextRequest, NextResponse } from "next/server";
-import { rootDomain } from "./lib/utils";
-import { localePrefix, locales, pathnames } from "./navigation";
-import { getSiteDataBySubdomain } from "./lib/data/sites";
-
+// Ruta: middleware.ts
 /**
  * @file middleware.ts
  * @description Middleware principal de la aplicación.
- * MEJORA DE SEGURIDAD: Se ha añadido la ruta `/dev-console` a la lista de
- * rutas protegidas. El middleware ahora bloqueará el acceso a usuarios no
- * autenticados a esta nueva sección crítica.
+ * REFACTORIZACIÓN ARQUITECTÓNICA: Este archivo ahora actúa como un orquestador
+ * que encadena manejadores de middleware modulares y de responsabilidad única.
+ * La lógica específica ha sido abstraída en la carpeta `middleware/handlers/`.
  *
  * @author Metashark
- * @version 18.0.0 (Dev Console Route Protection)
+ * @version 20.0.0 (Modular Middleware Pipeline)
  */
+import createIntlMiddleware from "next-intl/middleware";
+import { type NextRequest } from "next/server";
+import {
+  handleAuth,
+  handleMaintenance,
+  handleMultitenancy,
+  handleRedirects,
+} from "./middleware/handlers";
+import { localePrefix, locales, pathnames } from "./navigation";
 
 export async function middleware(request: NextRequest) {
-  const { pathname, origin, host } = request.nextUrl;
+  // Cadena de Responsabilidad del Middleware
+  const handlers = [handleMaintenance, handleRedirects];
 
-  if (
-    process.env.MAINTENANCE_MODE === "true" &&
-    !pathname.startsWith("/maintenance") &&
-    !request.cookies.has("maintenance_bypass")
-  ) {
-    return NextResponse.rewrite(new URL("/maintenance.html", request.url));
+  for (const handler of handlers) {
+    const response = handler(request);
+    if (response) {
+      return response;
+    }
   }
 
-  if (host.startsWith("www.")) {
-    const newHost = host.replace("www.", "");
-    const newUrl = new URL(pathname, `https://${newHost}`);
-    return NextResponse.redirect(newUrl, 301);
-  }
-
+  // El middleware de i18n siempre devuelve una respuesta y añade el locale.
   const intlResponse = createIntlMiddleware({
     locales,
     localePrefix,
     pathnames,
     defaultLocale: "pt-BR",
   })(request);
+
   const locale = intlResponse.headers.get("x-next-intl-locale") || "pt-BR";
 
-  const rootDomainWithoutPort = rootDomain.split(":")[0];
-  const hostWithoutPort = host.split(":")[0];
-  const subdomain =
-    hostWithoutPort !== rootDomainWithoutPort &&
-    hostWithoutPort.endsWith(`.${rootDomainWithoutPort}`)
-      ? hostWithoutPort.replace(`.${rootDomainWithoutPort}`, "")
-      : null;
-
-  if (subdomain) {
-    const siteData = await getSiteDataBySubdomain(subdomain);
-    if (siteData) {
-      return NextResponse.rewrite(
-        new URL(`/${locale}/s/${subdomain}${pathname}`, request.url)
-      );
-    }
-    return intlResponse;
+  // Manejadores que dependen del locale
+  const multitenancyResponse = await handleMultitenancy(request, locale);
+  if (multitenancyResponse) {
+    return multitenancyResponse;
   }
 
-  const supabase = (await createClient(request)).supabase;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const pathnameWithoutLocale = pathname.startsWith(`/${locale}`)
-    ? pathname.slice(locale.length + 1) || "/"
-    : pathname;
-
-  // Se añade `/dev-console` a las rutas que requieren una sesión.
-  const protectedRoutes = ["/dashboard", "/admin", "/dev-console"];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathnameWithoutLocale.startsWith(route)
-  );
-
-  if (!session && isProtectedRoute) {
-    const loginUrl = new URL(`/${locale}/login`, origin);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+  const authResponse = await handleAuth(request, locale);
+  if (authResponse) {
+    return authResponse;
   }
 
-  if (session && pathnameWithoutLocale.startsWith("/login")) {
-    const dashboardUrl = new URL(`/${locale}/dashboard`, origin);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  return intlResponse;
+  return intlResponse; // Si ningún manejador intercepta, se devuelve la respuesta de i18n.
 }
 
 export const config = {
+  // El matcher se mantiene igual para evitar que el middleware se ejecute en assets.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|maintenance.html).*)",
+    "/((?!api|_next/static|_next/image|images|favicon.ico|maintenance.html).*)",
   ],
 };
 
-export const runtime = "nodejs";
-/* Ruta: middleware.ts */
-
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Clase Orquestadora: Para una lógica de encadenamiento más avanzada, se podría crear una clase `MiddlewarePipeline` que permita registrar manejadores y ejecute la cadena, simplificando aún más este archivo.
+ * 2. Inyección de Dependencias para Handlers: En el futuro, los manejadores podrían necesitar dependencias (como un cliente de base de datos o de caché). Se podría implementar un pequeño sistema de inyección de dependencias para proveer estos servicios a los manejadores.
+ * 3. Contexto de Petición: Se podría crear un objeto de contexto (`RequestContext`) que se pase a través de todos los manejadores. Esto podría contener datos enriquecidos (sesión, locale, datos del sitio) para evitar que cada manejador tenga que recalcularlos.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. CACHE DE SUBDOMINIOS (CRÍTICO): La consulta `getSiteDataBySubdomain` en el middleware añade latencia. Es fundamental implementar una caché (ej. Vercel KV, Upstash Redis) para los resultados de esta consulta, invalidándola solo cuando un sitio se crea o elimina.
+ * 2. Manejo de Dominios Personalizados: Expandir la lógica para que, si no se detecta un subdominio, se consulte una columna `custom_domain` en la tabla `sites`. Si se encuentra una coincidencia, se reescribe la URL al subdominio interno correspondiente.
+ * 3. Firewall de IPs para Mantenimiento: La lógica actual de bypass de mantenimiento usa una cookie. Para un control más seguro, se podría leer la IP del solicitante (a través de `request.ip`) y compararla con una lista blanca de IPs de desarrolladores definida en las variables de entorno.
+ */
 /* MEJORAS PROPUESTAS (Consolidadas)
  * 1. **CACHE DE SUBDOMINIOS (CRÍTICO):** La consulta `getSiteDataBySubdomain` en el middleware añade latencia. Es fundamental implementar una caché (ej. Vercel KV, Upstash Redis) para los resultados de esta consulta, invalidándola solo cuando un sitio se crea o elimina.
  * 2. **Manejo de Dominios Personalizados:** El siguiente paso es expandir la lógica para que, si no se detecta un subdominio, se consulte una columna `custom_domain` en la tabla `sites`. Si se encuentra una coincidencia, se reescribe la URL al subdominio interno correspondiente.

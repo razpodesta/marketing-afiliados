@@ -1,28 +1,20 @@
-/* Ruta: app/[locale]/login/page.tsx */
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+// Ruta: app/[locale]/login/page.tsx
+/**
+ * @file app/[locale]/login/page.tsx
+ * @description Página de inicio de sesión principal (Server Component).
+ * REFACTORIZACIÓN MENOR: Se ha actualizado la llamada a `LoginForm` para
+ * pasar la prop `defaultView`, alineándose con las mejoras del componente hijo.
+ *
+ * @author Metashark
+ * @version 4.1.0 (Dynamic View Prop)
+ */
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./login-form";
 
-/**
- * @file app/[locale]/login/page.tsx
- * @description Página de inicio de sesión principal (Server Component).
- * REVISIÓN DE DISEÑO: Se ha mejorado la presentación para alinearla con la
- * identidad de marca, añadiendo el logo y un fondo degradado sutil para crear
- * una experiencia de "portal de autenticación" más profesional y coherente.
- *
- * @author Metashark
- * @version 4.0.0 (Branded Auth Portal Design)
- */
 export default async function LoginPage() {
   const t = await getTranslations("LoginPage");
   const supabase = createClient();
@@ -82,12 +74,18 @@ export default async function LoginPage() {
       </div>
       <Card className="w-full max-w-md border-border/60 bg-card/50 backdrop-blur-lg">
         <CardContent className="pt-6">
-          <LoginForm localization={localization} />
+          <LoginForm localization={localization} defaultView="sign_in" />
         </CardContent>
       </Card>
     </main>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Gestión del Parámetro `next` para Redirección Inteligente: Este componente podría leer un parámetro de búsqueda `next` de la URL (ej. `/login?next=/dashboard/settings`). Este parámetro podría ser pasado al `LoginForm` para que lo añada a la prop `redirectTo` de Supabase, asegurando que después del login, el usuario sea redirigido a la página que intentaba acceder originalmente.
+ * 2. Esqueleto de Carga con Suspense: Envolver la `<Card>` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga del formulario. Esto mejoraría la experiencia de usuario percibida (LCP) mientras se ejecuta la lógica de `getSession` en el servidor.
+ * 3. Rutas Separadas para Sign Up: Crear una ruta `/signup` que renderice este mismo componente pero pase `defaultView="sign_up"` a `LoginForm`, proporcionando URLs semánticas distintas para el registro y el inicio de sesión.
+ */
 /* Ruta: app/[locale]/login/page.tsx */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Gestión del Parámetro `next` para Redirección Inteligente: Este componente podría leer un parámetro de búsqueda `next` de la URL (ej. `/login?next=/dashboard/settings`). Este parámetro podría ser pasado al `LoginForm` y, a su vez, a la prop `redirectTo` de Supabase, asegurando que después de un inicio de sesión exitoso, el usuario sea redirigido a la página que intentaba acceder originalmente, en lugar de siempre a `/dashboard`.

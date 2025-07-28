@@ -1,312 +1,241 @@
-/* Ruta: app/[locale]/dashboard/dashboard-client.tsx */
-
+// Ruta: app/[locale]/dashboard/dashboard-client.tsx
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import type { User } from "@supabase/supabase-js";
-import {
-  ArrowRight,
-  HelpCircle,
-  Image as ImageIcon,
-  LayoutTemplate,
-  PenSquare,
-  PieChart,
-  Puzzle,
-  Search,
-  Settings,
-  Target,
-  TestTube2,
-} from "lucide-react";
-import Link from "next/link";
+import { useDashboard } from "@/lib/context/DashboardContext";
+import type { Tables } from "@/lib/types/database";
 import { motion } from "framer-motion";
-import React from "react";
+import { HelpCircle, LayoutTemplate, PenSquare, Plus, Zap } from "lucide-react";
+import { useFormatter } from "next-intl";
+import { useRouter } from "@/navigation";
 
 /**
  * @file dashboard-client.tsx
- * @description Dashboard principal "Centro de Comando" del usuario.
- * REFACTORIZACIÓN DE FOCO Y NAVEGABILIDAD: Este componente ha sido refactorizado
- * para centrar la experiencia del usuario en la funcionalidad principal: el
- * constructor de páginas. Se han desactivado los módulos secundarios marcándolos
- * como "Próximamente" y se ha corregido la ruta del módulo "Suite de Landings"
- * para dirigir al usuario al flujo correcto de gestión de sitios, reparando la
- * navegación rota de la aplicación.
+ * @description Interfaz de usuario principal del "Centro de Comando de Campañas".
+ * REFACTORIZACIÓN DE ESTABILIDAD:
+ * 1. Se ha restaurado la palabra clave `export` en la declaración del componente,
+ *    corrigiendo un error crítico de importación que impedía el renderizado.
  *
- * @author Metashark
- * @version 8.3.0 (Feature Focus & Navigation Fix)
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 12.1.0 (Module Stability Patch)
  */
 
-// --- TIPOS Y DATOS ---
+const ActionCard = ({
+  title,
+  description,
+  icon: Icon,
+  onClick,
+  isPrimary = false,
+}: any) => (
+  <motion.div
+    variants={{
+      hidden: { opacity: 0, scale: 0.95, y: 10 },
+      show: { opacity: 1, scale: 1, y: 0 },
+    }}
+    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+  >
+    <Card
+      onClick={onClick}
+      className={`group h-full cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+        isPrimary
+          ? "bg-primary/10 border-primary/40 hover:border-primary/80 hover:shadow-primary/20"
+          : "bg-card hover:border-primary/40 hover:shadow-primary/10"
+      }`}
+    >
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+              isPrimary ? "bg-primary/20" : "bg-muted"
+            }`}
+          >
+            <Icon
+              className={`h-5 w-5 ${
+                isPrimary ? "text-primary" : "text-foreground"
+              }`}
+            />
+          </div>
+          <h3 className="text-md font-semibold">{title}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground pt-2">{description}</p>
+      </CardHeader>
+    </Card>
+  </motion.div>
+);
 
-/**
- * @typedef {"active" | "beta" | "soon"} ModuleStatus
- * @description Define el estado de disponibilidad de un módulo de funcionalidad.
- */
-type ModuleStatus = "active" | "beta" | "soon";
+const RecentCampaigns = ({
+  campaigns,
+}: {
+  campaigns: Tables<"campaigns">[];
+}) => {
+  const format = useFormatter();
+  const router = useRouter();
 
-/**
- * @typedef {object} FeatureModule
- * @description Define la estructura de datos para cada módulo de funcionalidad.
- * Centralizar esta estructura facilita la gestión y una futura migración a una API.
- * @property {string} title - El título del módulo que se muestra en la tarjeta.
- * @property {string} description - La descripción corta del módulo.
- * @property {string} tooltip - Texto informativo que aparece al pasar el cursor sobre el icono de ayuda.
- * @property {React.ElementType} icon - El componente de icono (de lucide-react) a mostrar.
- * @property {string} href - La ruta de destino a la que navegará el usuario.
- * @property {ModuleStatus} status - El estado actual del módulo.
- */
-type FeatureModule = {
-  title: string;
-  description: string;
-  tooltip: string;
-  icon: React.ElementType;
-  href: string;
-  status: ModuleStatus;
+  if (campaigns.length === 0) {
+    return (
+      <div>
+        <h2 className="text-xl font-bold mb-4">
+          ¡Empecemos tu primera campaña!
+        </h2>
+        <Card className="border-primary/40 border-dashed bg-primary/5">
+          <CardHeader className="flex-row items-center gap-4">
+            <Zap className="h-8 w-8 text-primary" />
+            <div>
+              <h3 className="font-bold">Campaña Guiada</h3>
+              <p className="text-muted-foreground text-sm">
+                Te guiaré paso a paso para crear una landing page de alta
+                conversión.
+              </p>
+            </div>
+            <Button
+              className="ml-auto"
+              onClick={() => {
+                /* Lógica para abrir modal de creación */
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Crear mi Primera Campaña
+            </Button>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4">Continuar trabajando en...</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {campaigns.map((campaign) => (
+          <Card
+            key={campaign.id}
+            className="group cursor-pointer hover:border-primary/40"
+            onClick={() => router.push(`/builder/${campaign.id}`)}
+          >
+            <CardHeader>
+              <h3 className="font-semibold truncate">{campaign.name}</h3>
+              <p className="text-sm text-muted-foreground">
+                Última edición:{" "}
+                {format.relativeTime(
+                  new Date(campaign.updated_at || campaign.created_at)
+                )}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-24 bg-muted rounded-md flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">
+                  Previsualización
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-/**
- * @const {FeatureModule[]} featureModules
- * @description Array que contiene la configuración de todos los módulos del dashboard.
- * Es la fuente de verdad para renderizar la cuadrícula de funcionalidades.
- */
-const featureModules: FeatureModule[] = [
-  {
-    title: "Suite de Landings",
-    description: "Constructor guiado para páginas de venta.",
-    tooltip: "Accede para crear y gestionar todos tus sitios de landing pages.",
-    icon: LayoutTemplate,
-    href: "/dashboard/sites",
-    status: "active",
-  },
-  {
-    title: "Bridge Pages",
-    description: "Calienta el tráfico antes de la oferta.",
-    tooltip:
-      "Genera páginas puente para mejorar la calidad del tráfico y el EPC.",
-    icon: Puzzle,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Generador de Quizzes",
-    description: "Segmenta tu audiencia con quizzes.",
-    tooltip:
-      "Crea cuestionarios interactivos para capturar leads cualificados.",
-    icon: TestTube2,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "AI Copywriter Pro",
-    description: "Genera copys persuasivos al instante.",
-    tooltip:
-      "Accede a nuestro motor de IA para crear textos de venta efectivos.",
-    icon: PenSquare,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Creador de Imágenes IA",
-    description: "Diseña imágenes únicas para tus campañas.",
-    tooltip:
-      "Genera imágenes libres de derechos con IA para tus anuncios y landings.",
-    icon: ImageIcon,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Auditor de Conversión",
-    description: "Analiza tu URL y recibe un análisis CRO.",
-    tooltip:
-      "Nuestra IA auditará tu página y te dará un plan de acción para mejorar la conversión.",
-    icon: Search,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Analista de Nichos IA",
-    description: "Descubre nichos rentables y audiencias.",
-    tooltip:
-      "Encuentra oportunidades de mercado, audiencias y ángulos de marketing.",
-    icon: Target,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Analista de Ads IA",
-    description: "Traduce métricas de Ads en insights.",
-    tooltip:
-      "Conecta tus cuentas de Google/FB Ads para obtener un análisis claro.",
-    icon: PieChart,
-    href: "#",
-    status: "soon",
-  },
-  {
-    title: "Ajustes del Sitio",
-    description: "Personaliza tu workspace y perfil.",
-    tooltip:
-      "Gestiona el nombre, dominio, facturación y miembros de tu workspace.",
-    icon: Settings,
-    href: "/dashboard/settings",
-    status: "active",
-  },
-];
-
-// --- SUB-COMPONENTES ---
-
-/**
- * @description Componente individual para cada módulo del dashboard.
- * Encapsula la lógica de presentación y animación de una única tarjeta.
- * Está envuelto en `React.memo` para prevenir re-renders innecesarios si sus props no cambian,
- * una optimización clave para listas y cuadrículas.
- * @param {{ module: FeatureModule }} props - Propiedades del componente.
- * @returns {JSX.Element} La tarjeta del módulo interactiva.
- */
-const ModuleCard = React.memo(({ module }: { module: FeatureModule }) => {
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, scale: 0.95, y: 10 },
-        show: { opacity: 1, scale: 1, y: 0 },
-      }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    >
-      <Link
-        href={module.status !== "soon" ? module.href : "#"}
-        className={cn(
-          "group",
-          module.status === "soon" && "pointer-events-none"
-        )}
-      >
-        <Card
-          className={cn(
-            "relative flex h-full flex-col justify-between p-3 transition-all duration-300",
-            module.status === "soon"
-              ? "border-dashed bg-card/50"
-              : "bg-card hover:border-primary/80 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10"
-          )}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="absolute top-2 right-2 cursor-help">
-                <HelpCircle className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-primary" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{module.tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <CardHeader className="p-0">
-            <div className="flex items-start justify-between">
-              <module.icon
-                className={cn(
-                  "h-5 w-5 transition-colors",
-                  module.status === "soon"
-                    ? "text-muted-foreground/50"
-                    : "text-primary"
-                )}
-              />
-              {module.status === "beta" && (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-400">
-                  Beta
-                </span>
-              )}
-              {module.status === "soon" && (
-                <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                  Próximamente
-                </span>
-              )}
-            </div>
-            <CardTitle
-              className={cn(
-                "pt-2 text-sm font-semibold",
-                module.status === "soon"
-                  ? "text-muted-foreground/80"
-                  : "text-foreground"
-              )}
-            >
-              {module.title}
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground line-clamp-2">
-              {module.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto p-0 pt-2">
-            <div className="flex items-center text-xs font-medium text-primary/80 transition-all group-hover:text-primary">
-              <span>
-                {module.status === "active"
-                  ? "Acceder"
-                  : module.status === "beta"
-                  ? "Probar Beta"
-                  : "Saber Más"}
-              </span>
-              <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
-    </motion.div>
-  );
-});
-ModuleCard.displayName = "ModuleCard";
-
-// --- COMPONENTE PRINCIPAL ---
-
-/**
- * @description El componente principal que renderiza el "Centro de Comando".
- * @param {{ user: User }} props - Propiedades del componente.
- * @returns {JSX.Element} La interfaz completa del dashboard.
- */
-export function DashboardClient({ user }: { user: User }) {
+// CORRECCIÓN: Se añade la palabra clave 'export' para que el componente sea visible para otros módulos.
+export function DashboardClient({
+  recentCampaigns,
+}: {
+  recentCampaigns: Tables<"campaigns">[];
+}) {
+  const { user } = useDashboard();
   const username = user.user_metadata?.full_name || user.email;
 
+  const creationActions = [
+    {
+      title: "Crear Campaña Completa",
+      description: "Inicia el flujo guiado para una nueva campaña.",
+      icon: Plus,
+      isPrimary: true,
+    },
+    {
+      title: "Landing Rápida",
+      description: "Genera una landing a partir de una idea.",
+      icon: LayoutTemplate,
+    },
+    {
+      title: "Generar Script de Anuncio",
+      description: "Crea un copy persuasivo para tus ads.",
+      icon: PenSquare,
+    },
+  ];
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="pb-4">
-        <h1 className="text-xl font-bold text-foreground">
-          Bienvenido, {username}
-        </h1>
-        <p className="text-sm text-muted-foreground">Centro de Comando de IA</p>
+    <div className="flex h-full flex-col gap-8 relative">
+      <div
+        data-lia-marker="true"
+        className="absolute -top-2 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+      >
+        dashboard-client.tsx
       </div>
 
-      <TooltipProvider delayDuration={100}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="absolute top-0 right-0">
+              <HelpCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">
+              Este es tu Centro de Comando. Desde aquí puedes iniciar nuevas
+              campañas, usar herramientas de IA, o retomar tus proyectos
+              recientes.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.1 } },
+        }}
+        className="flex flex-col gap-8"
+      >
         <motion.div
-          initial="hidden"
-          animate="show"
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            show: { opacity: 1, y: 0 },
+          }}
+        >
+          <h1 className="text-2xl font-bold text-foreground">
+            Bienvenido, {username}
+          </h1>
+          <p className="text-md text-muted-foreground">
+            ¿Qué campaña de alto rendimiento vamos a lanzar hoy?
+          </p>
+        </motion.div>
+
+        <motion.div
           variants={{
             hidden: {},
-            show: { transition: { staggerChildren: 0.04 } },
+            show: { transition: { staggerChildren: 0.07 } },
           }}
-          className="grid flex-grow grid-cols-1 gap-3 pt-0 md:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-4 md:grid-cols-3"
         >
-          {featureModules.map((mod) => (
-            <ModuleCard key={mod.title} module={mod} />
+          {creationActions.map((action) => (
+            <ActionCard key={action.title} {...action} />
           ))}
         </motion.div>
-      </TooltipProvider>
+
+        <RecentCampaigns campaigns={recentCampaigns} />
+      </motion.div>
     </div>
   );
 }
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Carga de Módulos desde la Base de Datos: El array `featureModules` está codificado en duro. La mejor práctica es mover esta configuración a una tabla en Supabase. Esto permitiría al equipo de producto habilitar/deshabilitar módulos, cambiar su estado (`beta`, `soon`) o actualizar sus descripciones sin necesidad de un despliegue de código.
- * 2. Módulos Basados en Permisos del Plan: Para la monetización, la consulta que obtenga los módulos de la base de datos debería hacer un `JOIN` con el plan de suscripción del usuario actual. Esto permitiría filtrar la lista de `featureModules` y mostrar solo aquellos a los que el usuario tiene acceso, mostrando los demás como "bloqueados" con una invitación a actualizar su plan.
- * 3. Paleta de Comandos (`Ctrl+K`): Implementar una paleta de comandos (con `cmdk`) que permita a los usuarios buscar y navegar a cualquier módulo escribiendo su nombre. Esto transformaría el dashboard en una herramienta de productividad para usuarios avanzados, en lugar de depender solo de la navegación por clic.
- */
-
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Carga de Módulos desde la Base de Datos: El array `featureModules` está codificado en duro. La mejor práctica es mover esta configuración a una tabla en Supabase. Esto permitiría al equipo de producto habilitar/deshabilitar módulos, cambiar su estado (`beta`, `soon`) o actualizar sus descripciones sin necesidad de un despliegue de código.
  * 2. Módulos Basados en Permisos del Plan: Para la monetización, la consulta que obtenga los módulos de la base de datos debería hacer un `JOIN` con el plan de suscripción del usuario actual. Esto permitiría filtrar la lista de `featureModules` y mostrar solo aquellos a los que el usuario tiene acceso, mostrando los demás como "bloqueados" con una invitación a actualizar su plan.

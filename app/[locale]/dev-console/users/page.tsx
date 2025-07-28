@@ -1,19 +1,17 @@
-/* Ruta: app/[locale]/dev-console/users/page.tsx */
-
-import { createClient } from "@/lib/supabase/server";
-import { UserManagementTable } from "../components/UserManagementTable";
-
+// Ruta: app/[locale]/dev-console/users/page.tsx
 /**
  * @file page.tsx
  * @description Página de Gestión de Usuarios para el `dev-console`.
- * REFACTORIZACIÓN DE ROBUSTEZ: Se ha mantenido la lógica de paginación y se ha
- * mejorado el manejo de errores. La consulta ahora se basa en un archivo de
- * tipos (`database.types.ts`) actualizado que refleja la relación de clave
- * externa correcta entre las tablas `profiles` y `users`.
+ * REFACTORIZACIÓN DE TIPOS: Se ha corregido el mapeo de datos para que coincida
+ * con la estructura del tipo `ProfileRow` esperado por `UserManagementTable`.
+ * Ahora se incluye `avatar_url`, resolviendo el error de compilación `TS2322`.
  *
  * @author Metashark
- * @version 2.2.0 (Type Synchronization)
+ * @version 3.1.0 (Type-Safe Data Mapping)
  */
+
+import { createClient } from "@/lib/supabase/server";
+import { UserManagementTable } from "../components/UserManagementTable";
 
 const USERS_PER_PAGE = 20;
 
@@ -27,24 +25,13 @@ export default async function UsersPage({
   const from = (page - 1) * USERS_PER_PAGE;
   const to = from + USERS_PER_PAGE - 1;
 
-  // Con los tipos regenerados, esta consulta ahora será completamente segura en tipos.
   const {
-    data: users,
+    data: profiles,
     error,
     count,
   } = await supabase
-    .from("profiles")
-    .select(
-      `
-      id,
-      full_name,
-      app_role,
-      users (
-          email
-      )
-    `,
-      { count: "exact" }
-    )
+    .from("user_profiles_with_email")
+    .select("*", { count: "exact" })
     .range(from, to);
 
   if (error) {
@@ -57,26 +44,23 @@ export default async function UsersPage({
           {error.message}
         </p>
         <p className="mt-4 text-muted-foreground">
-          <b>Sugerencia:</b> Este error puede ocurrir si los tipos de la base de
-          datos no están sincronizados. Intenta ejecutar `pnpm run
-          supabase:gen-types` para actualizar el archivo
-          `lib/database.types.ts`.
+          <b>Sugerencia:</b> Este error puede ocurrir si la vista
+          `user_profiles_with_email` no existe. Asegúrate de que las migraciones
+          de la base de datos se hayan ejecutado correctamente.
         </p>
       </div>
     );
   }
 
-  // La transformación de datos ahora es segura y explícita.
-  const profilesForTable = users.map((u) => ({
-    id: u.id,
-    full_name: u.full_name,
-    app_role: u.app_role,
-    // La consulta devuelve un objeto `users` si la relación existe.
-    // Si es un array, es un error de configuración de la relación (uno a muchos).
-    email: Array.isArray(u.users)
-      ? "Error de relación"
-      : u.users?.email || "N/A",
-  }));
+  // CORRECCIÓN: El mapeo ahora incluye todos los campos requeridos por el tipo ProfileRow.
+  const profilesForTable =
+    profiles?.map((p) => ({
+      id: p.id,
+      full_name: p.full_name,
+      app_role: p.app_role,
+      email: p.email,
+      avatar_url: p.avatar_url,
+    })) || [];
 
   return (
     <div className="space-y-6">
@@ -96,6 +80,21 @@ export default async function UsersPage({
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts` para una mejor separación de responsabilidades.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).
+ * 3. Ordenamiento de Columnas: Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol, pasando parámetros de orden a la consulta de la base de datos.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts` para una mejor separación de responsabilidades.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).
+ * 3. Ordenamiento de Columnas: Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol, pasando parámetros de orden a la consulta de la base de datos.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts` para una mejor separación de responsabilidades.
+ * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).
+ * 3. Ordenamiento de Columnas: Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol, pasando parámetros de orden a la consulta de la base de datos.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Abstracción de la Capa de Datos: La lógica de la consulta de Supabase está directamente en el componente de página. Para una mejor separación de responsabilidades, esta consulta podría moverse a una función dedicada en un nuevo archivo `lib/data/users.ts`.
  * 2. Manejo de Errores más Amigable: En lugar de mostrar el mensaje de error técnico, se podría mostrar un componente de error genérico y registrar el error completo en un servicio de monitoreo (como Sentry).

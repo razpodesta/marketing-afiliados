@@ -1,26 +1,25 @@
-/* Ruta: app/[locale]/admin/page.tsx */
+// Ruta: app/[locale]/admin/page.tsx
+/**
+ * @file page.tsx
+ * @description Página del Dashboard de Administración (Server Component).
+ * REFACTORIZACIÓN DE TIPOS: Se ha corregido la ruta de importación de los tipos
+ * de base de datos para alinearla con la nueva estructura modular.
+ *
+ * @author Metashark
+ * @version 6.1.0 (Type Path Correction)
+ */
 
 import { Card } from "@/components/ui/card";
 import { getAllSites } from "@/lib/data/sites";
-import type { Database } from "@/lib/database.types";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
+import { type Database } from "@/lib/types/database"; // <-- CORRECCIÓN
 import { rootDomain } from "@/lib/utils";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AdminDashboard } from "./dashboard";
 
-/**
- * @file page.tsx
- * @description Página del Dashboard de Administración (Server Component).
- * REFACTORIZACIÓN DE ESCALABILIDAD: Se ha integrado la lógica de paginación.
- * Ahora lee el parámetro 'page' de la URL, lo pasa a `getAllSites`, y envía
- * los metadatos de paginación al componente cliente.
- *
- * @author Metashark
- * @version 6.0.0 (Pagination Integration)
- */
 export const metadata: Metadata = {
   title: `Admin Dashboard | ${rootDomain}`,
   description: `Gestionar todos los sitios en la plataforma ${rootDomain}.`,
@@ -89,7 +88,6 @@ async function AdminDashboardLoader({
       createdAt: new Date(site.created_at).getTime(),
     }));
 
-    // CORRECCIÓN: Se pasan las props de paginación a AdminDashboard
     return (
       <AdminDashboard
         sites={sites}
@@ -123,6 +121,26 @@ export default function AdminPage({
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
+ * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
+ * 3. Ordenamiento: Añadir parámetros de ordenamiento a la URL (ej. `?sort=createdAt&order=asc`) para permitir al administrador ordenar la lista de sitios por diferentes columnas.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Crear la Página de Onboarding (`/welcome`): La mejora más inmediata es crear la página `/welcome` a la que se redirige a los nuevos usuarios, para que puedan configurar su primer workspace o recibir un tour guiado por la aplicación.
+ * 2. Lógica de Onboarding Basada en Perfil: En lugar de depender solo de las marcas de tiempo de la sesión, se podría añadir un campo booleano `has_completed_onboarding` a la tabla `profiles`. La comprobación aquí sería más robusta y permitiría a los usuarios retomar el onboarding si lo abandonaron.
+ * 3. Centralizar la Lógica de Sesión en el Layout: Para optimizar, la llamada a `getUser()` podría hacerse una sola vez en el `dashboard/layout.tsx` y pasar los datos a las páginas hijas, evitando que cada página del dashboard tenga que volver a validar la sesión.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
+ * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
+ * 3. Ordenamiento: Añadir parámetros de ordenamiento a la URL (ej. `?sort=createdAt&order=asc`) para permitir al administrador ordenar la lista de sitios por diferentes columnas.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
+ * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
+ * 3. Ordenamiento: Añadir parámetros de ordenamiento a la URL (ej. `?sort=createdAt&order=asc`) para permitir al administrador ordenar la lista de sitios por diferentes columnas.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
  * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.

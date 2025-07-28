@@ -26,14 +26,14 @@ La aplicación opera bajo dos contextos principales, controlados por el middlewa
 
 ### Tech Stack
 
-| Componente               | Tecnología                                                                                                     | Propósito                                       |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **Framework**            | [Next.js 14](https://nextjs.org/) (App Router)                                                                 | Renderizado híbrido y de servidor.              |
-| **UI**                   | [React 18](https://react.dev/), [TailwindCSS](https://tailwindcss.com/), [Shadcn/UI](https://ui.shadcn.com/)    | Interfaz de usuario moderna y componetizable.   |
-| **Base de Datos**        | [Supabase (PostgreSQL)](https://supabase.com/)                                                                 | Persistencia de datos, roles y usuarios.        |
-| **Autenticación**        | [NextAuth.js v5](https://authjs.dev/)                                                                          | Gestión de sesiones y protección de rutas.      |
-| **Internacionalización** | [next-intl](https://next-intl.dev/)                                                                            | Soporte para múltiples idiomas.                 |
-| **Validación de Datos**  | [Zod](https://zod.dev/)                                                                                        | Validación de esquemas en Server Actions.       |
+| Componente               | Tecnología                                                                                                   | Propósito                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| **Framework**            | [Next.js 14](https://nextjs.org/) (App Router)                                                               | Renderizado híbrido y de servidor.            |
+| **UI**                   | [React 18](https://react.dev/), [TailwindCSS](https://tailwindcss.com/), [Shadcn/UI](https://ui.shadcn.com/) | Interfaz de usuario moderna y componetizable. |
+| **Base de Datos**        | [Supabase (PostgreSQL)](https://supabase.com/)                                                               | Persistencia de datos, roles y usuarios.      |
+| **Autenticación**        | [NextAuth.js v5](https://authjs.dev/)                                                                        | Gestión de sesiones y protección de rutas.    |
+| **Internacionalización** | [next-intl](https://next-intl.dev/)                                                                          | Soporte para múltiples idiomas.               |
+| **Validación de Datos**  | [Zod](https://zod.dev/)                                                                                      | Validación de esquemas en Server Actions.     |
 
 ---
 
@@ -50,3 +50,4 @@ graph TD
     E --> F[Enriquece el JWT con roles y workspace_id];
     F --> G[Callback 'session' transfiere datos del JWT a la sesión del cliente];
     G --> H[Usuario tiene sesión con roles y contexto];
+```

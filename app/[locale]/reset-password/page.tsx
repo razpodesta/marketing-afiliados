@@ -1,96 +1,125 @@
-/* Ruta: app/[locale]/reset-password/page.tsx */
-
-"use client";
-
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useEffect, useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
-import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-
+// Ruta: app/[locale]/reset-password/page.tsx
 /**
  * @file page.tsx
- * @description Página que permite a los usuarios establecer una nueva contraseña.
- * REVISIÓN DE DISEÑO: Se ha rediseñado para alinearse con la identidad de marca
- * del portal de autenticación, proporcionando una experiencia de usuario coherente.
+ * @description Página para que los usuarios establezcan una nueva contraseña.
+ * REFACTORIZACIÓN ARQUITECTÓNICA:
+ * 1. Se actualiza la importación de la Server Action para utilizar el nuevo
+ *    barrel file y el namespace `password`, mejorando la claridad y la
+ *    consistencia del código (`passwordActions.updatePasswordAction`).
+ * 2. Mantenidas las mejoras previas: migración a Server Action, medidor de
+ *    fortaleza de contraseña y manejo de errores robusto.
  *
  * @author Metashark
- * @version 3.0.0 (Branded Design & Supabase Logic)
+ * @version 4.1.0 (Namespaced Action Import)
  */
+"use client";
 
-const ResetPasswordSchema = z
-  .object({
-    password: z
-      .string()
-      .min(8, "La contraseña debe tener al menos 8 caracteres."),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
-    path: ["confirmPassword"],
-  });
+import { password as passwordActions } from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
+import toast from "react-hot-toast";
 
-type FormState = { message: string; type: "success" | "error" } | null;
+/**
+ * @description Botón de envío que se actualiza automáticamente según el estado del formulario.
+ * @returns {JSX.Element}
+ */
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  const t = useTranslations("ResetPasswordPage");
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {t("submitButton")}
+    </Button>
+  );
+}
 
+/**
+ * @description Componente visual que muestra la fortaleza de la contraseña.
+ * @param {{ score: number }} props - La puntuación de la contraseña (0-4).
+ * @returns {JSX.Element}
+ */
+const PasswordStrengthMeter = ({ score }: { score: number }) => {
+  const t = useTranslations("ResetPasswordPage");
+  const strengthLevels = [
+    { text: t("strength.veryWeak"), color: "bg-destructive" },
+    { text: t("strength.weak"), color: "bg-destructive" },
+    { text: t("strength.medium"), color: "bg-yellow-500" },
+    { text: t("strength.strong"), color: "bg-green-500" },
+    { text: t("strength.veryStrong"), color: "bg-green-500" },
+  ];
+
+  return (
+    <div className="space-y-2 pt-2">
+      <div className="flex gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "h-1.5 flex-1 rounded-full transition-colors",
+              score > i ? strengthLevels[score].color : "bg-muted"
+            )}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {strengthLevels[score].text}
+      </p>
+    </div>
+  );
+};
+
+/**
+ * @description Página principal para restablecer la contraseña del usuario.
+ * @returns {JSX.Element}
+ */
 export default function ResetPasswordPage() {
   const t = useTranslations("ResetPasswordPage");
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [formState, setFormState] = useState<FormState>(null);
-  const supabase = createClient();
+  const [password, setPassword] = useState("");
+  const [strength, setStrength] = useState(0);
+
+  const [state, formAction] = useFormState(
+    passwordActions.updatePasswordAction,
+    {
+      error: null,
+      success: false,
+    }
+  );
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        console.log("Evento PASSWORD_RECOVERY detectado para la sesión.");
-      }
-    });
+    if (state.error) {
+      toast.error(state.error);
+    }
+    if (state.success) {
+      toast.success(
+        "¡Contraseña actualizada con éxito! Serás redirigido al login."
+      );
+      setTimeout(() => router.push("/login"), 3000);
+    }
+  }, [state, router]);
 
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormState(null);
-    const formData = new FormData(event.currentTarget);
-    const data = Object.fromEntries(formData.entries());
-
-    const validation = ResetPasswordSchema.safeParse(data);
-    if (!validation.success) {
-      setFormState({
-        message: validation.error.errors[0].message,
-        type: "error",
-      });
+  useEffect(() => {
+    let score = 0;
+    if (!password) {
+      setStrength(0);
       return;
     }
-
-    startTransition(async () => {
-      const { error } = await supabase.auth.updateUser({
-        password: validation.data.password,
-      });
-
-      if (error) {
-        setFormState({
-          message: error.message || "No se pudo actualizar la contraseña. El enlace puede haber expirado.",
-          type: "error",
-        });
-      } else {
-        setFormState({
-          message: "¡Contraseña actualizada con éxito! Serás redirigido al login.",
-          type: "success",
-        });
-        setTimeout(() => router.push("/login"), 3000);
-      }
-    });
-  };
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    setStrength(score);
+  }, [password]);
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -114,34 +143,60 @@ export default function ResetPasswordPage() {
       <Card className="w-full max-w-md border-border/60 bg-card/50 backdrop-blur-lg">
         <CardHeader />
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             <div>
               <Label htmlFor="password">{t("newPasswordLabel")}</Label>
-              <Input id="password" name="password" type="password" required className="mt-1" />
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="mt-1"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
+            {password.length > 0 && <PasswordStrengthMeter score={strength} />}
             <div>
-              <Label htmlFor="confirmPassword">{t("confirmPasswordLabel")}</Label>
-              <Input id="confirmPassword" name="confirmPassword" type="password" required className="mt-1" />
+              <Label htmlFor="confirmPassword">
+                {t("confirmPasswordLabel")}
+              </Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                className="mt-1"
+              />
             </div>
-            {formState && (
-              <p
-                className={`text-sm text-center ${
-                  formState.type === "error" ? "text-destructive" : "text-green-500"
-                }`}
-              >
-                {formState.message}
+            {state.error && (
+              <p className="text-sm text-center text-destructive">
+                {state.error}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("submitButton")}
-            </Button>
+            <SubmitButton />
           </form>
         </CardContent>
       </Card>
     </main>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Prevención de Reutilización de Contraseña: Para una seguridad de nivel empresarial, la Server Action `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario (si se guardan de forma segura) para prevenir que reutilicen una contraseña reciente.
+ * 2. Integración con `zxcvbn`: En lugar de una lógica de puntuación simple, se podría integrar una librería como `zxcvbn-ts` para un análisis de fortaleza de contraseña mucho más robusto y preciso, que detecta patrones comunes y palabras de diccionario.
+ * 3. Internacionalización de Mensajes de Error de Zod: Integrar `zod-i18n` para que los mensajes de error del esquema de validación (ej. "Las contraseñas no coinciden") se traduzcan automáticamente según el idioma del usuario.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Prevención de Reutilización de Contraseña: Para una seguridad de nivel empresarial, la Server Action `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario (si se guardan de forma segura) para prevenir que reutilicen una contraseña reciente.
+ * 2. Integración con `zxcvbn`: En lugar de una lógica de puntuación simple, se podría integrar una librería como `zxcvbn-ts` para un análisis de fortaleza de contraseña mucho más robusto y preciso, que detecta patrones comunes y palabras de diccionario.
+ * 3. Forzar Cierre de Sesión en Otros Dispositivos: Después de una actualización de contraseña exitosa, se podría invocar `supabase.auth.signOut({ scope: 'others' })` en la Server Action para invalidar todas las demás sesiones activas del usuario, una práctica de seguridad recomendada que ya está contemplada en la acción.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Prevención de Reutilización de Contraseña: Para una seguridad de nivel empresarial, la Server Action `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario (si se guardan de forma segura) para prevenir que reutilicen una contraseña reciente.
+ * 2. Integración con `zxcvbn`: En lugar de una lógica de puntuación simple, se podría integrar una librería como `zxcvbn-ts` para un análisis de fortaleza de contraseña mucho más robusto y preciso, que detecta patrones comunes y palabras de diccionario.
+ * 3. Forzar Cierre de Sesión en Otros Dispositivos: Después de una actualización de contraseña exitosa, se podría invocar `supabase.auth.signOut({ scope: 'others' })` en la Server Action para invalidar todas las demás sesiones activas del usuario, una práctica de seguridad recomendada.
+ */
 /* Ruta: app/[locale]/reset-password/page.tsx */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Indicador de Fortaleza de Contraseña: Integrar un componente visual que dé feedback en tiempo real sobre la fortaleza de la nueva contraseña (débil, media, fuerte) a medida que el usuario escribe. Esto se puede lograr con una librería como `zxcvbn` y ayuda a los usuarios a crear contraseñas más seguras.

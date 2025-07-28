@@ -1,5 +1,5 @@
 /* Ruta: app/[locale]/dev-console/layout.tsx */
-
+"use client";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -13,7 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { signOutAction } from "@/app/actions";
+import { signOutAction } from "@/app/actions/auth.actions";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -40,7 +40,9 @@ export default async function DevConsoleLayout({
   children: React.ReactNode;
 }) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return redirect("/login?next=/dev-console");

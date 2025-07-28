@@ -7,27 +7,27 @@ Estructura Actual (Implementada):
 Generated code
 app/
 └── [locale]/
-    └── builder/
-        ├── [campaignId]/
-        │   ├── layout.tsx         // ✅ HECHO: Orquesta DndContext y la UI de edición.
-        │   └── page.tsx           // ✅ HECHO: Carga datos de Supabase e inicializa el store.
-        └── components/
-            ├── BlocksPalette.tsx      // ✅ HECHO: Muestra bloques arrastrables.
-            ├── BuilderHeader.tsx      // ✅ HECHO: Contiene acciones principales (Guardar).
-            ├── Canvas.tsx           // ✅ HECHO: Renderiza los bloques desde el store.
-            ├── DraggableBlockWrapper.tsx // ✅ HECHO: HOC para interactividad de bloques.
-            └── SettingsPanel.tsx      // ✅ HECHO: Panel de edición dinámico.
+└── builder/
+├── [campaignId]/
+│ ├── layout.tsx // ✅ HECHO: Orquesta DndContext y la UI de edición.
+│ └── page.tsx // ✅ HECHO: Carga datos de Supabase e inicializa el store.
+└── components/
+├── BlocksPalette.tsx // ✅ HECHO: Muestra bloques arrastrables.
+├── BuilderHeader.tsx // ✅ HECHO: Contiene acciones principales (Guardar).
+├── Canvas.tsx // ✅ HECHO: Renderiza los bloques desde el store.
+├── DraggableBlockWrapper.tsx // ✅ HECHO: HOC para interactividad de bloques.
+└── SettingsPanel.tsx // ✅ HECHO: Panel de edición dinámico.
 components/
-└── templates/                     // ✅ HECHO (Reubicado): Biblioteca central de bloques.
-    ├── Header/
-    │   └── Header1.tsx
-    ├── Hero/
-    │   └── Hero1.tsx
-    └── index.ts                 // ✅ HECHO: Registro de bloques.
+└── templates/ // ✅ HECHO (Reubicado): Biblioteca central de bloques.
+├── Header/
+│ └── Header1.tsx
+├── Hero/
+│ └── Hero1.tsx
+└── index.ts // ✅ HECHO: Registro de bloques.
 lib/
 └── builder/
-    └── types.d.ts                 // ✅ HECHO: Nuestro "contrato de datos" oficial.
-    
+└── types.d.ts // ✅ HECHO: Nuestro "contrato de datos" oficial.
+
 Lógica y Justificación (Validada):
 Aislamiento Exitoso: La ruta /builder está completamente aislada, con su propio layout, permitiendo una experiencia de edición inmersiva.
 Modularidad Comprobada: La co-ubicación de /templates dentro de /components ha simplificado las importaciones y ha hecho que la estructura del proyecto sea más intuitiva. Añadir nuevos bloques es un proceso claro y escalable.

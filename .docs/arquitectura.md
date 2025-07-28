@@ -21,13 +21,11 @@ La arquitectura prioriza la **velocidad** (aprovechando el Edge de Vercel), la *
 El `middleware.ts` es el cerebro de la aplicación y el primer punto de contacto para cada petición. Opera con la siguiente lógica secuencial:
 
 1.  **Detección de Subdominio:**
-
     - La petición es analizada para extraer un posible subdominio del `host`.
     - **Si se detecta un subdominio:** La petición es **reescrita internamente** a la ruta `/s/[subdomain]`. Toda la lógica de autenticación e i18n del dominio principal es omitida para esta petición, garantizando el aislamiento y rendimiento de las páginas de los tenants.
     - **Si NO se detecta un subdominio:** La petición continúa al siguiente paso.
 
 2.  **Autenticación y Autorización (Dominio Principal):**
-
     - La petición es procesada por el middleware de `next-auth`.
     - Se verifica si existe una sesión de usuario válida.
     - Se comprueba si la ruta solicitada es protegida (ej. `/admin`).

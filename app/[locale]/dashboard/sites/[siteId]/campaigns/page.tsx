@@ -1,38 +1,60 @@
-// NUEVO APARATO: app/[locale]/dashboard/sites/[siteId]/campaigns/page.tsx
-
-import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
-import { CampaignsClient } from "./campaigns-client"; // Crearemos este componente a continuación
-import { logger } from "@/lib/logging";
-
+// Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/page.tsx
 /**
  * @file page.tsx
  * @description Página de servidor para listar las campañas de un sitio específico.
- * Realiza una verificación de permisos crítica para asegurar que el usuario
- * actual pertenece al workspace dueño del sitio antes de cargar los datos.
+ * REFACTORIZACIÓN 360 - ESCALABILIDAD Y UX:
+ * 1. Implementada la paginación del lado del servidor para las campañas.
+ * 2. Se ha añadido un `BreadcrumbsProvider` para pasar el nombre del sitio a
+ *    la UI, mejorando la navegación contextual.
+ * 3. Incorporado manejo de errores robusto.
  *
  * @author Metashark
- * @version 1.0.0 (Initial Creation)
+ * @version 2.0.0 (Scalable & Context-Aware Page)
  */
-async function getCampaignsBySiteId(siteId: string) {
+import { Card } from "@/components/ui/card";
+import { BreadcrumbsProvider } from "@/lib/context/BreadcrumbsContext";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { AlertTriangle } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { CampaignsClient } from "./campaigns-client";
+
+const CAMPAIGNS_PER_PAGE = 10;
+
+/**
+ * @description Obtiene una lista paginada de campañas para un sitio específico.
+ * @param {string} siteId - El UUID del sitio.
+ * @param {{ page: number; limit: number }} options - Opciones de paginación.
+ * @returns {Promise<{campaigns: any[], totalCount: number}>}
+ */
+async function getPaginatedCampaignsBySiteId(
+  siteId: string,
+  { page, limit }: { page: number; limit: number }
+) {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await supabase
     .from("campaigns")
-    .select("id, name, created_at, updated_at, slug")
+    .select("id, name, created_at, updated_at, slug", { count: "exact" })
     .eq("site_id", siteId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     logger.error(`Error al obtener campañas para el sitio ${siteId}:`, error);
-    return [];
+    throw new Error("No se pudieron obtener las campañas.");
   }
-  return data;
+  return { campaigns: data, totalCount: count || 0 };
 }
 
 export default async function CampaignsPage({
   params,
+  searchParams,
 }: {
   params: { siteId: string };
+  searchParams: { page?: string };
 }) {
   const supabase = createClient();
   const {
@@ -43,18 +65,14 @@ export default async function CampaignsPage({
     return redirect(`/login?next=/dashboard/sites/${params.siteId}/campaigns`);
   }
 
-  // Verificación de permisos: Cargar el sitio y su workspace_id
   const { data: siteData } = await supabase
     .from("sites")
     .select("id, subdomain, workspace_id")
     .eq("id", params.siteId)
     .single();
 
-  if (!siteData) {
-    return notFound();
-  }
+  if (!siteData) return notFound();
 
-  // Comprobar si el usuario es miembro de ese workspace
   const { count: memberCount } = await supabase
     .from("workspace_members")
     .select("id", { count: "exact" })
@@ -68,7 +86,41 @@ export default async function CampaignsPage({
     return redirect("/dashboard/sites");
   }
 
-  const campaigns = await getCampaignsBySiteId(params.siteId);
+  try {
+    const page = Number(searchParams.page) || 1;
+    const { campaigns, totalCount } = await getPaginatedCampaignsBySiteId(
+      params.siteId,
+      {
+        page,
+        limit: CAMPAIGNS_PER_PAGE,
+      }
+    );
 
-  return <CampaignsClient site={siteData} initialCampaigns={campaigns} />;
+    return (
+      <BreadcrumbsProvider
+        nameMap={{ [siteData.id]: siteData.subdomain || "Sitio" }}
+      >
+        <CampaignsClient
+          site={siteData}
+          initialCampaigns={campaigns}
+          totalCount={totalCount}
+          page={page}
+          limit={CAMPAIGNS_PER_PAGE}
+        />
+      </BreadcrumbsProvider>
+    );
+  } catch (error) {
+    return (
+      <Card className="flex flex-col items-center justify-center h-full p-8 text-center bg-destructive/10 border-destructive/50">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-bold text-destructive-foreground">
+          Error al Cargar las Campañas
+        </h2>
+        <p className="text-muted-foreground mt-2">
+          No pudimos obtener la información de las campañas. Por favor, intenta
+          recargar la página.
+        </p>
+      </Card>
+    );
+  }
 }

@@ -1,8 +1,19 @@
-/* Ruta: components/dashboard/DashboardSidebar.tsx */
-
+// Ruta: components/dashboard/DashboardSidebar.tsx
+/**
+ * @file DashboardSidebar.tsx
+ * @description Barra lateral de navegación principal del dashboard.
+ * REFACTORIZACIÓN ARQUITECTÓNICA:
+ * 1. El componente ya no acepta props. Ahora consume todos los datos de sesión
+ *    necesarios (`user`) desde el `DashboardContext` a través del hook `useDashboard`.
+ * 2. Se ha añadido una guarda de seguridad para manejar el caso en que el
+ *    contexto aún no esté disponible, mostrando un esqueleto de carga.
+ *
+ * @author Metashark
+ * @version 10.0.0 (Context-Driven & Fully Decoupled)
+ */
 "use client";
 
-import { signOutAction } from "@/app/actions";
+import { signOutAction } from "@/app/actions/session.actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDashboard } from "@/lib/context/DashboardContext";
 import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -21,42 +33,22 @@ import {
   LifeBuoy,
   LogOut,
   Settings,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import React from "react";
 
-/**
- * @file DashboardSidebar.tsx
- * @description Barra lateral de navegación principal del dashboard.
- * CORRECCIÓN DE ASSETS: Se ha verificado y reforzado la implementación del componente
- * `Image` de Next.js para asegurar que el `logo.png` se renderice correctamente. La ruta
- * `/images/logo.png` es la correcta, ya que es relativa al directorio `public`.
- * Se han afinado los estilos para una coherencia total con la identidad de marca.
- *
- * @author Metashark
- * @version 7.1.0 (Asset Rendering Fix & Style Refinement)
- */
-
-const mainNavLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/sites", label: "Mis Sitios", icon: Globe },
-  { href: "/dashboard/tools", label: "Herramientas IA", icon: Sparkles },
-  { href: "/dashboard/settings", label: "Ajustes", icon: Settings },
-];
-
-function NavLink({
-  href,
-  label,
-  icon: Icon,
-}: {
+interface NavLinkProps {
   href: string;
   label: string;
   icon: React.ElementType;
-}) {
+}
+
+function NavLink({ href, label, icon: Icon }: NavLinkProps) {
   const pathname = usePathname();
-  // Lógica mejorada para resaltar la ruta activa, incluyendo sub-rutas.
   const isActive =
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
@@ -74,11 +66,62 @@ function NavLink({
   );
 }
 
-export function DashboardSidebarContent({ user }: { user: User }) {
+const UserMenuSkeleton = () => (
+  <div className="flex items-center gap-3 p-2">
+    <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+    <div className="flex flex-col gap-1">
+      <div className="h-4 w-24 rounded-md bg-muted animate-pulse" />
+      <div className="h-3 w-32 rounded-md bg-muted animate-pulse" />
+    </div>
+  </div>
+);
+
+export function DashboardSidebarContent() {
+  const { user } = useDashboard(); // <-- CORRECCIÓN: Consume desde el contexto
+
+  if (!user) {
+    return (
+      <>
+        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+          <div className="h-8 w-32 rounded-md bg-muted animate-pulse" />
+        </div>
+        <div className="flex-1 overflow-auto">
+          <nav className="grid items-start gap-1 px-2 py-4 lg:px-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-9 w-full rounded-lg bg-muted animate-pulse"
+              />
+            ))}
+          </nav>
+        </div>
+        <div className="mt-auto border-t p-4">
+          <UserMenuSkeleton />
+        </div>
+      </>
+    );
+  }
+
   const userName =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
   const userEmail = user.email || "";
   const userAvatarUrl = user.user_metadata?.avatar_url || "";
+  const userRole = user.app_metadata?.app_role || "user";
+
+  const mainNavLinks: NavLinkProps[] = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/sites", label: "Mis Sitios", icon: Globe },
+    { href: "/lia-chat", label: "Chat L.I.A", icon: Sparkles },
+    { href: "/dashboard/settings", label: "Ajustes", icon: Settings },
+  ];
+
+  if (userRole === "developer") {
+    mainNavLinks.push({
+      href: "/dev-console",
+      label: "Dev Console",
+      icon: ShieldCheck,
+    });
+  }
 
   return (
     <>
@@ -163,16 +206,27 @@ export function DashboardSidebarContent({ user }: { user: User }) {
   );
 }
 
-export function DashboardSidebar({ user }: { user: User }) {
+export function DashboardSidebar() {
   return (
     <aside className="hidden border-r bg-card md:block">
       <div className="flex h-full max-h-screen flex-col gap-2">
-        <DashboardSidebarContent user={user} />
+        {/* CORRECCIÓN: Se elimina el paso de props */}
+        <DashboardSidebarContent />
       </div>
     </aside>
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
+ * 2. Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario.
+ * 3. Cargar Enlaces desde API: Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos, permitiendo a un administrador configurar los elementos de navegación de la aplicación sin necesidad de un despliegue de código.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
+ * 2. Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario.
+ * 3. Cargar Enlaces desde API: Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos, permitiendo a un administrador configurar los elementos de navegación de la aplicación sin necesidad de un despliegue de código.
+ */
 /* MEJORAS FUTURAS DETECTADAS
 Navegación Basada en Roles: El array mainNavLinks está codificado en duro. Una mejora arquitectónica significativa sería filtrar este array basándose en el app_role del usuario. Esto permitiría, por ejemplo, mostrar un enlace a /admin o /dev-console directamente en la barra lateral solo para los usuarios con los permisos adecuados.
 Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.

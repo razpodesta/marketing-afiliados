@@ -1,8 +1,19 @@
-/* Ruta: app/[locale]/forgot-password/page.tsx */
-
+/**
+ * @file page.tsx
+ * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
+ * ANÁLISIS DE CALIDAD: Este componente ya está alineado con las mejores prácticas
+ * de seguridad y UX. Utiliza `useFormState` y `useFormStatus` para una
+ * interacción fluida con la Server Action y está diseñado para funcionar con el
+ * flujo de redirección que previene la enumeración de usuarios. La refactorización
+ * se centra en añadir documentación TSDoc exhaustiva.
+ *
+ * @author Metashark
+ * @version 4.1.0 (Comprehensive TSDoc)
+ */
 "use client";
 
-import { requestPasswordResetAction } from "@/app/actions";
+import { requestPasswordResetAction } from "@/app/actions/auth.actions";
+import { type RequestPasswordResetState } from "@/app/actions/schemas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,22 +26,10 @@ import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
 /**
- * @file page.tsx
- * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
- * REFACTORIZACIÓN A REACT 19: Se ha actualizado el manejo del estado del formulario
- * para utilizar los hooks `useFormState` y `useFormStatus`. Esto simplifica el código,
- * elimina la necesidad de `useState` y `useTransition` manuales, y se alinea con
- * las mejores prácticas modernas para el manejo de Server Actions en formularios,
- * resolviendo así el error de compilación `ts2769`.
- *
- * @author Metashark
- * @version 3.0.0 (React 19 Form Handling)
- */
-
-/**
- * @description Componente interno que muestra el botón de envío y su estado de carga.
- * Utiliza el hook `useFormStatus` para reaccionar al estado pendiente del formulario padre.
- * @returns {JSX.Element}
+ * @description Componente interno que renderiza el botón de envío del formulario.
+ *              Utiliza el hook `useFormStatus` para mostrar un estado de carga
+ *              y deshabilitarse automáticamente mientras la Server Action está en curso.
+ * @returns {JSX.Element} El botón de envío con estado.
  */
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -44,16 +43,24 @@ function SubmitButton() {
   );
 }
 
+/**
+ * @description Componente principal de la página de olvido de contraseña.
+ *              Gestiona el estado del formulario y la interacción con la Server Action.
+ * @returns {JSX.Element} La interfaz de usuario completa de la página.
+ */
 export default function ForgotPasswordPage() {
   const t = useTranslations("ForgotPasswordPage");
 
-  const initialState = { error: undefined };
+  const initialState: RequestPasswordResetState = { error: undefined };
   const [state, formAction] = useFormState(
     requestPasswordResetAction,
     initialState
   );
 
   useEffect(() => {
+    // La Server Action asociada siempre redirige para prevenir la enumeración de usuarios.
+    // Por lo tanto, este efecto solo se activará para errores de validación
+    // devueltos *antes* de la ejecución de la lógica principal (ej. email inválido).
     if (state?.error) {
       toast.error(state.error);
     }
@@ -92,6 +99,7 @@ export default function ForgotPasswordPage() {
                 placeholder="tu@email.com"
                 required
                 className="mt-1"
+                autoFocus
               />
             </div>
             {state?.error && (
@@ -105,6 +113,19 @@ export default function ForgotPasswordPage() {
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Rate Limiting (Server-Side): La mejora de seguridad más crítica para este flujo es implementar limitación de tasa en la `requestPasswordResetAction` del servidor. Esto previene ataques de bombardeo de correos electrónicos y es esencial para un sistema en producción.
+ * 2. Integración con Servicio de Email Transaccional (Server-Side): Para mejorar la entregabilidad, el seguimiento y el branding de los correos, la `requestPasswordResetAction` debería integrarse con un servicio como Resend o Postmark en lugar de depender del servicio de email por defecto de Supabase.
+ * 3. Validación en Tiempo Real en Cliente: Para una UX superior, se podría migrar este formulario a `react-hook-form` con `zodResolver`. Esto permitiría mostrar errores de validación (ej. "el formato del email es incorrecto") instantáneamente mientras el usuario escribe, sin necesidad de un envío al servidor.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Rate Limiting del Lado del Servidor: Implementar un sistema de limitación de tasa (utilizando una herramienta como Upstash Redis) en la `Server Action` `requestPasswordResetAction` para prevenir que se abuse de la función, evitando el envío masivo de correos a un mismo destinatario o desde una misma IP.
+ * 2. Integración con Servicio de Email Transaccional: Para mayor control y observabilidad, reemplazar el método `resetPasswordForEmail` de Supabase por una lógica personalizada que genere un token JWT, lo guarde en la base de datos y utilice un servicio como Resend o Postmark para enviar un email con una plantilla HTML de marca.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Rate Limiting del Lado del Servidor: Implementar un sistema de limitación de tasa (utilizando una herramienta como Upstash Redis) en la `Server Action` `requestPasswordResetAction` para prevenir que se abuse de la función, evitando el envío masivo de correos a un mismo destinatario o desde una misma IP.
+ * 2. Integración con Servicio de Email Transaccional: Para mayor control y observabilidad, reemplazar el método `resetPasswordForEmail` de Supabase por una lógica personalizada que genere un token JWT, lo guarde en la base de datos y utilice un servicio como Resend o Postmark para enviar un email con una plantilla HTML de marca.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Prevención de Enumeración de Usuarios: Para mayor seguridad, la `Server Action` `requestPasswordResetAction` debería ser modificada para que NUNCA devuelva un error si el email no existe. Siempre debería redirigir a la página de notificación con un mensaje genérico (ej. "Si tu correo está en nuestro sistema, recibirás un enlace"), previniendo que actores maliciosos puedan descubrir qué correos están registrados.
  * 2. Rate Limiting del Lado del Servidor: Implementar un sistema de limitación de tasa (utilizando una herramienta como Upstash Redis) en la `Server Action` para prevenir que se abuse de la función de reseteo de contraseña, evitando el envío masivo de correos a un mismo destinatario o desde una misma IP.

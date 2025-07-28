@@ -1,19 +1,15 @@
-// NUEVO APARATO: scripts/diagnose-supabase-config.mjs
-
+// Ruta: scripts/diagnose-supabase-config.mjs
 import dotenv from "dotenv";
-import fetch from "node-fetch"; // Necesitarás instalar node-fetch: pnpm add node-fetch
+import fetch from "node-fetch";
 
-// Cargar variables de entorno desde .env.local
 dotenv.config({ path: ".env.local" });
 
 /**
  * @file diagnose-supabase-config.mjs
  * @description Script de diagnóstico que utiliza la Management API de Supabase
- * para verificar la configuración de autenticación del proyecto, incluyendo
- * proveedores de OAuth, URLs de redirección y otras configuraciones críticas.
- *
- * @author Code-Pilot Pro
- * @version 1.0.0
+ * para verificar la configuración de autenticación del proyecto.
+ * @author L.I.A Legacy
+ * @version 1.1.0
  */
 async function diagnoseSupabaseConfig() {
   console.log("🚀 Iniciando diagnóstico de configuración de Supabase...");
@@ -31,7 +27,10 @@ async function diagnoseSupabaseConfig() {
     return;
   }
 
-  if (!accessToken) {
+  if (
+    !accessToken ||
+    accessToken === "tu_nuevo_token_de_acceso_personal_aqui"
+  ) {
     console.error(
       "❌ ERROR: La variable de entorno SUPABASE_ACCESS_TOKEN no está definida en .env.local."
     );
@@ -66,20 +65,17 @@ async function diagnoseSupabaseConfig() {
     const config = await response.json();
 
     console.log("\n✅ Configuración de Autenticación obtenida con éxito:\n");
-
-    // --- Resumen General ---
     console.log("--- RESUMEN GENERAL ---");
     console.table({
       "Sitio URL": config.SITE_URL,
       "Deshabilitar Registro": config.DISABLE_SIGNUP,
-      "Confirmación de Email": config.MAILER_AUTOCONFIRM,
+      "Confirmación Automática de Email": !config.MAILER_AUTOCONFIRM,
       "Email de Soporte": config.MAILER_SENDER_NAME,
     });
 
-    // --- Proveedores Externos ---
     console.log("\n--- PROVEEDORES OAUTH ---");
     const providers = Object.entries(config.EXTERNAL_PROVIDERS)
-      .filter(([key, value]) => value.enabled)
+      .filter(([, value]) => value.enabled)
       .map(([key, value]) => ({
         Proveedor: key.toUpperCase(),
         Habilitado: value.enabled,
@@ -93,26 +89,18 @@ async function diagnoseSupabaseConfig() {
       console.warn("   - No hay proveedores de OAuth habilitados.");
     }
 
-    // --- URLs de Redirección ---
     console.log("\n--- URLs DE REDIRECCIÓN ---");
     if (config.URI_ALLOW_LIST && config.URI_ALLOW_LIST.length > 0) {
       console.log("   - Lista de URIs permitidas (URI_ALLOW_LIST):");
       config.URI_ALLOW_LIST.forEach((uri) => console.log(`     - ${uri}`));
     } else {
       console.warn(
-        "   - ¡ADVERTENCIA! No hay URIs en la lista blanca. Esto puede causar problemas."
+        "   - ¡ADVERTENCIA! No hay URIs en la lista blanca. Esto puede causar problemas de redirección en OAuth."
       );
     }
-    console.log(
-      "\n   Asegúrate de que tus URLs de desarrollo (ej. http://localhost:3000/**) y producción (https://marketing-afiliados.vercel.app/**) estén aquí."
-    );
-
-    console.log("\n\nDiagnóstico completado.");
+    console.log("\nDiagnóstico completado.");
   } catch (error) {
-    console.error(
-      "❌ Ocurrió un error inesperado durante la petición a la API de Supabase:",
-      error
-    );
+    console.error("❌ Ocurrió un error inesperado:", error);
   }
 }
 

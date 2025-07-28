@@ -1,23 +1,39 @@
-/* Ruta: app/[locale]/login/login-form.tsx */
-
+// Ruta: app/[locale]/login/login-form.tsx
+/**
+ * @file login-form.tsx
+ * @description Componente de Cliente para el Formulario de Autenticación de Supabase.
+ * REFACTORIZACIÓN 360:
+ * 1. Se ha implementado el manejo de errores desde la URL para mostrar feedback
+ *    al usuario usando un componente de Alerta.
+ * 2. Se ha añadido una prop `defaultView` para que el formulario pueda mostrar
+ *    "Sign In" o "Sign Up" dinámicamente.
+ * 3. Se ha añadido un fallback en la UI para el caso en que la variable de
+ *    entorno `NEXT_PUBLIC_SITE_URL` no esté configurada.
+ *
+ * @author Metashark
+ * @version 6.0.0 (Robust & Dynamic Auth Form)
+ */
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
 import { brandTheme } from "@/lib/supabase/auth-theme";
 import { Auth } from "@supabase/auth-ui-react";
 import type { Provider } from "@supabase/supabase-js";
+import { useSearchParams } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 
-/**
- * @file login-form.tsx
- * @description Componente de Cliente para el Formulario de Autenticación de Supabase.
- * REFACTORIZACIÓN DE ROBUSTEZ: Se ha modificado la construcción de la `redirectUrl`
- * para que dependa de una única y canónica variable de entorno `NEXT_PUBLIC_SITE_URL`.
- * Esto previene errores de redirección a `localhost` en entornos de producción
- * y hace la configuración más explícita y segura.
- *
- * @author Metashark
- * @version 5.0.0 (Canonical URL Refactor)
- */
+// Asumimos que estos componentes de shadcn/ui existen en el proyecto
+// aunque no estén en el snapshot.
+const Alert = ({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => <div className={`p-4 border rounded-md ${className}`}>{children}</div>;
+const AlertDescription = ({ children }: { children: React.ReactNode }) => (
+  <div className="text-sm">{children}</div>
+);
 
 /**
  * @description Lee las variables de entorno para determinar qué proveedores de OAuth mostrar.
@@ -38,41 +54,77 @@ function getOAuthProviders(): Provider[] {
     "discord",
     "apple",
   ];
-
   return providersEnv
     .split(",")
     .map((p) => p.trim() as Provider)
     .filter((p) => validProviders.includes(p));
 }
 
-export function LoginForm({ localization }: { localization: any }) {
-  const providers = getOAuthProviders();
+/**
+ * @description Propiedades para el componente LoginForm.
+ * @property {any} localization - Objeto de localización para los textos.
+ * @property {'sign_in' | 'sign_up'} [defaultView] - La vista a mostrar por defecto.
+ */
+interface LoginFormProps {
+  localization: any;
+  defaultView?: "sign_in" | "sign_up";
+}
 
-  // CORRECCIÓN: La URL de redirección ahora se construye de forma segura.
-  // Es IMPERATIVO que la variable NEXT_PUBLIC_SITE_URL esté configurada en Vercel.
+export function LoginForm({
+  localization,
+  defaultView = "sign_in",
+}: LoginFormProps) {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+  const message = searchParams.get("message");
+
+  const providers = getOAuthProviders();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
   if (!siteUrl) {
-    // Esto mostrará un error claro en la consola si la variable no está configurada.
     console.error(
       "FATAL: NEXT_PUBLIC_SITE_URL environment variable is not set."
     );
-    // Opcionalmente, podrías renderizar un mensaje de error aquí.
+    return (
+      <Alert className="bg-destructive/10 border-destructive/50 text-destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Error de configuración del sistema. La aplicación no puede proceder
+          con la autenticación. Por favor, contacte al soporte.
+        </AlertDescription>
+      </Alert>
+    );
   }
-  const redirectUrl = siteUrl ? `${siteUrl}/api/auth/callback` : undefined;
+
+  const redirectUrl = `${siteUrl}/api/auth/callback`;
 
   return (
-    <Auth
-      supabaseClient={createClient()}
-      appearance={{ theme: brandTheme }}
-      theme="dark"
-      providers={providers}
-      redirectTo={redirectUrl}
-      localization={localization}
-      socialLayout="horizontal"
-    />
+    <div className="space-y-4">
+      {error && message && (
+        <Alert className="bg-destructive/10 border-destructive/50 text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      )}
+      <Auth
+        supabaseClient={createClient()}
+        appearance={{ theme: brandTheme }}
+        theme="dark"
+        providers={providers}
+        redirectTo={redirectUrl}
+        localization={localization}
+        socialLayout="horizontal"
+        view={defaultView}
+      />
+    </div>
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Pasar Parámetro `next` a `redirectTo`: Para implementar la redirección post-login inteligente, este componente debería leer el parámetro `next` de la URL (usando `useSearchParams`) y añadirlo dinámicamente a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
+ * 2. Carga Diferida (Lazy Loading): El componente `Auth` de Supabase puede ser relativamente pesado. Podría ser cargado de forma dinámica (`next/dynamic`) para mejorar el LCP (Largest Contentful Paint) de la página de login, mostrando un esqueleto de carga mientras se inicializa.
+ * 3. Integración con `react-hook-form`: Para los campos de email/contraseña, se podría reemplazar la gestión de estado interna de `@supabase/auth-ui-react` por `react-hook-form` para una validación en tiempo real más granular y una mejor integración con el resto de los formularios de la aplicación, aunque esto supone una complejidad mayor.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=...`) utilizando `useSearchParams` y mostrar un componente `<Alert>` con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
  * 2. Vista por Defecto Dinámica: Añadir una prop `defaultView` al componente para que la página contenedora decida si el formulario debe mostrar "Sign In" o "Sign Up" por defecto (ej. para rutas `/login` vs `/signup`).
