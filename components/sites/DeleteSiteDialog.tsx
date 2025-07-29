@@ -1,13 +1,15 @@
-// components/sites/DeleteSiteDialog.tsx
+// Ruta: components/sites/DeleteSiteDialog.tsx
 /**
  * @file DeleteSiteDialog.tsx
  * @description Modal de confirmación para la eliminación irreversible de un sitio.
+ *              Refactorizado para una accesibilidad y encapsulación de eventos robusta.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.0.0 (Decoupled & Robust)
+ * @version 2.2.0 (Event Encapsulation & A11y Fix)
  */
 "use client";
 
 import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,13 +23,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/**
- * @interface SimpleSite
- * @description Define una interfaz local y simple para las props del componente.
- *              Esto desacopla el componente de la forma de datos completa `SiteWithCampaignsCount`,
- *              haciéndolo más reutilizable y robusto, ya que solo depende de los datos que
- *              realmente necesita para su operación.
- */
 interface SimpleSite {
   id: string;
   subdomain: string | null;
@@ -37,12 +32,14 @@ interface DeleteSiteDialogProps {
   site: SimpleSite;
   onDelete: (formData: FormData) => void;
   isPending: boolean;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function DeleteSiteDialog({
   site,
   onDelete,
   isPending,
+  onClick,
 }: DeleteSiteDialogProps) {
   return (
     <Dialog>
@@ -51,6 +48,8 @@ export function DeleteSiteDialog({
           variant="ghost"
           size="icon"
           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onClick}
+          aria-label={`Eliminar el sitio ${site.subdomain}`}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -88,7 +87,7 @@ export function DeleteSiteDialog({
     </Dialog>
   );
 }
-
+// Ruta: components/sites/DeleteSiteDialog.tsx
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Input de Confirmación: Para acciones destructivas de alto riesgo, se podría añadir un campo de texto donde el usuario deba escribir el nombre del subdominio para habilitar el botón de eliminar. Esto previene eliminaciones accidentales.
  * 2. Feedback de Carga Específico: El estado `isPending` podría ser más granular, indicando no solo la carga, sino también los estados "success" y "error" para mostrar un feedback visual dentro del modal antes de que se cierre.

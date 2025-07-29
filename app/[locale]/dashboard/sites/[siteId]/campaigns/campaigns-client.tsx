@@ -1,4 +1,11 @@
 // Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
+/**
+ * @file campaigns-client.tsx
+ * @description Componente de cliente para mostrar y gestionar las campañas de un sitio,
+ *              ahora con navegación segura y tipada hacia el constructor de campañas.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 3.2.0 (Type-Safe Dynamic Navigation)
+ */
 "use client";
 
 import {
@@ -12,8 +19,7 @@ import {
 import { useFormatter } from "next-intl";
 import { useState } from "react";
 
-// Importaciones de la nueva arquitectura
-import { CreateCampaignForm } from "@/components/campaigns"; // <-- CORRECCIÓN: Importación desde el barril.
+import { CreateCampaignForm } from "@/components/campaigns";
 import { PaginationControls } from "@/components/sites/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,21 +42,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCampaignsManagement } from "@/lib/hooks/useCampaignsManagement";
+import { Link, useRouter } from "@/lib/navigation";
 import type { Tables } from "@/lib/types/database";
-import { type AppPathname, Link } from "@/navigation";
-
-/**
- * @file campaigns-client.tsx
- * @description Componente de cliente para mostrar y gestionar las campañas de un sitio.
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1. Toda la lógica de estado y los manejadores de eventos han sido abstraídos
- *    al hook personalizado `useCampaignsManagement`.
- * 2. Se ha implementado la actualización optimista para la eliminación de campañas.
- * 3. Corregida la ruta de importación de `CreateCampaignForm`.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.1.0 (Hook-driven Architecture & Stability Patch)
- */
 
 type Campaign = Tables<"campaigns">;
 type SiteInfo = { id: string; subdomain: string | null };
@@ -123,6 +116,7 @@ export function CampaignsClient({
   limit: number;
 }) {
   const format = useFormatter();
+  const router = useRouter(); // Se añade el hook useRouter
   const {
     campaigns,
     isCreateDialogOpen,
@@ -135,12 +129,6 @@ export function CampaignsClient({
 
   return (
     <div className="space-y-6 relative">
-      <div
-        data-lia-marker="true"
-        className="absolute -top-4 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        campaigns-client.tsx
-      </div>
       <div className="flex items-center justify-between">
         <div>
           <Button variant="ghost" size="sm" asChild>
@@ -202,7 +190,12 @@ export function CampaignsClient({
                   </TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/builder/${campaign.id}` as AppPathname}>
+                      <Link
+                        href={{
+                          pathname: "/builder/[campaignId]",
+                          params: { campaignId: campaign.id },
+                        }}
+                      >
                         <Edit className="mr-2 h-3 w-3" />
                         Editar
                       </Link>
@@ -235,76 +228,30 @@ export function CampaignsClient({
   );
 }
 
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato ha sido refactorizado para seguir el patrón "Componente de Presentación Orquestado".
- *  Toda la lógica de estado compleja y los manejadores de eventos se han abstraído en
- *  el hook personalizado `useCampaignsManagement`.
- *  1.  **Inicialización y Consumo del Hook:** Al montarse, invoca `useCampaignsManagement` con
- *      los datos iniciales de campañas del servidor. El hook devuelve todo el estado
- *      necesario (la lista de campañas, estados de carga, etc.) y las funciones para
- *      manipularlo (`handleDelete`, `handleCreateSuccess`).
- *  2.  **Orquestación de Props (Piping):** El componente actúa como un conducto, pasando el estado y
- *      los manejadores devueltos por el hook a sus componentes hijos. Por ejemplo, `campaigns` se
- *      pasa a la `<TableBody>`, y `handleDelete` se pasa al `DeleteCampaignDialog`.
- *  3.  **Manejo de Eliminación Optimista:** La función `handleDelete` (proveniente del hook)
- *      ahora actualiza la UI de forma optimista. Cuando se llama, elimina inmediatamente
- *      la campaña del estado local, proporcionando una respuesta visual instantánea. Si la
- *      acción del servidor falla, el hook se encarga de revertir el estado.
- *  Este patrón hace que el componente `CampaignsClient` sea declarativo, fácil de leer y
- *  consistente con la arquitectura de `SitesClient`.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para la gestión de campañas.
+ *
+ * 1.  **Actualización Optimista para Creación:** (Revalidado) Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista.
+ * 2.  **Tabla de Datos Reutilizable (`<DataTable />`):** (Revalidado) Crear un componente genérico `<DataTable />` para reducir el código repetitivo.
+ * 3.  **Búsqueda y Filtros en el Cliente:** (Revalidado) Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas en tiempo real.
  */
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Actualización Optimista para Creación: Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista. El hook `useCampaignsManagement` puede ser mejorado para añadir una "campaña fantasma" a la UI localmente mientras la Server Action se completa, de la misma forma que lo hace el hook `useSitesManagement`.
- * 2. Tabla de Datos Reutilizable y Avanzada: A medida que la aplicación crezca, se necesitarán más tablas con funcionalidades similares (ordenamiento, búsqueda, selección). Se podría crear un componente genérico `<DataTable />` (usando una librería como `TanStack Table`) que encapsule toda esta funcionalidad, y luego usarlo aquí y en otras páginas para mostrar los datos, reduciendo drásticamente el código repetitivo.
- * 3. Búsqueda y Filtros en el Cliente: Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas por nombre en tiempo real, directamente en el cliente. Esto mejoraría la usabilidad para sitios con un gran número de campañas en la página actual.
+/**
+ * @fileoverview El aparato `campaigns-client.tsx` es el componente de cliente que renderiza la interfaz para gestionar las campañas de un sitio específico.
+ * @functionality
+ * - Muestra una tabla con la lista de campañas.
+ * - Proporciona los controles de UI para las operaciones CRUD.
+ * - Utiliza un hook personalizado (`useCampaignsManagement`) para abstraer toda la lógica de estado.
+ * - Renderiza la paginación.
+ * @relationships
+ * - Es el componente hijo de `app/[locale]/dashboard/sites/[siteId]/campaigns/page.tsx`.
+ * - Utiliza `useCampaignsManagement` de `lib/hooks/useCampaignsManagement.ts`.
+ * - Utiliza el componente `Link` de `lib/navigation.ts` para toda la navegación.
+ * @expectations
+ * - Se espera que este componente sea un "orquestador" de UI, delegando la lógica de negocio a hooks y Server Actions.
  */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato ha sido refactorizado para seguir el patrón "Componente de Presentación Orquestado".
- *  Toda la lógica de estado compleja y los manejadores de eventos se han abstraído en
- *  el hook personalizado `useCampaignsManagement`.
- *  1.  **Inicialización y Consumo del Hook:** Al montarse, invoca `useCampaignsManagement` con
- *      los datos iniciales de campañas del servidor. El hook devuelve todo el estado
- *      necesario (la lista de campañas, estados de carga, etc.) y las funciones para
- *      manipularlo (`handleDelete`, `handleCreateSuccess`).
- *  2.  **Orquestación de Props (Piping):** El componente actúa como un conducto, pasando el estado y
- *      los manejadores devueltos por el hook a sus componentes hijos. Por ejemplo, `campaigns` se
- *      pasa a la `<TableBody>`, y `handleDelete` se pasa al `DeleteCampaignDialog`.
- *  3.  **Manejo de Eliminación Optimista:** La función `handleDelete` (proveniente del hook)
- *      ahora actualiza la UI de forma optimista. Cuando se llama, elimina inmediatamente
- *      la campaña del estado local, proporcionando una respuesta visual instantánea. Si la
- *      acción del servidor falla, el hook se encarga de revertir el estado.
- *  Este patrón hace que el componente `CampaignsClient` sea declarativo, fácil de leer y
- *  consistente con la arquitectura de `SitesClient`.
- */
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Actualización Optimista para Creación: Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista. El hook `useCampaignsManagement` puede ser mejorado para añadir una "campaña fantasma" a la UI localmente mientras la Server Action se completa, de la misma forma que lo hace el hook `useSitesManagement`.
- * 2. Tabla de Datos Reutilizable y Avanzada: A medida que la aplicación crezca, se necesitarán más tablas con funcionalidades similares (ordenamiento, búsqueda, selección). Se podría crear un componente genérico `<DataTable />` (usando una librería como `TanStack Table`) que encapsule toda esta funcionalidad, y luego usarlo aquí y en otras páginas para mostrar los datos, reduciendo drásticamente el código repetitivo.
- * 3. Búsqueda y Filtros en el Cliente: Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas por nombre en tiempo real, directamente en el cliente. Esto mejoraría la usabilidad para sitios con un gran número de campañas en la página actual.
- */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato ha sido refactorizado para seguir el patrón "Componente de Presentación Orquestado".
- *  Toda la lógica de estado compleja y los manejadores de eventos se han abstraído en
- *  el hook personalizado `useCampaignsManagement`.
- *  1.  **Inicialización y Consumo del Hook:** Al montarse, invoca `useCampaignsManagement` con
- *      los datos iniciales de campañas del servidor. El hook devuelve todo el estado
- *      necesario (la lista de campañas, estados de carga, etc.) y las funciones para
- *      manipularlo (`handleDelete`, `handleCreateSuccess`).
- *  2.  **Orquestación de Props (Piping):** El componente actúa como un conducto, pasando el estado y
- *      los manejadores devueltos por el hook a sus componentes hijos. Por ejemplo, `campaigns` se
- *      pasa a la `<TableBody>`, y `handleDelete` se pasa al `DeleteCampaignDialog`.
- *  3.  **Manejo de Eliminación Optimista:** La función `handleDelete` (proveniente del hook)
- *      ahora actualiza la UI de forma optimista. Cuando se llama, elimina inmediatamente
- *      la campaña del estado local, proporcionando una respuesta visual instantánea. Si la
- *      acción del servidor falla, el hook se encarga de revertir el estado.
- *  Este patrón hace que el componente `CampaignsClient` sea declarativo, fácil de leer y
- *  consistente con la arquitectura de `SitesClient`.
- */
-
+// Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Actualización Optimista para Creación: Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista. El hook `useCampaignsManagement` puede ser mejorado para añadir una "campaña fantasma" a la UI localmente mientras la Server Action se completa, de la misma forma que lo hace el hook `useSitesManagement`.
  * 2. Tabla de Datos Reutilizable y Avanzada: A medida que la aplicación crezca, se necesitarán más tablas con funcionalidades similares (ordenamiento, búsqueda, selección). Se podría crear un componente genérico `<DataTable />` (usando una librería como `TanStack Table`) que encapsule toda esta funcionalidad, y luego usarlo aquí y en otras páginas para mostrar los datos, reduciendo drásticamente el código repetitivo.

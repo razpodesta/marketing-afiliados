@@ -2,12 +2,10 @@
 /**
  * @file route.ts
  * @description Manejador del Callback de Autenticación de Supabase (OAuth).
- * REFACTORIZACIÓN CRÍTICA: Se ha corregido la creación del cliente de Supabase
- * para que sea compatible con el contexto de los Route Handlers. Esto resuelve
- * el error de compilación `next/headers` y restaura el flujo de OAuth.
- *
- * @author Metashark
- * @version 4.1.0 (Route Handler Stability Fix)
+ *              Este es el punto de entrada a la aplicación después de que un
+ *              usuario se autentica con un proveedor externo como Google o GitHub.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 4.2.0 (Logging API Fix)
  */
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -48,7 +46,13 @@ export async function GET(request: NextRequest) {
         "Fallo en el intercambio de código de sesión de OAuth:",
         error
       );
-      const errorUrl = new URL("/login?error=auth_failed", origin);
+      const locale = request.cookies.get("NEXT_LOCALE")?.value || "es-ES";
+      const errorUrl = new URL(`/${locale}/login`, origin);
+      errorUrl.searchParams.set("error", "auth_failed");
+      errorUrl.searchParams.set(
+        "message",
+        "No se pudo iniciar sesión. Inténtelo de nuevo."
+      );
       return NextResponse.redirect(errorUrl);
     }
   }
@@ -63,13 +67,37 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  logger.success(
-    `Callback de autenticación exitoso, redirigiendo a: ${redirectPath}`
+  // CORRECCIÓN: Se utiliza `logger.info` para registrar eventos exitosos.
+  logger.info(
+    `Callback de autenticación OAuth exitoso, redirigiendo a: ${redirectPath}`
   );
   const redirectUrl = new URL(redirectPath, origin);
   return NextResponse.redirect(redirectUrl);
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el flujo de callback de OAuth.
+ *
+ * 1.  **Flujo de Onboarding para Nuevos Usuarios:** (Revalidado) Tras un `exchangeCodeForSession` exitoso, consultar la base de datos para verificar si es el primer inicio de sesión del usuario. Si es así, forzar la redirección a `/welcome`.
+ * 2.  **Registro de Eventos de Seguridad en Auditoría:** (Revalidado) Cada inicio de sesión exitoso vía callback debería ser registrado en la tabla `audit_logs` con la IP del usuario, el user agent y la hora.
+ * 3.  **Sincronización de Datos de Perfil:** (Revalidado) Tras el primer inicio de sesión con OAuth, el `profile` del usuario podría no tener `full_name` o `avatar_url`. Este es el lugar ideal para sincronizar esos datos desde el proveedor de OAuth a nuestra base de datos.
+ */
+
+/**
+ * @fileoverview El aparato `callback/route.ts` es un endpoint de API de alta seguridad que completa el flujo de autenticación OAuth.
+ * @functionality
+ * - Actúa como la URL de redirección registrada en los proveedores de OAuth (Google, GitHub, etc.).
+ * - Recibe un `code` de un solo uso de parte del proveedor.
+ * - Su función principal es intercambiar este `code` por una sesión válida de Supabase, efectivamente iniciando la sesión del usuario en nuestra aplicación.
+ * - Implementa una lógica de redirección segura que previene vulnerabilidades de "Open Redirect".
+ * @relationships
+ * - Es el paso final del flujo iniciado en `app/[locale]/login/login-form.tsx`.
+ * - Interactúa directamente con la API de autenticación de Supabase a través del cliente de servidor.
+ * @expectations
+ * - Se espera que este endpoint sea extremadamente robusto y seguro, manejando correctamente los intercambios de código y proporcionando un logging claro para la auditoría de todos los flujos de inicio de sesión.
+ */
+// Ruta: app/api/auth/callback/route.ts
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Flujo de Onboarding para Nuevos Usuarios: Tras un `exchangeCodeForSession` exitoso, consultar si es el primer inicio de sesión del usuario. Si es así, redirigirlo a una página `/welcome` en lugar de respetar el parámetro `next`.
  * 2. Registro de Eventos de Seguridad: Cada inicio de sesión exitoso vía callback debería ser registrado en una tabla de `audit_logs` con la IP del usuario, user agent y la hora para auditoría.

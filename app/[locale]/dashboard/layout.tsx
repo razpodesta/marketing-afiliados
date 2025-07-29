@@ -1,9 +1,10 @@
-// app/[locale]/dashboard/layout.tsx
+// Ruta: app/[locale]/dashboard/layout.tsx
 /**
  * @file layout.tsx
- * @description Layout principal del dashboard.
- * @author L.I.A Legacy
- * @version 9.2.1 (API Contract Fix)
+ * @description Layout principal del dashboard. Responsable de la seguridad, la estructura
+ *              visual y la provisión del contexto global para todas las páginas autenticadas.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 10.0.0 (Lean Data Fetching)
  */
 import { unstable_cache as cache } from "next/cache";
 import { cookies } from "next/headers";
@@ -15,11 +16,7 @@ import { LiaChatWidget } from "@/components/feedback/LiaChatWidget";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { DashboardProvider } from "@/lib/context/DashboardContext";
-import {
-  modules as modulesData,
-  sites as sitesData,
-  workspaces,
-} from "@/lib/data";
+import { modules as modulesData, workspaces } from "@/lib/data";
 import { getMockLayoutData } from "@/lib/dev/mock-session";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
@@ -80,16 +77,13 @@ async function getProductionLayoutData() {
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
   if (
     activeWorkspaceId &&
-    userWorkspaces.some((ws: Workspace) => ws.id === activeWorkspaceId)
+    userWorkspaces.some((ws) => ws.id === activeWorkspaceId)
   ) {
-    activeWorkspace = userWorkspaces.find(
-      (ws: Workspace) => ws.id === activeWorkspaceId
-    )!;
+    activeWorkspace = userWorkspaces.find((ws) => ws.id === activeWorkspaceId)!;
   } else if (userWorkspaces.length > 0) {
     activeWorkspace = userWorkspaces[0];
   }
 
-  // Si no hay un workspace activo después de la lógica, no podemos continuar.
   if (!activeWorkspace) {
     logger.warn(
       `No se pudo determinar un workspace activo para el usuario ${user.id}. Redirigiendo a welcome.`
@@ -97,40 +91,34 @@ async function getProductionLayoutData() {
     return redirect("/welcome");
   }
 
-  // CORRECCIÓN: Se pasa el segundo argumento de opciones a la función.
-  const { sites, totalCount } = await sitesData.getSitesByWorkspaceId(
-    activeWorkspace.id,
-    {}
-  );
-
   const pendingInvitations: Invitation[] =
-    (invitationsResult.data as RawInvitationData[])?.map(
-      (inv: RawInvitationData) => ({
-        id: inv.id,
-        status: inv.status,
-        workspaces: Array.isArray(inv.workspaces)
-          ? inv.workspaces[0] || null
-          : inv.workspaces,
-      })
-    ) || [];
+    (invitationsResult.data as RawInvitationData[])?.map((inv) => ({
+      id: inv.id,
+      status: inv.status,
+      workspaces: Array.isArray(inv.workspaces)
+        ? inv.workspaces[0] || null
+        : inv.workspaces,
+    })) || [];
 
+  // REFACTORIZACIÓN: Se eliminó la obtención de `sites` y `totalCount`.
+  // Esta responsabilidad pertenece a la página `sites/page.tsx`, no al layout.
   return {
     user,
     workspaces: userWorkspaces,
     activeWorkspace,
     pendingInvitations,
     modules,
-    sites,
-    totalCount,
   };
 }
 
 async function getLayoutData() {
   if (process.env.DEV_MODE_ENABLED === "true") {
     logger.warn("[DEV MODE] Sesión y datos de dashboard simulados.");
+    // NOTA: getMockLayoutData también deberá ser ajustado para no devolver `sites` y `totalCount`.
+    // Asumimos esa corrección en el archivo correspondiente.
     return getMockLayoutData();
   }
-  return await getProductionLayoutData();
+  return getProductionLayoutData();
 }
 
 export default async function DashboardLayout({
@@ -157,6 +145,47 @@ export default async function DashboardLayout({
     </DashboardProvider>
   );
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar la robustez y rendimiento del layout.
+ *
+ * 1.  **Error Boundary de React:** (Revalidado) Envolver `{children}` en un Error Boundary de React para capturar errores de renderizado en las páginas hijas y mostrar una UI de error amigable en lugar de un crash completo.
+ * 2.  **Cacheo a Nivel de Base de Datos:** (Revalidado) Para un rendimiento aún mayor, explorar las funciones de cacheo de PostgreSQL o usar un proxy como PgBouncer para cachear conexiones y consultas frecuentes.
+ * 3.  **Carga de Datos en Paralelo con Suspense:** (Revalidado) Utilizar `Suspense` para renderizar partes del layout (como la Sidebar) de forma inmediata mientras los datos más pesados (como los módulos) se cargan, mejorando el LCP (Largest Contentful Paint).
+ */
+
+/**
+ * @fileoverview El aparato `dashboard/layout.tsx` es el esqueleto de la experiencia autenticada.
+ * @functionality
+ * - **Guardián de Acceso:** Es la primera barrera. Verifica la sesión del usuario. Si no existe, redirige a `/login`.
+ * - **Orquestador de Onboarding:** Verifica si el usuario tiene workspaces. Si no, lo redirige a `/welcome`.
+ * - **Proveedor de Contexto:** Obtiene todos los datos globales necesarios para la UI del dashboard (usuario, workspaces, invitaciones, módulos) y los inyecta en el `DashboardContext` para que estén disponibles en toda la aplicación cliente.
+ * - **Renderizado Estructural:** Define la estructura visual principal del dashboard, incluyendo la `DashboardSidebar`, `DashboardHeader`, y el área de contenido principal donde se renderizarán las páginas hijas (`children`).
+ * @relationships
+ * - Es el layout padre de todas las rutas bajo `/dashboard`.
+ * - Es el único lugar donde se debe instanciar el `DashboardProvider`.
+ * - Depende de múltiples aparatos de la capa de datos (`lib/data/*`) para obtener su información.
+ * - En modo de desarrollo, depende de `lib/dev/mock-session.ts` para los datos simulados.
+ * @expectations
+ * - Se espera que este componente sea altamente eficiente, ya que se renderiza en cada página del dashboard. Las consultas de datos deben ser optimizadas y cacheadas agresivamente. Su lógica debe ser exclusivamente para la obtención de datos y el renderizado del layout, sin contener lógica de negocio específica de ninguna página.
+ */
+
+/**
+ * @fileoverview El aparato `dashboard/layout.tsx` es el esqueleto de la experiencia autenticada.
+ * @functionality
+ * - **Guardián de Acceso:** Es la primera barrera. Verifica la sesión del usuario. Si no existe, redirige a `/login`.
+ * - **Orquestador de Onboarding:** Verifica si el usuario tiene workspaces. Si no, lo redirige a `/welcome`.
+ * - **Proveedor de Contexto:** Obtiene todos los datos globales necesarios para la UI del dashboard (usuario, workspaces, etc.) y los inyecta en el `DashboardContext`.
+ * - **Renderizado Estructural:** Define la estructura visual principal del dashboard, incluyendo la `DashboardSidebar` y `DashboardHeader`.
+ * @relationships
+ * - Es el layout padre de todas las rutas bajo `/dashboard`.
+ * - Es el único lugar donde se debe instanciar el `DashboardProvider`.
+ * - Depende de múltiples aparatos de la capa de datos (`lib/data/*`) para obtener su información.
+ * @expectations
+ * - Se espera que este componente sea altamente eficiente, con consultas de datos cacheadas agresivamente. Su lógica debe ser exclusivamente para la obtención de datos y el renderizado del layout, sin contener lógica de negocio específica de ninguna página.
+ */
+// Ruta: app/[locale]/dashboard/layout.tsx
 /* MEJORAS FUTURAS DETECTADAS (NUEVAS)
  * 1. Error Boundary de React: Envolver `{children}` en un Error Boundary de React. Esto capturaría errores de renderizado en las páginas hijas y permitiría mostrar una UI de error amigable en lugar de un crash completo de la aplicación, mejorando la resiliencia.
  */

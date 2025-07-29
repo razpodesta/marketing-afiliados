@@ -27,7 +27,7 @@ import {
 } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
-import { useRouter } from "@/navigation";
+import { useRouter } from "@/lib/navigation";
 
 export function CommandPalette() {
   const { workspaces, activeWorkspace, modules } = useDashboard();

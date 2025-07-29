@@ -1,4 +1,12 @@
-// app/[locale]/admin/admin-client.tsx
+// Ruta: app/[locale]/admin/admin-client.tsx
+/**
+ * @file admin-client.tsx
+ * @description Componente de cliente para el Dashboard de Administración. Proporciona
+ *              la interfaz interactiva para supervisar y gestionar todos los sitios
+ *              de la plataforma.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 8.2.0 (React Transition Fix)
+ */
 "use client";
 
 import type { User } from "@supabase/supabase-js";
@@ -37,12 +45,6 @@ import {
 import { admin, session } from "@/lib/actions";
 import { protocol, rootDomain } from "@/lib/utils";
 import { type ActionResult } from "@/lib/validators";
-
-/**
- * @file Componente Cliente del Dashboard de Administración
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 8.0.0 (Architectural Alignment)
- */
 
 type TransformedSite = {
   subdomain: string;
@@ -192,17 +194,22 @@ export function AdminClient({
   const handleDelete = (formData: FormData) => {
     const subdomain = formData.get("subdomain") as string;
     if (!subdomain) return;
+
     setDeletingSiteId(subdomain);
 
-    startTransition(async () => {
-      const result: ActionResult =
-        await admin.deleteSiteAsAdminAction(formData);
-      if (result.success && result.data) {
-        toast.success((result.data as { message: string }).message);
-      } else if (result.error) {
-        toast.error(result.error);
-      }
-      setDeletingSiteId(null);
+    // CORRECCIÓN CRÍTICA: `startTransition` debe envolver una función síncrona.
+    // La lógica asíncrona se ejecuta dentro de la función que se pasa.
+    startTransition(() => {
+      admin
+        .deleteSiteAsAdminAction(formData)
+        .then((result: ActionResult<{ message: string }>) => {
+          if (result.success && result.data) {
+            toast.success(result.data.message);
+          } else if (result.error) {
+            toast.error(result.error);
+          }
+          setDeletingSiteId(null);
+        });
     });
   };
 
@@ -265,6 +272,32 @@ export function AdminClient({
     </div>
   );
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para el dashboard de administración.
+ *
+ * 1.  **Estado de Carga por Tarjeta Individual:** (Revalidado) En lugar de un `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 2.  **Indicador de Página Numérico Avanzado:** (Revalidado) Mejorar el componente `PaginationControls` para que utilice la lógica avanzada de `usePaginationRange` (como en `components/sites/PaginationControls.tsx`) para mostrar números de página y elipsis.
+ * 3.  **Búsqueda y Filtros del Lado del Servidor:** (Revalidado) Añadir un campo de búsqueda en el `DashboardHeader` que pase un parámetro en la URL para que la función `getAllSites` en `admin/page.tsx` filtre los resultados en la base de datos.
+ */
+
+/**
+ * @fileoverview El aparato `admin-client.tsx` es el componente de cliente que gestiona la interfaz de usuario del Dashboard de Administración.
+ * @functionality
+ * - Muestra un encabezado personalizado para el administrador con opciones de sesión.
+ * - Presenta una lista paginada de todos los sitios de la plataforma en formato de tarjetas.
+ * - Permite al administrador visitar cada subdominio público.
+ * - Habilita la eliminación de sitios de forma irreversible a través de un diálogo de confirmación, utilizando una Server Action.
+ * - Muestra un feedback visual de carga durante las operaciones de eliminación, utilizando `useTransition` para mantener la UI interactiva.
+ * @relationships
+ * - Es el componente hijo principal de `app/[locale]/admin/page.tsx`, del cual recibe los datos iniciales y el contexto de usuario.
+ * - Invoca directamente las Server Actions del namespace `admin` (`admin.deleteSiteAsAdminAction`).
+ * - Utiliza componentes de UI genéricos (`Card`, `Button`, `Dialog`, `PaginationControls`).
+ * @expectations
+ * - Se espera que este aparato sea robusto en el manejo de operaciones sensibles. Debe proporcionar una experiencia de usuario clara y segura, con feedback apropiado para las acciones críticas.
+ */
+// Ruta: app/[locale]/admin/admin-client.tsx
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Acciones de Suplantación (Impersonation): Integrar la acción `admin.impersonateUserAction` en la UI del `dev-console` para permitir a los desarrolladores iniciar sesión como otros usuarios para depuración.
  * 2. Indicador de Página Numérico: Mejorar el componente de paginación para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.

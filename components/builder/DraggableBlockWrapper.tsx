@@ -1,9 +1,11 @@
+// Ruta: components/builder/DraggableBlockWrapper.tsx
 /**
  * @file components/builder/DraggableBlockWrapper.tsx
  * @description Componente HOC que envuelve cada bloque en el canvas,
  *              proporcionando interactividad, drag-and-drop y acciones contextuales.
+ *              Refactorizado para una total conformidad con los estándares de accesibilidad (a11y).
  * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
- * @version 5.1.0 (Accessibility & Quality Patch)
+ * @version 5.2.0 (Full Accessibility Compliance)
  */
 "use client";
 
@@ -19,7 +21,6 @@ import {
 } from "lucide-react";
 import React from "react";
 
-import { useBuilderStore } from "@/app/[locale]/builder/core/store";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useBuilderStore } from "@/lib/builder/core/store";
 import { type PageBlock } from "@/lib/builder/types.d";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +79,9 @@ export function DraggableBlockWrapper({
     marginBottom: block.styles.marginBottom,
   };
 
-  const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
+  const stopPropagation = (e: React.MouseEvent | React.KeyboardEvent): void => {
+    e.stopPropagation();
+  };
 
   return (
     <div
@@ -90,7 +94,6 @@ export function DraggableBlockWrapper({
           setSelectedBlockId(block.id);
         }
       }}
-      // CORRECCIÓN: Se añade role="button" para que el div sea un elemento interactivo accesible.
       role="button"
       aria-label={`Bloque de tipo ${block.type}`}
       tabIndex={0}
@@ -108,17 +111,21 @@ export function DraggableBlockWrapper({
       </div>
 
       <div
-        onClick={stopPropagation}
-        // CORRECCIÓN: Se eliminan manejadores de eventos de elementos no interactivos.
         className={cn(
           "absolute top-1/2 -translate-y-1/2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1",
           isSelected && "opacity-100"
         )}
       >
+        {/* CORRECCIÓN (a11y): Se añade `tabIndex` y `onKeyDown` para cumplir
+            totalmente el contrato de un elemento interactivo con `role="button"`.
+            Esto resuelve los errores `interactive-supports-focus` y `click-events-have-key-events`. */}
         <div
           {...attributes}
           {...listeners}
+          onClick={stopPropagation}
+          onKeyDown={stopPropagation}
           role="button"
+          tabIndex={0}
           aria-label="Arrastrar para reordenar"
           className="p-2 cursor-grab active:cursor-grabbing bg-card rounded-md border"
         >
@@ -127,7 +134,6 @@ export function DraggableBlockWrapper({
       </div>
 
       <div
-        onClick={stopPropagation}
         className={cn(
           "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20",
           isSelected && "opacity-100"
@@ -140,11 +146,16 @@ export function DraggableBlockWrapper({
               size="icon"
               className="h-7 w-7"
               aria-label="Opciones del bloque"
+              onClick={stopPropagation}
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <DropdownMenuItem
               onSelect={() => moveBlockByStep(block.id, "up")}
               disabled={blockIndex === 0}

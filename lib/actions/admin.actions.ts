@@ -1,10 +1,10 @@
-// lib/actions/admin.actions.ts
+// Ruta: lib/actions/admin.actions.ts
 /**
  * @file lib/actions/admin.actions.ts
- * @description Contém Server Actions restringidas a roles administrativos ('admin', 'developer').
- *              Essas ações são sensíveis e exigem verificação rigorosa de permissões.
- * @author Metashark (Refatorado por L.I.A Legacy)
- * @version 2.4.0 (Type Fixes and Audit Log Integration)
+ * @description Contiene Server Actions restringidas a roles administrativos ('admin', 'developer').
+ *              Estas acciones son sensibles y exigen verficación rigurosa de permisos.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 2.5.0 (Action Result Contract Alignment)
  */
 "use server";
 
@@ -12,11 +12,11 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { requireAppRole } from "@/lib/auth/user-permissions";
 import { logger } from "@/lib/logging";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/types/database"; // <-- CORREÇÃO: Importar Database
-import { type ActionResult } from "@/lib/validators"; // Importa ActionResult de lib/validators
+import { createAdminClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/types/database";
+import { type ActionResult } from "@/lib/validators";
 
-import { createAuditLog } from "./_helpers"; // Importa createAuditLog do barrel de helpers
+import { createAuditLog } from "./_helpers";
 
 /**
  * @async
@@ -34,7 +34,6 @@ export async function impersonateUserAction(
     return { success: false, error: roleCheck.error };
   }
 
-  // Lógica adicional para garantir que o desenvolvedor não personifique a si mesmo
   if (roleCheck.data.user.id === userId) {
     return { success: false, error: "Você não pode personificar a si mesmo." };
   }
@@ -96,12 +95,11 @@ export async function deleteSiteAsAdminAction(
   if (!subdomain) return { success: false, error: "Subdomínio ausente." };
 
   const adminSupabase = createAdminClient();
-  // Precisamos selecionar o ID para o log de auditoria, já que 'subdomain' não é o ID.
   const { error, data: deletedSite } = await adminSupabase
     .from("sites")
     .delete()
     .eq("subdomain", subdomain)
-    .select("id, subdomain") // Seleciona o ID e o subdomain do site excluído
+    .select("id, subdomain")
     .single();
 
   if (error || !deletedSite) {
@@ -112,12 +110,11 @@ export async function deleteSiteAsAdminAction(
   revalidateTag(`sites:${subdomain}`);
   revalidatePath("/admin");
 
-  // CORREÇÃO: Usar o ID real do site como targetEntityId. O subdomain pode ser metadados.
   await createAuditLog("site_deleted_admin", {
     userId: roleCheck.data.user.id,
-    targetEntityId: deletedSite.id, // Usar o ID real do site excluído
+    targetEntityId: deletedSite.id,
     targetEntityType: "site",
-    metadata: { subdomain: deletedSite.subdomain }, // Passar o subdomain como metadado
+    metadata: { subdomain: deletedSite.subdomain },
   });
 
   return {
@@ -141,7 +138,6 @@ export async function updateUserRoleAction(
     return { success: false, error: roleCheck.error };
   }
 
-  // Lógica adicional para garantir que o desenvolvedor não mude o próprio role.
   if (roleCheck.data.user.id === userId) {
     return { success: false, error: "Você não pode mudar o seu próprio role." };
   }
@@ -169,9 +165,34 @@ export async function updateUserRoleAction(
     metadata: { newRole },
   });
 
-  return { success: true, data: null };
+  // CORRECCIÓN: Se omite el campo `data` para cumplir con el tipo `ActionResult<void>`.
+  return { success: true };
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para robustecer las acciones administrativas.
+ *
+ * 1.  **Mensajes de Error Específicos:** (Revalidado) Para algunas fallas de base de datos, las mensajes de error pueden ser más específicos, usando un mapeo de códigos de error de Supabase a mensajes amigables para el usuario.
+ * 2.  **Protección Contra Auto-Modificación Crítica:** (Revalidado) Implementar lógica para impedir que el último administrador/desarrollador sea rebaixado de rol o excluido, garantizando que siempre haya acceso administrativo a la plataforma.
+ * 3.  **Transacciones de Base de Datos:** Para operaciones que involucran múltiples escrituras (ej. crear una entidad y luego un log de auditoría), envolverlas en una transacción de base de datos (usando una función RPC de PostgreSQL) para garantizar la atomicidad. Si una parte falla, todo se revierte.
+ */
+
+/**
+ * @fileoverview El aparato `admin.actions.ts` contiene Server Actions de alta sensibilidad.
+ * @functionality
+ * - Proporciona funcionalidades que solo los roles de `admin` o `developer` pueden ejecutar.
+ * - Cada acción comienza con una llamada al Guardián de Permisos (`requireAppRole`) como primera línea de defensa.
+ * - Implementa operaciones que eluden las políticas de RLS utilizando un cliente de Supabase con privilegios de administrador (`createAdminClient`).
+ * - Realiza un logging de auditoría detallado para cada operación exitosa.
+ * @relationships
+ * - Es consumido por los componentes de cliente en el área de administración (`app/[locale]/admin/`) y en la consola de desarrollador (`app/[locale]/dev-console/`).
+ * - Depende críticamente del `lib/auth/user-permissions.ts` para la autorización.
+ * - Utiliza `lib/supabase/server.ts` para crear el cliente de administrador.
+ * @expectations
+ * - Se espera que este aparato sea el más seguro y vigilado del sistema. Cada nueva acción añadida aquí debe tener una justificación de seguridad clara y una comprobación de permisos explícita. El manejo de errores debe ser robusto para no exponer detalles de implementación del servidor al cliente.
+ */
+// Ruta: lib/actions/admin.actions.ts
 /* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
  * 1. Logging de Auditoria Detalhado: Implementação completa de `createAuditLog` para todas as ações críticas, incluindo IDs de entidade e metadados relevantes. (Implementado).
  * 2. Mensagens de Erro Específicas: Para algumas falhas de DB, as mensagens de erro podem ser mais específicas, talvez usando um mapeamento de códigos de erro Supabase para mensagens amigáveis.

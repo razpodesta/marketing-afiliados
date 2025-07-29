@@ -1,9 +1,16 @@
-// app/[locale]/dashboard/dashboard-client.tsx
+// Ruta: app/[locale]/dashboard/dashboard-client.tsx
+/**
+ * @file dashboard-client.tsx
+ * @description Interfaz de usuario principal del "Centro de Comando de Campañas",
+ *              ahora con navegación segura a rutas dinámicas.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 14.2.0 (Type-Safe Dynamic Navigation)
+ */
 "use client";
 
 import {
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -18,13 +25,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "framer-motion";
-import { HelpCircle, LayoutTemplate, PenSquare, Plus, Zap } from "lucide-react";
+import { HelpCircle, Plus, Zap } from "lucide-react";
 import { useFormatter } from "next-intl";
 import React, { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 import {
   Tooltip,
   TooltipContent,
@@ -34,16 +42,11 @@ import {
 import { profiles as profileActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import type { FeatureModule } from "@/lib/data/modules";
+// CORRECCIÓN (TS2307): Se importa el hook `useRouter` desde nuestro
+// manifiesto de navegación, que es la única fuente de verdad.
+import { useRouter } from "@/lib/navigation";
 import type { Tables } from "@/lib/types/database";
-import { type AppPathname, useRouter } from "@/navigation";
 
-/**
- * @file dashboard-client.tsx
- * @description Interfaz de usuario principal del "Centro de Comando de Campañas".
- *              Ahora con personalización de layout mediante drag-and-drop.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 14.0.0 (Dashboard Personalization)
- */
 const SortableActionCard = ({
   module,
   isPrimary = false,
@@ -83,7 +86,8 @@ const SortableActionCard = ({
                 isPrimary ? "bg-primary/20" : "bg-muted"
               }`}
             >
-              <Plus
+              <DynamicIcon
+                name={module.icon}
                 className={`h-5 w-5 ${
                   isPrimary ? "text-primary" : "text-foreground"
                 }`}
@@ -147,8 +151,14 @@ const RecentCampaigns = ({
           <Card
             key={campaign.id}
             className="group cursor-pointer hover:border-primary/40"
+            // CORRECCIÓN CRÍTICA (TS2345): El `router` tipado de `next-intl` requiere
+            // que la navegación a rutas dinámicas se haga mediante un objeto que
+            // especifique el `pathname` y los `params`.
             onClick={() =>
-              router.push(`/builder/${campaign.id}` as AppPathname)
+              router.push({
+                pathname: "/builder/[campaignId]",
+                params: { campaignId: campaign.id },
+              })
             }
           >
             <CardHeader>
@@ -181,7 +191,7 @@ export function DashboardClient({
 }) {
   const { user, modules: initialModules } = useDashboard();
   const [modules, setModules] = useState(initialModules);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const username = user.user_metadata?.full_name || user.email;
 
   const sensors = useSensors(
@@ -207,33 +217,11 @@ export function DashboardClient({
           toast.error(
             result.error || "No se pudo guardar el orden del dashboard."
           );
-          setModules(modules); // Revertir en caso de error
+          setModules(modules);
         }
       });
     }
   };
-
-  const creationActions = [
-    {
-      id: "create-campaign", // Usar un ID único y estable
-      title: "Crear Campaña Completa",
-      description: "Inicia el flujo guiado para una nueva campaña.",
-      icon: Plus,
-      isPrimary: true,
-    },
-    {
-      id: "quick-landing",
-      title: "Landing Rápida",
-      description: "Genera una landing a partir de una idea.",
-      icon: LayoutTemplate,
-    },
-    {
-      id: "ad-script-generator",
-      title: "Generar Script de Anuncio",
-      description: "Crea un copy persuasivo para tus ads.",
-      icon: PenSquare,
-    },
-  ];
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -277,20 +265,15 @@ export function DashboardClient({
             </p>
           </motion.div>
           <SortableContext
-            items={creationActions.map((a) => a.id)}
+            items={modules.map((m) => m.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {creationActions.map((action) => (
+              {modules.map((module, index) => (
                 <SortableActionCard
-                  key={action.id}
-                  module={{
-                    ...action,
-                    href: "",
-                    status: "active",
-                    tooltip: "",
-                  }} // Adaptar al tipo FeatureModule
-                  isPrimary={action.isPrimary}
+                  key={module.id}
+                  module={module}
+                  isPrimary={index === 0}
                 />
               ))}
             </div>
@@ -301,11 +284,44 @@ export function DashboardClient({
     </DndContext>
   );
 }
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Carga de Módulos desde la Base de Datos: El array `featureModules` está codificado en duro. La mejor práctica es mover esta configuración a una tabla en Supabase. Esto permitiría al equipo de producto habilitar/deshabilitar módulos, cambiar su estado (`beta`, `soon`) o actualizar sus descripciones sin necesidad de un despliegue de código.
- * 2. Módulos Basados en Permisos del Plan: Para la monetización, la consulta que obtenga los módulos de la base de datos debería hacer un `JOIN` con el plan de suscripción del usuario actual. Esto permitiría filtrar la lista de `featureModules` y mostrar solo aquellos a los que el usuario tiene acceso, mostrando los demás como "bloqueados" con una invitación a actualizar su plan.
- * 3. Personalización del Dashboard (Drag-and-Drop): Implementar una librería como `dnd-kit` para permitir a los usuarios arrastrar y soltar los módulos para reorganizar su dashboard. La preferencia de orden se podría guardar como un JSON en la tabla `profiles` del usuario.
+
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `dashboard-client.tsx` es el componente principal interactivo del dashboard.
+ *
+ * @functionality
+ * - **Centro de Comando Visual:** Muestra un saludo personalizado y una cuadrícula de módulos
+ *   de funcionalidades que el usuario puede personalizar mediante arrastrar y soltar.
+ * - **Navegación Dinámica Segura:** Renderiza la sección "Continuar trabajando en...", que muestra
+ *   las campañas recientes. La corrección clave aquí fue modificar el `onClick` de cada tarjeta
+ *   de campaña. En lugar de pasar una cadena de texto a `router.push`, ahora se pasa un objeto
+ *   con `pathname` y `params`, lo cual satisface el contrato de tipos del router de `next-intl`
+ *   y previene errores de compilación (`TS2345`) y fallos en tiempo de ejecución.
+ *
+ * @relationships
+ * - Es el componente hijo principal de `app/[locale]/dashboard/page.tsx`, de donde recibe los datos.
+ * - Consume datos globales del `DashboardContext`.
+ * - Utiliza el `useRouter` de `lib/navigation.ts` para una navegación segura y tipada.
+ * - Invoca la Server Action `profiles.updateDashboardLayoutAction` para persistir la personalización del layout.
+ *
+ * @expectations
+ * - Se espera que este aparato actúe como el centro neurálgico visual para el usuario.
+ *   La corrección de la navegación asegura que una de las interacciones más importantes
+ *   (continuar editando una campaña) funcione de manera fiable y sin errores de tipo.
+ * =================================================================================================
  */
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el Centro de Comando.
+ *
+ * 1.  **Carga de Módulos desde Base de Datos:** (Revalidado) Mover la configuración de `featureModules` a una tabla en Supabase para permitir la gestión de funcionalidades por parte del equipo de producto.
+ * 2.  **Módulos Basados en Permisos del Plan:** (Revalidado) Filtrar la lista de módulos basándose en el plan de suscripción del usuario.
+ * 3.  **Estado Vacío Inteligente en `RecentCampaigns`:** (Revalidado) El estado vacío actual podría ofrecer acciones contextuales, como "Crear Campaña desde Plantilla".
+ */
+// Ruta: app/[locale]/dashboard/dashboard-client.tsx
 /* MEJORAS PROPUESTAS
  * 1. **Analíticas de Módulos:** Integrar un hook de analíticas (como Vercel Analytics o PostHog) dentro del `onClick` del `Link` en `ModuleCard`. Esto permitiría rastrear qué módulos son los más utilizados por los usuarios, proporcionando datos valiosos para la toma de decisiones de producto.
  * 2. **Carga de Datos de Módulos desde API:** El siguiente paso evolutivo es mover el array `featureModules` a una tabla en Supabase. El componente de servidor (`page.tsx`) podría obtener estos datos y pasarlos como prop. Esto permitiría al equipo de producto habilitar/deshabilitar módulos o cambiar su estado (`beta`, `soon`) sin necesidad de un despliegue de código.

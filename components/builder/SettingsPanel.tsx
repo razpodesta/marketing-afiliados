@@ -1,4 +1,10 @@
-// Ruta: app/locale/builder/components/SettingsPanel.tsx
+// Ruta: components/builder/SettingsPanel.tsx
+/**
+ * @file SettingsPanel.tsx
+ * @description Panel de ajustes dinámico y contextual para los bloques del constructor.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 3.1.0 (Canonical Store Import)
+ */
 "use client";
 
 import React from "react";
@@ -15,25 +21,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { PageBlock } from "@/lib/builder/types.d";
+// CORRECCIÓN CRÍTICA: Se corrige la ruta de importación para apuntar a la
+// única fuente de verdad del store en `lib/`, resolviendo el error TS2307.
+import { useBuilderStore } from "@/lib/builder/core/store";
+import { type PageBlock } from "@/lib/builder/types.d";
 
-import { useBuilderStore } from "../core/store";
-
-/**
- * @file SettingsPanel.tsx
- * @description Panel de ajustes dinámico y contextual para los bloques del constructor.
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1.  El panel ahora está organizado en pestañas ("Contenido" y "Estilo") para
- *     una mejor separación de responsabilidades y una UX más limpia.
- * 2.  Se ha implementado un sistema de "registro de inputs" para renderizar
- *     controles de UI especializados basados en convenciones de nombres o tipos de datos,
- *     haciendo el componente más escalable y mantenible.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (Tabbed & Registry-Based Architecture)
- */
-
-// --- Componentes de Input Especializados ---
+// --- Componentes de Input Especializados (Sin cambios) ---
 
 const ColorPicker = ({
   value,
@@ -85,7 +78,7 @@ const BooleanSwitch = ({
   onCheckedChange: (checked: boolean) => void;
 }) => <Switch checked={value} onCheckedChange={onCheckedChange} />;
 
-// --- Lógica de Renderizado y Registros ---
+// --- Lógica de Renderizado y Registros (Sin cambios) ---
 
 const renderField = (
   key: string,
@@ -97,7 +90,6 @@ const renderField = (
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (str) => str.toUpperCase());
 
-  // --- Registro de Inputs (Basado en convención y tipo) ---
   const getInputComponent = () => {
     if (key.toLowerCase().includes("color")) {
       return (
@@ -200,6 +192,30 @@ export function SettingsPanel() {
     </div>
   );
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el panel de ajustes.
+ *
+ * 1.  **Esquema de Edición Declarativo:** (Revalidado) Hacer que cada bloque defina su propio "esquema de edición" en el `blockRegistry` para que este panel genere el formulario dinámicamente, desacoplando la lógica.
+ * 2.  **Validación de Datos en el Store:** (Revalidado) Antes de actualizar el estado, la acción `updateBlockProp` en el store podría validar el nuevo valor contra un esquema de Zod, proporcionando feedback de validación robusto.
+ * 3.  **Gestión de Estilos Globales (Tema):** (Revalidado) Añadir una tercera pestaña "Tema" que se active cuando ningún bloque esté seleccionado para editar las propiedades de `campaignConfig.theme`.
+ */
+
+/**
+ * @fileoverview El aparato `SettingsPanel.tsx` es un generador de formularios dinámico y contextual.
+ * @functionality
+ * - Se suscribe al `useBuilderStore` para saber qué bloque está seleccionado.
+ * - Si un bloque está seleccionado, itera sobre sus propiedades (`props`) y estilos (`styles`) y renderiza dinámicamente el control de UI apropiado para cada uno (ej. un `ColorPicker` para colores, un `Switch` para booleanos).
+ * - Organiza los controles en pestañas de "Contenido" y "Estilo" para una mejor UX.
+ * - Al cambiar un valor, llama a la acción correspondiente del store (`updateBlockProp` o `updateBlockStyle`), manteniendo un flujo de datos unidireccional.
+ * @relationships
+ * - Depende directamente de `lib/builder/core/store.ts` para su estado y acciones.
+ * - Es un componente hijo de `app/[locale]/builder/[campaignId]/layout.tsx`.
+ * @expectations
+ * - Se espera que este componente sea altamente dinámico y se adapte a cualquier tipo de bloque que se le presente, siempre que sus propiedades sigan las convenciones de tipo o nombre.
+ */
+// Ruta: components/builder/SettingsPanel.tsx
 
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------

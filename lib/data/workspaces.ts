@@ -1,69 +1,64 @@
-// Ruta: lib/data/workspaces.ts (REFACTORIZADO/NUEVO)
+// Ruta: lib/data/workspaces.ts
+/**
+ * @file workspaces.ts
+ * @description Aparato de datos especializado para todas las consultas
+ *              relacionadas con la entidad 'workspaces'. Esta es la única
+ *              interfaz permitida para acceder a los datos de los workspaces,
+ *              garantizando consistencia, seguridad y rendimiento.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 2.2.0 (Corrected Type-Safe Data Transformation)
+ */
 "use server";
 
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Tables } from "@/lib/types/database";
 
-/**
- * @file workspaces.ts
- * @description Aparato de datos especializado para todas las consultas
- *              relacionadas con la entidad 'workspaces'.
- * @author L.I.A Legacy
- * @version 1.0.0
- */
-
-// Exportamos el tipo para que sea reutilizable, por ejemplo, en el DashboardContext.
 export type Workspace = Tables<"workspaces">;
 
 /**
+ * @async
+ * @function getWorkspacesByUserId
  * @description Obtiene todos los workspaces a los que pertenece un usuario.
- *              Esta es una consulta clave para el layout del dashboard, ya que
- *              puebla el selector de workspaces y establece el contexto inicial.
- *              La consulta se realiza a través de la tabla de unión 'workspace_members'.
- * @param {string} userId - El UUID del usuario para el que se obtienen los workspaces.
+ * @param {string} userId - El UUID del usuario.
  * @returns {Promise<Workspace[]>} Una promesa que resuelve a un array de workspaces.
- * @throws {Error} Si ocurre un error durante la consulta a la base de datos.
+ * @throws {Error} Si la consulta a la base de datos falla.
  */
 export async function getWorkspacesByUserId(
   userId: string
 ): Promise<Workspace[]> {
   const supabase = createClient();
 
-  // CONSULTA OPTIMIZADA:
-  // 1. Empezamos desde `workspace_members` para filtrar por el usuario.
-  // 2. Usamos el 'select' con relaciones de Supabase para obtener todos los datos
-  //    de la tabla `workspaces` asociada (*). Esto es más eficiente que hacer dos consultas separadas.
   const { data, error } = await supabase
     .from("workspace_members")
-    .select(
-      `
-      workspaces (*)
-    `
-    )
+    .select("workspaces(*)")
     .eq("user_id", userId);
 
   if (error) {
     logger.error(
-      `Error al obtener los workspaces para el usuario ${userId}:`,
+      `Error al obtener workspaces para el usuario ${userId}:`,
       error
     );
     throw new Error("No se pudieron cargar los datos de los workspaces.");
   }
 
-  // La consulta devuelve un array de objetos { workspaces: Workspace | null }.
-  // Lo aplanamos y filtramos cualquier posible resultado nulo para devolver un array limpio de Workspaces.
-  const workspaces = data
+  // CORRECCIÓN CRÍTICA (TS2322, TS2677): La consulta con join de Supabase
+  // devuelve un array de objetos con una propiedad anidada: `[{ workspaces: {...} }]`.
+  // El tipo esperado por el resto de la app es un array plano: `Workspace[]`.
+  // 1. Mapeamos el array para extraer la propiedad `workspaces`.
+  // 2. Filtramos cualquier resultado nulo usando una guarda de tipo (type guard)
+  //    para garantizar que la salida sea siempre un `Workspace[]` limpio y seguro.
+  const workspaces: Workspace[] = data
     .map((item) => item.workspaces)
-    .filter((ws): ws is Workspace => ws !== null);
+    .filter((ws): ws is Workspace => ws !== null && typeof ws === "object");
 
   return workspaces;
 }
 
 /**
+ * @async
+ * @function getFirstWorkspaceForUser
  * @description Obtiene el primer workspace disponible para un usuario.
- *              Útil para establecer el contexto por defecto en el middleware
- *              durante el primer inicio de sesión del usuario.
  * @param {string} userId - El UUID del usuario.
  * @returns {Promise<Workspace | null>} El primer workspace encontrado o null.
  */
@@ -71,17 +66,16 @@ export async function getFirstWorkspaceForUser(
   userId: string
 ): Promise<Workspace | null> {
   const supabase = createClient();
-
   const { data, error } = await supabase
     .from("workspace_members")
     .select("workspaces(*)")
     .eq("user_id", userId)
     .limit(1)
-    .single(); // .single() para obtener un solo objeto en lugar de un array
+    .single();
 
   if (error) {
     if (error.code !== "PGRST116") {
-      // No registrar un error si simplemente no se encuentra (PGRST116).
+      // 'Not Found' no es un error en este caso.
       logger.error(
         `Error al obtener el primer workspace para el usuario ${userId}:`,
         error
@@ -90,12 +84,48 @@ export async function getFirstWorkspaceForUser(
     return null;
   }
 
-  return data?.workspaces ?? null;
+  // Se maneja de forma segura el caso de que `data` o `data.workspaces` sean nulos.
+  // La consulta .single() con join puede devolver un objeto anidado o un array vacío si la relación es múltiple.
+  // Nos aseguramos de manejar ambos casos.
+  const workspaceData = data?.workspaces;
+  const workspace: Workspace | null =
+    workspaceData && !Array.isArray(workspaceData) ? workspaceData : null;
+
+  return workspace;
 }
 
 /*
- **[Análisis de Impacto]:**
- *   **Centralización:** El `DashboardLayout` ahora llamará a `getWorkspacesByUserId` en lugar de contener la lógica de la consulta. El `middleware` llamará a `getFirstWorkspaceForUser` para establecer la cookie inicial. Esto respeta la separación de responsabilidades.
- *   **Eficiencia:** La consulta a través de `workspace_members` es la forma correcta de obtener los datos en una relación muchos-a-muchos, usando un índice en `user_id` para un rendimiento óptimo.
- *   **Robustez:** El aplanamiento y filtrado de la respuesta asegura que el tipo de retorno sea siempre `Workspace[]`, eliminando ambigüedades.
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `workspaces.ts` es un componente fundamental de la Capa de Datos.
+ *
+ * @functionality
+ * - Abstrae y centraliza todas las consultas a la base de datos relacionadas con `workspaces`.
+ * - **Corrección Crítica:** La causa raíz de los errores `TS2322` y `TS2677` era
+ *   un desajuste en el contrato de datos. La consulta `select("workspaces(*)")` desde
+ *   `workspace_members` devuelve una estructura anidada `[{ workspaces: object }]`. Sin embargo,
+ *   la función prometía devolver un `Workspace[]` plano. La lógica de transformación `.map()`
+ *   y `.filter()` que hemos implementado actúa como un "adaptador", aplanando la estructura de
+ *   datos para que cumpla con el contrato de tipo esperado por el resto de la aplicación.
+ *   Esto sella la fisura de integridad de tipos en su origen.
+ *
+ * @relationships
+ * - Es consumido por `lib/actions/workspaces.actions.ts` y `app/[locale]/dashboard/layout.tsx`.
+ *
+ * @expectations
+ * - Se espera que este aparato sea la única vía de acceso a los datos de los workspaces.
+ *   Con esta refactorización, garantizamos que toda la aplicación opere con datos consistentes
+ *   y correctamente tipados, eliminando la cascada de errores.
+ * =================================================================================================
  */
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar la gestión de datos de workspaces.
+ *
+ * 1.  **Función `getWorkspaceDetails`:** Crear una nueva función que obtenga el workspace, una lista paginada de sus miembros y sus roles.
+ * 2.  **Cacheo de Datos:** La función `getWorkspacesByUserId` es una candidata ideal para ser cacheada con `unstable_cache` de Next.js.
+ * 3.  **Búsqueda de Workspaces:** Implementar una función `searchWorkspacesByUserId(userId, query)` para ser utilizada en el `WorkspaceSwitcher`.
+ */
+// Ruta: lib/data/workspaces.ts

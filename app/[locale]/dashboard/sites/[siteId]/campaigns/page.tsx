@@ -2,14 +2,10 @@
 /**
  * @file page.tsx
  * @description Página de servidor para listar las campañas de un sitio específico.
- * REFACTORIZACIÓN 360 - ESCALABILIDAD Y UX:
- * 1. Implementada la paginación del lado del servidor para las campañas.
- * 2. Se ha añadido un `BreadcrumbsProvider` para pasar el nombre del sitio a
- *    la UI, mejorando la navegación contextual.
- * 3. Incorporado manejo de errores robusto.
- *
- * @author Metashark
- * @version 2.0.0 (Scalable & Context-Aware Page)
+ *              Este aparato es responsable de la seguridad, la obtención de datos
+ *              y de pasar la información inicial a su componente de cliente.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 2.1.0 (Data Contract Fix)
  */
 import { AlertTriangle } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
@@ -18,28 +14,36 @@ import { Card } from "@/components/ui/card";
 import { BreadcrumbsProvider } from "@/lib/context/BreadcrumbsContext";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
+import { Tables } from "@/lib/types/database";
 
 import { CampaignsClient } from "./campaigns-client";
 
 const CAMPAIGNS_PER_PAGE = 10;
 
 /**
+ * @async
+ * @private
+ * @function getPaginatedCampaignsBySiteId
  * @description Obtiene una lista paginada de campañas para un sitio específico.
  * @param {string} siteId - El UUID del sitio.
  * @param {{ page: number; limit: number }} options - Opciones de paginación.
- * @returns {Promise<{campaigns: any[], totalCount: number}>}
+ * @returns {Promise<{campaigns: Tables<"campaigns">[], totalCount: number}>}
+ * @throws {Error} Si la consulta a la base de datos falla.
  */
 async function getPaginatedCampaignsBySiteId(
   siteId: string,
   { page, limit }: { page: number; limit: number }
-) {
+): Promise<{ campaigns: Tables<"campaigns">[]; totalCount: number }> {
   const supabase = createClient();
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // CORRECCIÓN CRÍTICA: La consulta ahora selecciona todos los campos ('*')
+  // para que el tipo de dato devuelto coincida con el tipo `Tables<"campaigns">`
+  // que el componente `CampaignsClient` espera.
   const { data, error, count } = await supabase
     .from("campaigns")
-    .select("id, name, created_at, updated_at, slug", { count: "exact" })
+    .select("*", { count: "exact" })
     .eq("site_id", siteId)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -48,7 +52,7 @@ async function getPaginatedCampaignsBySiteId(
     logger.error(`Error al obtener campañas para el sitio ${siteId}:`, error);
     throw new Error("No se pudieron obtener las campañas.");
   }
-  return { campaigns: data, totalCount: count || 0 };
+  return { campaigns: data || [], totalCount: count || 0 };
 }
 
 export default async function CampaignsPage({
@@ -126,3 +130,29 @@ export default async function CampaignsPage({
     );
   }
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para optimizar y robustecer la obtención de datos de campañas.
+ *
+ * 1.  **Abstracción a Capa de Datos:** (Revalidado) La función `getPaginatedCampaignsBySiteId` reside actualmente en este archivo. Debería ser movida a su aparato correspondiente en la capa de datos (`lib/data/campaigns.ts`) para una separación de responsabilidades estricta.
+ * 2.  **Optimización de la Consulta:** La consulta actual (`select("*")`) devuelve el campo `content`, que puede ser un JSON muy pesado e innecesario para la lista de campañas. La consulta en la capa de datos debería ser optimizada para seleccionar solo los campos necesarios para la tabla (`id`, `name`, `slug`, `updated_at`), mejorando significativamente el rendimiento.
+ * 3.  **Cacheo de Datos en Servidor:** (Revalidado) La consulta de campañas paginadas es una candidata ideal para ser cacheada con `unstable_cache` de Next.js, con etiquetas (`tags`) que incluyan el `siteId` y el `page`. Las Server Actions que modifican campañas deberían invalidar esta caché con `revalidateTag` para mantener los datos frescos.
+ */
+
+/**
+ * @fileoverview El aparato `campaigns/page.tsx` es el Server Component responsable de orquestar la página de gestión de campañas de un sitio.
+ * @functionality
+ * - **Seguridad:** Realiza una verificación de autenticación y autorización, asegurando que solo los miembros del workspace al que pertenece el sitio puedan ver sus campañas.
+ * - **Obtención de Datos:** Llama a la capa de datos para obtener la lista paginada de campañas para el `siteId` especificado en la URL.
+ * - **Gestión de Contexto:** Utiliza el `BreadcrumbsProvider` para pasar información contextual (el nombre del sitio) a los componentes de cliente, permitiendo una UI de navegación más rica.
+ * - **Renderizado y Fallbacks:** Envuelve al componente de cliente `CampaignsClient`, pasándole los datos iniciales como props. Utiliza `Suspense` para manejar estados de carga y un `try/catch` para renderizar un estado de error si la obtención de datos falla.
+ * @relationships
+ * - Es una ruta dinámica dentro de `app/[locale]/dashboard/sites/`.
+ * - Es el padre directo de `CampaignsClient`, actuando como su proveedor de datos del lado del servidor.
+ * - Depende de `lib/data/campaigns.ts` (una vez refactorizado) para la lógica de acceso a datos.
+ * - Depende de `lib/auth/user-permissions.ts` (implícitamente, a través de la lógica de autorización) para las comprobaciones de seguridad.
+ * @expectations
+ * - Se espera que este componente sea una barrera de seguridad robusta y un proveedor de datos eficiente. No debe contener lógica de UI interactiva, delegando esa responsabilidad completamente a `CampaignsClient`. Su código debe ser asíncrono y manejar todos los posibles estados (éxito, carga, error) de forma explícita.
+ */
+// Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/page.tsx

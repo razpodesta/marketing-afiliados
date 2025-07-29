@@ -1,8 +1,9 @@
 // lib/data/admin.ts
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logging";
+import { createAdminClient } from "@/lib/supabase/server";
+
 import type { SiteWithCampaignsCount } from "./sites";
 
 /**

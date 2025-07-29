@@ -1,11 +1,13 @@
+// Ruta: components/ui/card.tsx
 /**
- * @file components/ui/card.tsx
- * @description Componente de Tarjeta, ahora con reenvío de ref para compatibilidad con `asChild`.
+ * @file card.tsx
+ * @description Componente de Tarjeta, refactorizado para una máxima accesibilidad y robustez.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.0.0 (Ref Forwarding)
+ * @version 2.1.0 (Defensive & Accessible Title)
  */
-import { cn } from "@/lib/utils";
 import * as React from "react";
+
+import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -42,14 +44,21 @@ CardHeader.displayName = "CardHeader";
 const CardTitle = React.forwardRef<
   HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  <h3
-    ref={ref}
-    data-slot="card-title"
-    className={cn("leading-none font-semibold", className)}
-    {...props}
-  />
-));
+>(({ className, children, ...props }, ref) => {
+  if (!children) {
+    return null;
+  }
+  return (
+    <h3
+      ref={ref}
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
+});
 CardTitle.displayName = "CardTitle";
 
 const CardDescription = React.forwardRef<
@@ -116,8 +125,4 @@ export {
   CardHeader,
   CardTitle,
 };
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Variantes de Tarjeta: De manera similar al componente `Button`, se podría introducir una prop `variant` en el componente `Card` (utilizando `cva`). Esto permitiría tener diferentes estilos de tarjeta para diferentes propósitos, como una `variant="ghost"` (sin fondo ni borde) o una `variant="interactive"` (con efectos de hover más pronunciados para tarjetas clickables).
- * 2. Soporte para Media: Añadir un sub-componente `<CardMedia>` o `<CardImage>` diseñado específicamente para manejar imágenes o videos dentro de una tarjeta, asegurando que se apliquen los estilos correctos (ej. `object-fit`, radios de borde que coincidan con la tarjeta) de manera consistente.
- * 3. Prop `asChild` para Tarjetas-Enlace: Añadir la prop `asChild` al componente `Card` principal. Esto permitiría envolver una tarjeta completa en un componente `<Link>` de Next.js, haciendo que toda la tarjeta sea un único enlace navegable, lo cual es un patrón de UI muy común.
- */
+// Ruta: components/ui/card.tsx

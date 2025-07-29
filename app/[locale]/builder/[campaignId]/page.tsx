@@ -1,16 +1,20 @@
-// app/[locale]/builder/[campaignId]/page.tsx
+// Ruta: app/[locale]/builder/[campaignId]/page.tsx
 /**
  * @file page.tsx
- * @description Página principal del constructor para una campaña específica.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Architectural Alignment)
+ * @description Página de servidor principal del constructor para una campaña específica.
+ *              Este aparato actúa como la capa de seguridad y obtención de datos,
+ *              preparando e hidratando el estado inicial para la UI del cliente.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 4.1.0 (Data Layer Import Fix)
  */
 import { notFound, redirect } from "next/navigation";
 
 import { useBuilderStore } from "@/app/[locale]/builder/core/store";
 import { Canvas } from "@/components/builder/Canvas";
 import type { CampaignConfig } from "@/lib/builder/types.d";
-import { data as dataLayer } from "@/lib/data";
+// CORRECCIÓN CRÍTICA: Se corrige la importación para que coincida con la estructura
+// de exportación por namespace del barrel file de la capa de datos.
+import { campaigns as campaignsData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,7 +32,8 @@ export default async function BuilderPage({
     return redirect(`/login?next=/builder/${params.campaignId}`);
   }
 
-  const campaignData = await dataLayer.campaigns.getCampaignContentById(
+  // Se utiliza el namespace correcto de la capa de datos.
+  const campaignData = await campaignsData.getCampaignContentById(
     params.campaignId,
     user.id
   );
@@ -40,6 +45,7 @@ export default async function BuilderPage({
     return notFound();
   }
 
+  // La lógica de fallback para el contenido de la campaña permanece sin cambios.
   const campaignConfig: CampaignConfig =
     (campaignData.content as CampaignConfig | null) ?? {
       id: campaignData.id,
@@ -64,6 +70,7 @@ export default async function BuilderPage({
       ],
     };
 
+  // Hidratación del estado del cliente en el servidor.
   useBuilderStore.setState({ campaignConfig });
 
   return (
@@ -74,6 +81,31 @@ export default async function BuilderPage({
     </div>
   );
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar la página del constructor.
+ *
+ * 1.  **Sistema de Plantillas de Campaña:** (Revalidado) La estructura de campaña por defecto está codificada. Una mejora arquitectónica significativa sería mover esta y otras plantillas a una tabla `campaign_templates` en la base de datos.
+ * 2.  **Cacheo de Datos de Campaña:** (Revalidado) La consulta para obtener los datos de la campaña es un candidato ideal para ser cacheado con `unstable_cache` de Next.js, con una etiqueta `campaign:${params.campaignId}`.
+ * 3.  **Página de "Acceso Denegado" Específica:** (Revalidado) En lugar de una redirección genérica, se podría redirigir a una página `/unauthorized` que explique al usuario por qué no puede acceder a ese recurso.
+ */
+
+/**
+ * @fileoverview El aparato `builder/[campaignId]/page.tsx` es un componente de servidor crucial que actúa como la puerta de entrada al editor de campañas.
+ * @functionality
+ * - **Seguridad:** Es la primera línea de defensa. Valida la sesión del usuario y, a través de la capa de datos (`getCampaignContentById`), verifica que el usuario tiene los permisos necesarios para editar la campaña solicitada.
+ * - **Obtención de Datos:** Obtiene la configuración completa de la campaña (`CampaignConfig`) desde la base de datos.
+ * - **Lógica de Fallback:** Si una campaña es nueva y no tiene contenido (`content` es nulo), este aparato genera una estructura de bloques por defecto para que el usuario no empiece con un lienzo completamente en blanco.
+ * - **Hidratación de Estado:** Utiliza una técnica avanzada de Zustand (`setState` en el servidor) para pre-cargar el estado de la campaña en el servidor. Cuando los componentes de cliente del constructor se cargan en el navegador, heredan este estado inicial, eliminando la necesidad de una petición de datos adicional desde el cliente y mejorando el rendimiento de carga percibido.
+ * @relationships
+ * - Es el componente padre de `builder/[campaignId]/layout.tsx`, que a su vez contiene el `Canvas`.
+ * - Depende directamente de la capa de datos, específicamente de `lib/data/campaigns.ts`.
+ * - Es responsable de inicializar el estado del store de Zustand definido en `lib/builder/core/store.ts`.
+ * @expectations
+ * - Se espera que este componente sea una capa de preparación de datos segura y eficiente. Debe manejar todos los casos (usuario no autenticado, sin permisos, campaña no encontrada) y asegurar que el store de cliente siempre se inicialice con un estado válido y consistente.
+ */
+// Ruta: app/[locale]/builder/[campaignId]/page.tsx
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un componente de servidor que actúa como una capa de seguridad

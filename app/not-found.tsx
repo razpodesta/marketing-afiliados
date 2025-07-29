@@ -1,4 +1,13 @@
-// app/not-found.tsx
+// Ruta: app/not-found.tsx
+/**
+ * @file not-found.tsx (Global & Autonomous)
+ * @description Página 404 raíz y única. Es un Componente de Cliente autónomo
+ *              que NO utiliza hooks de `next-intl` para evitar errores de contexto.
+ *              Determina el locale a partir de la URL para construir enlaces de
+ *              retorno correctos.
+ * @author L.I.A Legacy & RaZ Podestá
+ * @version 7.0.0 (Autonomous & Decoupled Architecture)
+ */
 "use client";
 
 import { AlertTriangle, ArrowLeft, Home } from "lucide-react";
@@ -6,34 +15,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { locales } from "@/navigation";
 
-/**
- * @file not-found.tsx (Global & Autonomous)
- * @description Página 404 raíz y única. Es un Componente de Cliente autónomo
- *              que NO utiliza hooks de `next-intl` para evitar errores de contexto.
- *              Determina el locale a partir de la URL para construir enlaces de
- *              retorno correctos.
- * @author L.I.A Legacy
- * @version 6.0.0 (Autonomous 404 Architecture)
- */
+// CORRECCIÓN ARQUITECTÓNICA: Se define `locales` localmente para hacer este
+// componente completamente autónomo y desacoplado del sistema de `next-intl`.
+// Esto previene dependencias de contexto circulares y resuelve el error de compilación.
+const locales = ["en-US", "es-ES", "pt-BR"] as const;
+
 export default function NotFound() {
   const pathname = usePathname();
 
-  // Lógica de cliente segura para determinar el locale desde la URL
+  // Lógica de cliente segura para determinar el locale desde la URL.
   const segments = pathname.split("/");
   const potentialLocale = segments[1];
   const locale = locales.includes(potentialLocale as any)
     ? potentialLocale
-    : "pt-BR"; // Fallback al locale por defecto
+    : "pt-BR"; // Fallback al locale por defecto.
 
   // Mensajes estáticos para evitar la dependencia del contexto.
-  // Podríamos tener un pequeño objeto de traducciones aquí si fuera necesario.
   const messages = {
     title: "Error 404",
-    description: `A página no caminho ${pathname} não existe ou foi movida.`,
-    backToHome: "Voltar ao Início",
-    goToDashboard: "Ir para o Dashboard",
+    description: `La página en la ruta ${pathname} no existe o fue movida.`,
+    backToHome: "Volver al Inicio",
+    goToDashboard: "Ir al Dashboard",
   };
 
   return (
@@ -65,22 +68,41 @@ export default function NotFound() {
   );
 }
 
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Internacionalización Ligera: Para traducir esta página, se podría implementar una pequeña lógica que cargue un objeto de mensajes simple (sin usar `next-intl`) basado en el `locale` detectado. Por ejemplo: `const messages = locale === 'es-ES' ? esMessages : ptBRMessages;`. Esto mantendría el componente autónomo.
- * 2. Componente de Error Genérico: Este patrón de "título, descripción, botones de acción" es reutilizable. Se podría crear un componente de UI genérico `<ErrorState />` que reciba estas props para ser usado aquí y en otros lugares donde se manejen errores.
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `not-found.tsx` es el manejador de errores de ruta global.
+ *
+ * @functionality
+ * - **Autonomía:** Este componente está diseñado para ser completamente autosuficiente.
+ *   La corrección crítica ha sido eliminar la importación de `locales` desde `lib/navigation.ts`
+ *   y duplicar la constante localmente. Esto es una decisión de diseño deliberada.
+ *   El manejador de "ruta no encontrada" no puede depender del sistema de enrutamiento
+ *   que está intentando manejar, ya que eso crea una dependencia circular de contexto
+ *   que causa el fallo de compilación.
+ * - **Detección de Idioma:** Analiza el `pathname` para inferir el idioma del usuario y así
+ *   construir enlaces de "Volver al Inicio" que lo lleven a la versión localizada correcta
+ *   de la página principal.
+ *
+ * @relationships
+ * - Es un archivo especial de Next.js que se renderiza automáticamente para cualquier ruta no reconocida.
+ * - Ahora no tiene dependencias lógicas con el resto de la aplicación, solo con componentes de UI
+ *   genéricos, lo que lo hace extremadamente robusto.
+ *
+ * @expectations
+ * - Se espera que este componente nunca falle, incluso si el resto del sistema de enrutamiento
+ *   tiene problemas. Al hacerlo autónomo, hemos garantizado que la aplicación siempre tendrá
+ *   una página 404 funcional, resolviendo el error `500 Internal Server Error` en producción.
+ * =================================================================================================
  */
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Sugerencias de Rutas Inteligentes: Se podría analizar el `pathname` y compararlo con las rutas válidas (obtenidas de un `routes-manifest.json` generado en el build) usando un algoritmo de similitud de cadenas para sugerir "¿Quizás quisiste decir /features?".
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar la página 404.
+ *
+ * 1.  **Internacionalización Ligera:** Para traducir esta página, se podría implementar una pequeña lógica que cargue un objeto de mensajes simple basado en el `locale` detectado, manteniendo el componente autónomo.
+ * 2.  **Sugerencias de Rutas Inteligentes:** Analizar el `pathname` y compararlo con un manifiesto de rutas para sugerir al usuario la página correcta (ej. "¿Quizás quisiste decir /features?").
+ * 3.  **Logging de Errores 404:** Implementar una Server Action que se llame desde un `useEffect` para registrar las URLs que generan un 404, lo cual es invaluable para detectar enlaces rotos.
  */
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Detección de Idioma del Navegador: Este componente podría usar `navigator.language` en el cliente para intentar redirigir a la página de inicio con el `locale` más apropiado, en lugar de usar siempre `pt-BR` como fallback.
- */
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Detección de Locale más Robusta: La lógica actual para extraer el `locale` del `pathname` es simple. Podría mejorarse para manejar casos más complejos o ser reemplazada si `next-intl` proporciona una forma oficial de acceder al `locale` dentro de `not-found.tsx` en futuras versiones.
- * 2. Carga Selectiva de Mensajes: El hook `useMessages()` carga todos los mensajes. Para optimizar, se podría crear una lógica que extraiga solo el namespace `NotFoundPage` del objeto de mensajes completo y lo pase al proveedor, reduciendo la cantidad de datos que el componente necesita manejar.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Logging de Errores 404: Implementar una `Server Action` que se llame desde un `useEffect` en esta página para registrar las URLs que generan un 404 en una tabla de Supabase. Esto es invaluable para detectar enlaces rotos internos o externos y mejorar el SEO.
- * 2. Sugerencias Inteligentes de Rutas: Para errores 404 en el dominio principal, se podría analizar el `pathname` (ej. `/caracteristicas`) y compararlo con las rutas válidas (obtenidas del `routes-manifest.json`) usando un algoritmo de similitud de cadenas (como la distancia de Levenshtein) para sugerir "¿Quizás quisiste decir /features?".
- * 3. Internacionalización del Contenido: Dado que este componente ahora es la raíz, su contenido está en español. Debería ser modificado para usar `useTranslations` de `next-intl` y mostrar los mensajes en el idioma correspondiente, convirtiéndolo en un componente verdaderamente global.
- */
+// Ruta: app/not-found.tsx

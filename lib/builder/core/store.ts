@@ -1,12 +1,15 @@
+// Ruta: lib/builder/core/store.ts
 /**
- * @file lib/builder/core/store.ts
- * @description Almacén de estado global de Zustand para el constructor.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.2.0 (Type-Safe Actions)
+ * @file store.ts
+ * @description Almacén de estado global de Zustand para el constructor. Esta es la
+ *              ÚNICA fuente de verdad para el estado del editor de campañas en toda la aplicación.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 3.2.0 (Canonical Source of Truth)
  */
-import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 import { arrayMove } from "@dnd-kit/sortable";
 import { create, type StateCreator } from "zustand";
+
+import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 
 export type DevicePreview = "desktop" | "tablet" | "mobile";
 
@@ -47,15 +50,11 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
       const index = blocks.findIndex((b) => b.id === blockId);
 
       if (index === -1) return {};
-
       const newIndex = direction === "up" ? index - 1 : index + 1;
-
       if (newIndex < 0 || newIndex >= blocks.length) return {};
 
       const newBlocks = arrayMove(blocks, index, newIndex);
-      return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
-      };
+      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
   updateBlockProp: (blockId, propName, value) =>
@@ -66,9 +65,7 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
           ? { ...block, props: { ...block.props, [propName]: value } }
           : block
       );
-      return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
-      };
+      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
   updateBlockStyle: (blockId, styleName, value) =>
@@ -79,9 +76,7 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
           ? { ...block, styles: { ...block.styles, [styleName]: value } }
           : block
       );
-      return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
-      };
+      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
   addBlock: (blockType, defaultProps) =>
@@ -115,9 +110,7 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
         oldIndex,
         newIndex
       );
-      return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
-      };
+      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
     }),
 
   deleteBlock: (blockId) =>
@@ -148,7 +141,6 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
         ...blockToDuplicate,
         id: `block-${Date.now()}`,
       };
-
       const newBlocks = [...state.campaignConfig.blocks];
       newBlocks.splice(blockIndex + 1, 0, newBlock);
 
@@ -160,3 +152,4 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
 });
 
 export const useBuilderStore = create<BuilderState>(createBuilderSlice);
+// Ruta: lib/builder/core/store.ts

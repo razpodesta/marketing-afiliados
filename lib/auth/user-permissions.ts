@@ -1,32 +1,27 @@
+// Ruta: lib/auth/user-permissions.ts
 /**
  * @file lib/auth/user-permissions.ts
- * @description Este módulo centraliza todas las operaciones relacionadas con la obtención
- *              y verificación de roles y permisos de usuarios. Actúa como un
- *              "guardián" de seguridad para toda la aplicación.
- * @author L.I.A Legacy
- * @version 1.1.0 (Server Action Contract Fix)
+ * @description Este módulo es el "Guardián de Seguridad" de la aplicación. Centraliza todas
+ *              las operaciones de obtención y verificación de roles y permisos de usuarios.
+ *              Actúa como la única fuente de verdad para la autorización en todo el sistema.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 2.2.2 (Final Return Path Fix & Module Restoration)
  */
-
 "use server";
 
 import { type User } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
+import { sites as sitesData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/types/database";
 
-import { hasWorkspacePermission } from "./permissions";
+// --- Tipos de Contrato de Datos ---
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];
 
-/**
- * @typedef {object} UserAuthData
- * @property {User} user - El objeto de usuario de Supabase.
- * @property {AppRole} appRole - El rol de la aplicación del usuario.
- * @property {WorkspaceRole | null} activeWorkspaceRole - El rol del usuario en el workspace activo, si existe.
- * @property {string | null} activeWorkspaceId - El ID del workspace activo, si existe.
- */
 export type UserAuthData = {
   user: User;
   appRole: AppRole;
@@ -34,20 +29,43 @@ export type UserAuthData = {
   activeWorkspaceId: string | null;
 };
 
+// --- Estrategia de Cache por Petición ---
+
 let cachedUserAuthData: UserAuthData | null = null;
 
-/**
- * @async
- * @function getAuthenticatedUserAuthData
- * @description Obtiene los datos de autenticación y perfil del usuario autenticado, incluyendo
- *              el rol de la aplicación y, opcionalmente, el rol en el workspace activo.
- *              Los datos se cachean por petición para evitar consultas redundantes.
- * @returns {Promise<UserAuthData | null>} Los datos de autenticación del usuario, o `null` si no está autenticado o no tiene perfil.
- */
+// --- Funciones Auxiliares Internas ---
+
+async function hasWorkspacePermission(
+  userId: string,
+  workspaceId: string,
+  requiredRoles: WorkspaceRole[]
+): Promise<boolean> {
+  const supabase = createClient();
+  const { data: member, error } = await supabase
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .single();
+
+  if (error) {
+    if (error.code !== "PGRST116") {
+      logger.error(
+        `Error al verificar permisos para user ${userId} en workspace ${workspaceId}:`,
+        error
+      );
+    }
+    return false;
+  }
+  return requiredRoles.includes(member.role);
+}
+
+// --- Aparatos Públicos del Guardián ---
+
 export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | null> {
   if (cachedUserAuthData) {
     logger.trace(
-      "[UserPermissions] Datos del usuario cargados desde el cache."
+      "[UserPermissions] Datos del usuario cargados desde el cache de la petición."
     );
     return cachedUserAuthData;
   }
@@ -56,7 +74,6 @@ export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | nul
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) {
     return null;
   }
@@ -69,41 +86,25 @@ export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | nul
 
   if (profileError || !profile) {
     logger.error(
-      `[UserPermissions] Error al cargar perfil para user ${user.id}:`,
+      `[UserPermissions] Error crítico: No se encontró perfil para el usuario ${user.id}:`,
       profileError
     );
     return null;
   }
 
-  let activeWorkspaceId: string | null = null;
+  const activeWorkspaceId = cookies().get("active_workspace_id")?.value || null;
   let activeWorkspaceRole: WorkspaceRole | null = null;
 
-  try {
-    const { cookies } = await import("next/headers");
-    const activeWorkspaceCookie = cookies().get("active_workspace_id");
-    if (activeWorkspaceCookie?.value) {
-      activeWorkspaceId = activeWorkspaceCookie.value;
-
-      const { data: member, error: memberError } = await supabase
-        .from("workspace_members")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("workspace_id", activeWorkspaceId)
-        .single();
-
-      if (memberError && memberError.code !== "PGRST116") {
-        logger.warn(
-          `[UserPermissions] No se pudo obtener el rol para el workspace ${activeWorkspaceId} y user ${user.id}:`,
-          memberError
-        );
-      } else if (member) {
-        activeWorkspaceRole = member.role;
-      }
+  if (activeWorkspaceId) {
+    const { data: member } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("workspace_id", activeWorkspaceId)
+      .single();
+    if (member) {
+      activeWorkspaceRole = member.role;
     }
-  } catch (e) {
-    logger.debug(
-      "[UserPermissions] No se pudieron leer las cookies (probablemente en un contexto no HTTP/pruebas)."
-    );
   }
 
   const userData: UserAuthData = {
@@ -112,56 +113,31 @@ export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | nul
     activeWorkspaceId,
     activeWorkspaceRole,
   };
-
   cachedUserAuthData = userData;
   return userData;
 }
 
-/**
- * @async
- * @function requireAppRole
- * @description Verifica si el usuario autenticado posee uno de los roles de aplicación requeridos.
- *              Si el usuario no tiene el rol, retorna un objeto de error.
- * @param {AppRole[]} requiredRoles - Un array de roles de aplicación permitidos.
- * @returns {Promise<{ success: true, data: UserAuthData } | { success: false, error: string }>}
- */
 export async function requireAppRole(
   requiredRoles: AppRole[]
 ): Promise<
   { success: true; data: UserAuthData } | { success: false; error: string }
 > {
   const authData = await getAuthenticatedUserAuthData();
-
   if (!authData) {
     return {
       success: false,
       error: "Acción no autorizada. Sesión no encontrada.",
     };
   }
-
   if (!requiredRoles.includes(authData.appRole)) {
     logger.warn(
-      `[SEGURIDAD] Violación de permiso: Usuario ${
-        authData.user.id
-      } con rol '${authData.appRole}' intentó acceder a funcionalidad restringida a '${requiredRoles.join(
-        ", "
-      )}'.`
+      `[SEGURIDAD] Violación de permiso: Usuario ${authData.user.id} con rol '${authData.appRole}' intentó acceder a una funcionalidad restringida para '${requiredRoles.join(", ")}'.`
     );
     return { success: false, error: "Permiso denegado." };
   }
-
   return { success: true, data: authData };
 }
 
-/**
- * @async
- * @function requireWorkspacePermission
- * @description Verifica si el usuario autenticado posee uno de los roles de workspace requeridos
- *              en el workspace proporcionado. Si el usuario no tiene el permiso, retorna un objeto de error.
- * @param {string} workspaceId - El ID del workspace a ser verificado.
- * @param {WorkspaceRole[]} requiredRoles - Un array de roles de workspace permitidos.
- * @returns {Promise<{ success: true, data: UserAuthData } | { success: false, error: string }>}
- */
 export async function requireWorkspacePermission(
   workspaceId: string,
   requiredRoles: WorkspaceRole[]
@@ -169,7 +145,6 @@ export async function requireWorkspacePermission(
   { success: true; data: UserAuthData } | { success: false; error: string }
 > {
   const authData = await getAuthenticatedUserAuthData();
-
   if (!authData) {
     return {
       success: false,
@@ -182,14 +157,9 @@ export async function requireWorkspacePermission(
     workspaceId,
     requiredRoles
   );
-
   if (!isAuthorized) {
     logger.warn(
-      `[SEGURIDAD] Violación de permiso: Usuario ${
-        authData.user.id
-      } sin permiso de workspace ('${requiredRoles.join(
-        ", "
-      )}') en el workspace ${workspaceId}.`
+      `[SEGURIDAD] Violación de permiso de workspace: Usuario ${authData.user.id} intentó una acción que requiere '${requiredRoles.join(", ")}' en el workspace ${workspaceId}.`
     );
     return {
       success: false,
@@ -200,19 +170,32 @@ export async function requireWorkspacePermission(
   return { success: true, data: authData };
 }
 
-/**
- * @async
- * @function clearCachedAuthData
- * @description Limpia el cache de datos de autenticación para la próxima petición.
- *              Útil para pruebas o escenarios específicos donde el cache debe ser reseteado.
- */
-// --- INICIO DE CORRECCIÓN ---
-// Se añade la palabra clave `async` para cumplir con el contrato de `"use server";`.
 export async function clearCachedAuthData() {
-  // --- FIN DE CORRECCIÓN ---
   cachedUserAuthData = null;
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el sistema de permisos.
+ *
+ * 1.  **Permisos Basados en Atributos (ABAC):** (Revalidado) Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC, permitiendo condiciones de permiso más complejas que solo roles estáticos.
+ * 2.  **Cache Distribuido (Redis/KV):** (Revalidado) Para un rendimiento a gran escala, los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis para reducir las lecturas de la base de datos en múltiples peticiones del mismo usuario.
+ * 3.  **Sincronización de Cache con Webhooks:** (Revalidado) Implementar un webhook de Supabase que, al actualizar la tabla `profiles` o `workspace_members`, invalide proactivamente la entrada de caché del usuario correspondiente, asegurando la consistencia de los datos de permisos.
+ */
+
+/**
+ * @fileoverview El Guardián de Permisos (`user-permissions.ts`) es el único responsable de la lógica de autorización.
+ * @functionality
+ * - Obtiene y cachea de forma segura los datos de sesión y roles del usuario por petición.
+ * - Proporciona funciones "guardianas" (`require...`) que actúan como puntos de control de seguridad, devolviendo un objeto de resultado tipado que indica éxito o fallo.
+ * - Encapsula la lógica de comprobación de permisos de bajo nivel, desacoplando el resto de la aplicación de los detalles de la estructura de la base de datos.
+ * @relationships
+ * - Es la dependencia principal del `middleware.ts` para proteger rutas.
+ * - Es consumido por todas las Server Actions en `lib/actions/` que realizan operaciones sensibles.
+ * @expectations
+ * - Se espera que este aparato sea infalible. Cualquier fallo en su lógica podría comprometer la seguridad de toda la aplicación. Debe ser rigurosamente testeado y su API debe ser lo más simple y explícita posible para minimizar el riesgo de un uso incorrecto.
+ */
+// Ruta: lib/auth/user-permissions.ts
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
  * @description Mejoras incrementales para evolucionar el sistema de permisos.

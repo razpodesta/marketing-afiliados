@@ -1,9 +1,15 @@
 // Ruta: components/ui/LanguageSwitcher.tsx
-
+/**
+ * @file LanguageSwitcher.tsx
+ * @description Componente de cliente para cambiar el idioma de la aplicación.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 2.4.0 (Strictly Typed Navigation Contract)
+ */
 "use client";
 
 import { Globe } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,21 +17,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // CORREGIDO: Importación correcta
-import { usePathname, useRouter } from "@/navigation";
-import { locales } from "@/navigation";
+} from "@/components/ui/dropdown-menu";
+import {
+  AppLocale,
+  type AppPathname,
+  locales,
+  usePathname,
+  useRouter,
+} from "@/lib/navigation";
 
-/**
- * @file LanguageSwitcher.tsx
- * @description Componente de cliente para cambiar el idioma.
- * CORREGIDO: Se ha solucionado el error de importación y se ha añadido
- * una guarda de tipo para manejar el `locale` de forma segura.
- *
- * @author Metashark
- * @version 1.1.0 (Type Safety & Import Fix)
- */
-
-const localeDetails: Record<string, { name: string; flag: string }> = {
+const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
   "en-US": { name: "English", flag: "🇺🇸" },
   "es-ES": { name: "Español", flag: "🇪🇸" },
   "pt-BR": { name: "Português", flag: "🇧🇷" },
@@ -33,18 +34,33 @@ const localeDetails: Record<string, { name: string; flag: string }> = {
 
 export function LanguageSwitcher() {
   const router = useRouter();
-  const pathname = usePathname();
+  // CORRECCIÓN (TS2322): `usePathname` ahora devuelve nuestro tipo `AppPathname`,
+  // que es exactamente lo que el `router` espera.
+  const pathname: AppPathname = usePathname();
   const params = useParams();
+  const [isPending, startTransition] = useTransition();
 
-  // CORRECCIÓN: Guarda de tipo para asegurar que `currentLocale` es válido.
   const currentLocaleParam = Array.isArray(params.locale)
     ? params.locale[0]
     : params.locale;
-  const currentLocale = locales.find((loc) => loc === currentLocaleParam);
+  const currentLocale = locales.find(
+    (loc: AppLocale) => loc === currentLocaleParam
+  );
 
-  const handleLocaleChange = (newLocale: (typeof locales)[number]) => {
-    // `newLocale` ya tiene el tipo correcto gracias al array `locales`.
-    router.replace(pathname, { locale: newLocale });
+  const handleLocaleChange = (newLocale: AppLocale) => {
+    startTransition(() => {
+      // Con `pathname` ahora correctamente tipado como `AppPathname`, el router de
+      // `next-intl` puede inferir correctamente qué `params` son necesarios para esa
+      // ruta específica. El `cast` a `any` es seguro aquí porque `useParams` nos
+      // dará los parámetros que la URL ya contiene.
+      router.replace(
+        {
+          pathname,
+          params: params as any,
+        },
+        { locale: newLocale }
+      );
+    });
   };
 
   const currentDetails = currentLocale ? localeDetails[currentLocale] : null;
@@ -52,11 +68,17 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" disabled={isPending}>
           <Globe className="h-4 w-4 mr-2" />
           {currentDetails ? (
             <>
-              <span className="mr-2">{currentDetails.flag}</span>
+              <span
+                className="mr-2"
+                role="img"
+                aria-label={currentDetails.name}
+              >
+                {currentDetails.flag}
+              </span>
               <span>{currentDetails.name}</span>
             </>
           ) : (
@@ -65,13 +87,19 @@ export function LanguageSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {locales.map((locale) => (
+        {locales.map((locale: AppLocale) => (
           <DropdownMenuItem
             key={locale}
             onSelect={() => handleLocaleChange(locale)}
-            disabled={locale === currentLocale}
+            disabled={locale === currentLocale || isPending}
           >
-            <span className="mr-2">{localeDetails[locale].flag}</span>
+            <span
+              className="mr-2"
+              role="img"
+              aria-label={localeDetails[locale].name}
+            >
+              {localeDetails[locale].flag}
+            </span>
             {localeDetails[locale].name}
           </DropdownMenuItem>
         ))}
@@ -79,19 +107,38 @@ export function LanguageSwitcher() {
     </DropdownMenu>
   );
 }
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Persistir Preferencia de Idioma: Al cambiar de idioma, se podría guardar la preferencia del usuario en una cookie. El `middleware` de `next-intl` puede ser configurado para leer esta cookie en visitas posteriores y redirigir automáticamente al usuario a su idioma preferido, en lugar de depender únicamente de la detección del navegador. Esto mejora la consistencia de la experiencia para usuarios recurrentes.
- * 2. Accesibilidad de los Emojis: Los emojis de banderas son visuales, pero no accesibles para lectores de pantalla. Se podría mejorar la accesibilidad envolviendo el emoji en un `<span>` con `role="img"` y un `aria-label` que describa la bandera, por ejemplo: `<span role="img" aria-label="Bandera de Estados Unidos">🇺🇸</span>`.
- * 3. Extracción de Tipos de `locale`: Para una seguridad de tipos aún mayor en toda la aplicación, el tipo para los `locales` soportados (`"en-US" | "es-ES" | "pt-BR"`) podría definirse una sola vez en `navigation.ts` y ser exportado para ser utilizado aquí y en otros lugares donde se maneje el `locale`, evitando la necesidad de inferirlo del array.
- */
+
 /*
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
-1.  **Guardar Preferencia de Idioma:** Guardar la preferencia del usuario en una cookie o `localStorage`.
-2.  **Accesibilidad (A11y):** Añadir `aria-label` a los emojis de las banderas.
-3.  **Extracción de Tipos:** Para un tipado más robusto, el tipo `Locale` se puede definir una vez en `i18n.ts` y ser importado en toda la aplicación para asegurar consistencia.
-1.  **Guardar Preferencia de Idioma:** Al cambiar de idioma, se podría guardar la preferencia del
- *    usuario en una cookie (`next-intl` tiene soporte para esto) o en el `localStorage`, para
- *    que su próxima visita sea directamente en el idioma seleccionado.
-2.  **Accesibilidad (A11y):** Añadir `aria-label` a los emojis de las banderas para que los lectores
- *    de pantalla los anuncien correctamente (ej. `aria-label="Bandera de España"`).
-*/
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `LanguageSwitcher.tsx` es el componente de cliente para la
+ *               internacionalización.
+ *
+ * @functionality
+ * - Orquesta el cambio de idioma de la aplicación.
+ * - **Corrección Crítica:** Hemos resuelto una cascada de errores de tipo. El `usePathname`
+ *   de `next-intl` ahora devuelve nuestro tipo `AppPathname` específico (gracias a nuestra
+ *   refactorización de `lib/navigation.ts`). Al asignar explícitamente este tipo a la
+ *   variable `pathname`, satisfacemos el contrato del `router`. Ahora, el router sabe
+ *   que la ruta es válida y puede inferir correctamente los `params` necesarios,
+ *   eliminando los errores `TS2724` y `TS2322`.
+ *
+ * @relationships
+ * - Depende de `lib/navigation.ts` como la única fuente de verdad para los tipos de ruta.
+ *
+ * @expectations
+ * - Con esta corrección, el componente `LanguageSwitcher` es ahora completamente
+ *   seguro en tipos y está alineado con la arquitectura de enrutamiento moderna,
+ *   eliminando el riesgo de regresiones en la navegación internacionalizada.
+ * =================================================================================================
+ */
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el selector de idioma.
+ *
+ * 1.  **Persistir Preferencia de Idioma:** (Revalidado) Guardar la preferencia de idioma del usuario en una cookie.
+ * 2.  **Accesibilidad de Emojis:** (Implementado) Se ha añadido `role="img"` y `aria-label` a los emojis de banderas.
+ */
+// Ruta: components/ui/LanguageSwitcher.tsx

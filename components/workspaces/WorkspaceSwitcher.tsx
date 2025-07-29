@@ -1,9 +1,11 @@
+// Ruta: components/workspaces/WorkspaceSwitcher.tsx
 /**
- * @file components/workspaces/WorkspaceSwitcher.tsx
- * @description Componente para seleccionar, crear y gestionar workspaces.
- *              Actúa como el selector de contexto principal de la aplicación.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.2.0 (Architectural Path Correction)
+ * @file WorkspaceSwitcher.tsx
+ * @description Componente de UI para seleccionar, crear y gestionar workspaces.
+ *              Actúa como el selector de contexto principal para la navegación
+ *              y la visualización de datos en toda la aplicación.
+ * @author Metashark (Refactorizado por L.I.A Legacy & RaZ Podestá)
+ * @version 6.0.0 (Type-Safe & Architecturally Aligned)
  */
 "use client";
 
@@ -40,16 +42,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { workspaces as workspaceActions } from "@/lib/actions"; // --- INICIO DE CORRECCIÓN ---
+import { workspaces as workspaceActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
+// CORRECCIÓN: Con el `tsconfig.json` reparado, esta importación ahora se
+// resuelve correctamente, eliminando el error `TS2307`.
+import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import { useRouter } from "@/navigation";
 
 import { CreateWorkspaceForm } from "../workspaces/CreateWorkspaceForm";
 import { InviteMemberForm } from "../workspaces/InviteMemberForm";
 
 type Workspace = { id: string; name: string; icon: string | null };
 
+/**
+ * @description Sub-componente para renderizar un ítem individual en la lista de workspaces.
+ */
 const WorkspaceItem = ({
   workspace,
   onSelect,
@@ -100,6 +107,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     setPopoverOpen(false);
   };
 
+  // --- Flujo de Onboarding ---
   if (workspaces.length === 0) {
     return (
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -123,6 +131,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     );
   }
 
+  // --- Flujo Principal ---
   return (
     <div className="relative">
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -235,62 +244,54 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
   );
 }
 
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `WorkspaceSwitcher` es el selector de contexto principal de la aplicación.
+ *               Su correcta implementación es vital para la arquitectura multi-tenant.
+ *
+ * @functionality
+ * - **Renderizado Condicional de Onboarding:** Su primera y más importante función es actuar como
+ *   un "guardián de onboarding". Consume los datos del `DashboardContext` y, si el usuario no
+ *   tiene workspaces, renderiza un estado de UI completamente diferente que lo guía a crear
+ *   su primer workspace. Esto crea un flujo de usuario sin fricciones para las nuevas cuentas.
+ * - **Selección de Contexto:** Cuando el usuario tiene workspaces, renderiza un `Popover` que
+ *   contiene un componente de `Command` (un combobox con búsqueda). Esto permite al usuario
+ *   buscar y seleccionar eficientemente el workspace en el que desea trabajar.
+ * - **Orquestación de Acciones:**
+ *   - Al seleccionar un nuevo workspace, invoca la Server Action `setActiveWorkspaceAction`
+ *     envuelta en `useTransition`. Esta acción establece una cookie en el servidor y
+ *     desencadena una recarga completa de los datos del layout, cambiando el contexto de
+ *     toda la aplicación.
+ *   - Proporciona accesos directos para abrir modales (`Dialogs`) que contienen los
+ *     formularios para "Crear Workspace" e "Invitar Miembro", centralizando la gestión
+ *     de workspaces en un único componente.
+ *
+ * @relationships
+ * - Depende críticamente de `lib/context/DashboardContext.tsx` para obtener la lista de
+ *   workspaces y el workspace activo.
+ * - Utiliza `lib/navigation.ts` para la navegación segura a la página de ajustes.
+ * - Invoca Server Actions de `lib/actions/workspaces.actions.ts`.
+ * - Compone otros componentes complejos como `CreateWorkspaceForm` e `InviteMemberForm`.
+ *
+ * @expectations
+ * - Se espera que este componente sea el punto central para que el usuario defina su contexto
+ *   de trabajo. Su lógica debe ser robusta para manejar tanto el flujo de un nuevo usuario
+ *   como el de un usuario existente con múltiples workspaces. La corrección de la ruta de
+ *   importación asegura que pueda comunicarse con el sistema de enrutamiento tipado.
+ * =================================================================================================
+ */
+
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar el selector de workspaces a un centro de control de contexto de nivel superior.
+ * @description Mejoras para evolucionar el selector de workspaces a un centro de control de nivel superior.
  *
- * 1.  **Búsqueda de Workspaces en Servidor:** Para usuarios que pertenecen a un gran número de workspaces (ej. agencias con cientos de clientes), la búsqueda en el cliente dentro del `CommandInput` puede ser lenta. La funcionalidad debería evolucionar para que, al escribir, se llame a una Server Action que realice la búsqueda en la base de datos y devuelva solo los resultados coincidentes.
- * 2.  **Carga Asíncrona "Bajo Demanda":** Relacionado con lo anterior, en lugar de cargar todos los workspaces en el `DashboardLayout` inicial, el `WorkspaceSwitcher` podría cargar solo los primeros 10 y obtener más a medida que el usuario se desplaza por la lista (`infinite scroll`) o realiza una búsqueda, optimizando drásticamente la carga inicial para usuarios con muchos workspaces.
- * 3.  **Feedback Visual de Transición Mejorado:** Actualmente, el botón muestra "Cambiando..." durante la transición. Se podría mejorar el feedback visual mostrando un spinner (`<Loader2 />`) directamente en el botón y manteniendo el nombre del workspace anterior visible pero atenuado hasta que la transición se complete, reduciendo la sensación de "salto" en la UI.
+ * 1.  **Búsqueda de Workspaces en Servidor:** Para usuarios que pertenecen a un gran número de workspaces (ej. agencias), la búsqueda en el cliente puede ser lenta. La funcionalidad debería evolucionar para que, al escribir en el `CommandInput`, se llame a una Server Action que realice la búsqueda en la base de datos y devuelva solo los resultados coincidentes.
+ * 2.  **Carga Asíncrona "Bajo Demanda":** En lugar de cargar todos los workspaces en el `DashboardLayout`, el `WorkspaceSwitcher` podría cargar solo los primeros 10 y obtener más a medida que el usuario se desplaza por la lista (`infinite scroll`) o realiza una búsqueda, optimizando la carga inicial.
+ * 3.  **Feedback Visual de Transición Mejorado:** Actualmente, el botón muestra "Cambiando...". Se podría mejorar el feedback mostrando un spinner (`<Loader2 />`) en el botón y manteniendo el nombre del workspace anterior visible pero atenuado hasta que la transición se complete, reduciendo la sensación de "salto" en la UI.
  */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato es el selector de contexto principal de la aplicación.
- *  1.  **Consumo de Contexto:** Obtiene la lista completa de `workspaces` y el `activeWorkspace` del `useDashboard` hook.
- *  2.  **Renderizado Condicional:** Su primera lógica es verificar si el usuario tiene algún workspace. Si `workspaces.length === 0`, renderiza un botón para guiar al usuario a crear su primer workspace, implementando un flujo de onboarding crucial.
- *  3.  **Selector Principal:** Si hay workspaces, renderiza un `Popover` que contiene un `Command` (combobox). El botón `PopoverTrigger` muestra el workspace activo.
- *  4.  **Cambio de Contexto:** Al seleccionar un workspace diferente de la lista, invoca la Server Action `setActiveWorkspaceAction`. Esta acción establece una cookie en el servidor y recarga la página, haciendo que todo el dashboard se re-renderice con los datos del nuevo workspace activo.
- *  5.  **Acciones Secundarias:** El menú del `Command` también provee puntos de entrada para acciones relacionadas con la gestión de workspaces, como "Crear Workspace" e "Invitar Miembro", que abren sus respectivos `Dialogs`.
- *  Se espera que este componente sea el punto central para que el usuario defina su contexto de trabajo actual.
- */
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda de Workspaces en Servidor: Para usuarios que pertenecen a un gran número de workspaces (ej. agencias con cientos de clientes), la búsqueda en el cliente dentro del `CommandInput` puede ser lenta. La funcionalidad debería evolucionar para que, al escribir, se llame a una Server Action que realice la búsqueda en la base de datos y devuelva solo los resultados coincidentes.
- * 2. Carga Asíncrona de Workspaces "bajo demanda": Relacionado con lo anterior, en lugar de cargar todos los workspaces en el layout inicial, el `WorkspaceSwitcher` podría cargar solo los primeros 10 y obtener más a medida que el usuario se desplaza por la lista (`infinite scroll`) o realiza una búsqueda, optimizando drásticamente la carga inicial para usuarios con muchos workspaces.
- * 3. Feedback Visual de Transición Mejorado: Actualmente, el botón muestra "Cambiando..." durante la transición. Se podría mejorar el feedback visual mostrando un spinner (`<Loader2 />`) directamente en el botón y manteniendo el nombre del workspace anterior visible pero atenuado hasta que la transición se complete, reduciendo la sensación de "salto" en la UI.
- */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato funciona como el sistema de navegación principal de la aplicación.
- *  Su lógica central es la presentación de una lista de enlaces de navegación
- *  basada en el estado del usuario y las reglas de la aplicación.
- *  1.  **Consumo de Contexto:** Obtiene los datos del usuario (`user`) desde el `DashboardContext`. Esto lo desacopla de la lógica de obtención de datos del servidor y le permite reaccionar a la información de la sesión.
- *  2.  **Construcción de Navegación:** Define un array estático, `mainNavLinks`, que representa la arquitectura de información de la aplicación. Este array es la única fuente de verdad para la navegación principal.
- *  3.  **Renderizado Condicional de Enlaces:** La lógica `if (userRole === 'developer')` añade dinámicamente el enlace a la "Dev Console" al array `mainNavLinks`, asegurando que solo los usuarios con el rol adecuado puedan ver esta opción.
- *  4.  **Estado Activo:** El sub-componente `NavLink` utiliza el hook `usePathname` de `next-intl` para determinar la ruta actual. Compara esta ruta con la `href` del enlace para aplicar un estilo "activo", proporcionando una clara indicación visual al usuario sobre su ubicación en la aplicación.
- *  5.  **Gestión de Funcionalidades Futuras:** El componente `NavLink` ahora interpreta una prop `status`. Si es "soon", renderiza un elemento deshabilitado con un tooltip, comunicando de forma elegante al usuario que esa funcionalidad está planificada pero aún no disponible.
- */
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Navegación Basada en Configuración: Para una máxima flexibilidad y para permitir que el equipo de producto gestione la navegación sin despliegues, la estructura `mainNavLinks` podría ser obtenida desde una tabla en Supabase o un archivo de configuración central. Esto permitiría controlar dinámicamente la visibilidad, el orden, los iconos y el estado ("soon", "beta") de cada enlace.
- * 2. Navegación Basada en Permisos de Plan: La lógica de renderizado condicional puede expandirse más allá del rol. Los enlaces podrían filtrarse basándose en el plan de suscripción del usuario (almacenado en `user.app_metadata.plan`). Esto permitiría mostrar u ocultar funcionalidades "premium" directamente desde la navegación principal.
- * 3. Sidebar Colapsable: Implementar un botón para colapsar la barra lateral, mostrando solo los iconos. El estado (colapsado/expandido) debería persistir en `localStorage` o en el perfil del usuario en la base de datos para que su preferencia se mantenga entre sesiones y dispositivos, mejorando la personalización de la interfaz.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Flujo de Aceptación de Invitación: El siguiente paso crítico es construir la UI y la lógica para que un usuario que recibe una invitación (por email, en un futuro) pueda aceptarla y unirse al workspace.
- * 2. Permisos Granulares para Invitación: La lógica actual permite invitar como "admin" o "member". Se podría añadir una comprobación en la Server Action para que solo los "owner" puedan invitar nuevos "admin", mientras que los "admin" solo puedan invitar "member".
- * 3. Búsqueda del Lado del Servidor: Si un usuario tiene cientos de workspaces, la búsqueda del lado del cliente puede volverse lenta. Refactorizar la búsqueda para que consulte al servidor y devuelva solo los resultados coincidentes.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Avatares Personalizados: Además de emojis, permitir la subida de una imagen personalizada como avatar del workspace, guardándola en Supabase Storage y actualizando el componente para mostrar `AvatarImage` en lugar de un `span`.
- * 2. Gestión de Miembros en el Menú: Añadir una acción rápida de "Invitar Miembro" en el menú, que abra directamente un modal para enviar invitaciones por correo, agilizando la colaboración.
- * 3. Búsqueda del Lado del Servidor: Si un usuario tiene cientos de workspaces, la búsqueda del lado del cliente puede volverse lenta. La funcionalidad de búsqueda podría ser refactorizada para pasar el término de búsqueda a una Server Action que devuelva solo los resultados coincidentes desde la base de datos.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Flujo de Onboarding para el Primer Workspace: Si el array `workspaces` está vacío, la UI actual podría ser mejorada. En lugar de un menú desplegable, se podría mostrar un botón principal que diga "Crea tu primer workspace" y que abra directamente el modal de creación, guiando mejor a los nuevos usuarios.
- * 2. Avatares/Iconos de Workspace: Para una diferenciación visual más rápida, se podría permitir que cada workspace tenga un emoji o un avatar. Esto requeriría una pequeña modificación en la tabla `workspaces` de la base de datos y la actualización de este componente para mostrar el icono junto al nombre.
- * 3. Acciones Rápidas en el Menú: Se podría añadir una opción de "Ajustes del Workspace" (con un icono de engranaje) junto a cada workspace en la lista. Esto llevaría al usuario a una página dedicada (`/dashboard/settings/workspace`) donde podría renombrar el workspace, gestionar miembros, o configurar la facturación.
- */
+// Ruta: components/workspaces/WorkspaceSwitcher.tsx
 /*
 === SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
 1.  **Implementar Server Action:** La funcionalidad `onWorkspaceSelect` debe llamar a una Server Action `setActiveWorkspaceAction(workspaceId)` que establezca la cookie de contexto y recargue la página.

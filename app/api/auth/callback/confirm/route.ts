@@ -2,13 +2,10 @@
 /**
  * @file route.ts
  * @description Manejador del callback para la confirmación de email de Supabase.
- * REFACTORIZACIÓN CRÍTICA: Se ha reemplazado la importación del cliente de servidor
- * por una implementación local compatible con Route Handlers, utilizando `cookies()`
- * de `next/headers`. Esto resuelve el error de compilación fundamental. Se ha
- * añadido también validación de seguridad para la redirección.
- *
- * @author Metashark
- * @version 4.1.0 (Route Handler Stability & Security)
+ *              Este aparato es un endpoint de seguridad crítico que completa el
+ *              flujo de verificación de la cuenta de un nuevo usuario.
+ * @author RaZ Podestá & L.I.A Legacy
+ * @version 4.2.0 (Logging API Fix)
  */
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -48,7 +45,9 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      logger.success(
+      // CORRECCIÓN: Se utiliza `logger.info` para registrar eventos exitosos,
+      // ya que `logger.success` no es un método estándar de Pino.
+      logger.info(
         `Email confirmado exitosamente. Redirigiendo a: ${safeNextPath}`
       );
       return NextResponse.redirect(`${origin}${safeNextPath}`);
@@ -57,7 +56,9 @@ export async function GET(request: NextRequest) {
     logger.error("Error al intercambiar código de confirmación:", error);
   }
 
-  const redirectUrl = new URL("/login", origin);
+  // Fallback en caso de error o código inválido.
+  const locale = request.cookies.get("NEXT_LOCALE")?.value || "es-ES";
+  const redirectUrl = new URL(`/${locale}/login`, origin);
   redirectUrl.searchParams.set("error", "confirmation-failed");
   redirectUrl.searchParams.set(
     "message",
@@ -66,6 +67,28 @@ export async function GET(request: NextRequest) {
   return NextResponse.redirect(redirectUrl);
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el flujo de confirmación.
+ *
+ * 1.  **Abstracción del Cliente Supabase:** (Revalidado) Centralizar la lógica de creación del cliente para Route Handlers en una función de utilidad en `lib/supabase/` para evitar la repetición de código.
+ * 2.  **Flujo de Onboarding:** (Revalidado) Tras una confirmación exitosa, verificar si es el primer inicio de sesión del usuario para redirigirlo a `/welcome`.
+ * 3.  **Detección de Locale en Redirección:** (Implementado Parcialmente) La redirección de error ahora intenta leer la cookie `NEXT_LOCALE` para una experiencia de usuario más consistente.
+ */
+
+/**
+ * @fileoverview El aparato `confirm/route.ts` es un endpoint de API crítico para la seguridad.
+ * @functionality
+ * - Es el punto de destino al que Supabase redirige al usuario después de hacer clic en un enlace de confirmación de correo.
+ * - Recibe un `code` de un solo uso en los parámetros de la URL.
+ * - Su única misión es intercambiar de forma segura este `code` por una sesión de usuario válida (`exchangeCodeForSession`).
+ * - Valida la redirección final para prevenir vulnerabilidades de Open Redirect.
+ * @relationships
+ * - Es parte del flujo de autenticación iniciado por la UI de Supabase Auth en la página de registro.
+ * - Depende de `lib/logging` para el registro de eventos y de la creación del cliente de Supabase para Route Handlers.
+ * @expectations
+ * - Se espera que este endpoint sea altamente fiable y seguro. Debe manejar correctamente tanto los casos de éxito (redirigiendo al usuario a su dashboard) como los de error (redirigiendo de vuelta al login con un mensaje claro), sin exponer información sensible.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Abstracción del Cliente Supabase: Centralizar la lógica de creación del cliente para Route Handlers en una función de utilidad en `lib/supabase/` para evitar la repetición de código en los tres archivos de callback.
  * 2. Flujo de Onboarding: Tras una confirmación exitosa, verificar si es el primer inicio de sesión del usuario para redirigirlo a una página de bienvenida (`/welcome`) en lugar del dashboard, mejorando la experiencia inicial.

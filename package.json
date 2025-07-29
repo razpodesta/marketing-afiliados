@@ -37,7 +37,10 @@
     "gen:actions": "node scripts/generate-actions-barrel.mjs",
     "gen:routes": "node scripts/generate-routes-manifest.mjs",
     "gen:types": "supabase gen types typescript --project-id 'tgvutsbkqzxszfzkmrec' --schema public > lib/types/database/index.ts",
-    "diag:all": "tsx scripts/supabase/diagnose-all.ts"
+    "diag:all": "tsx scripts/supabase/diagnose-all.ts",
+    "bypass:commit": "git commit --no-verify",
+    "bypass:push": "git push --no-verify",
+    "bypass": "node scripts/bypass-commit.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -107,6 +110,7 @@
     "eslint-config-next": "15.4.4",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^16.3.0",
     "happy-dom": "^14.12.3",

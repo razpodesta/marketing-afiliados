@@ -1,14 +1,26 @@
-// lib/validators/index.ts
+// Ruta: lib/validators/index.ts
 /**
  * @file validators.ts
  * @description Centraliza todos los esquemas de validación de Zod y tipos de estado de formulario.
+ *              Este aparato es la única fuente de verdad para la forma de los datos
+ *              de entrada y salida de las Server Actions y formularios.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 1.3.0 (Form State Types)
+ * @version 1.4.0 (Action Result Type Refinement)
  */
 import { z } from "zod";
 
 // --- TIPOS DE ESTADO DE FORMULARIO ---
-export type ActionResult<T = null> = {
+/**
+ * @typedef {object} ActionResult
+ * @description Tipo genérico para el resultado de una operación (especialmente Server Actions).
+ * @template T - El tipo de los datos retornados en caso de éxito. Por defecto, `void` si no se esperan datos.
+ * @property {boolean} success - Indica si la operación fue exitosa.
+ * @property {T} [data] - Datos opcionales retornados en caso de éxito.
+ * @property {string} [error] - Mensaje de error en caso de fallo.
+ * @property {string} [message] - Mensaje informativo de la operación (éxito o fallo).
+ */
+export type ActionResult<T = void> = {
+  // CORRECCIÓN CRÍTICA: Se cambia el tipo por defecto de `T` de `null` a `void`.
   success: boolean;
   data?: T;
   error?: string;
@@ -66,6 +78,29 @@ export const InvitationSchema = z.object({
   }),
   workspaceId: z.string().uuid("ID de workspace inválido."),
 });
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para robustecer la validación y los contratos de datos.
+ *
+ * 1.  **Internacionalización de Errores de Zod:** (Revalidado) Integrar una librería como `zod-i18n` para que los mensajes de error de validación se puedan traducir automáticamente según el `locale` del usuario.
+ * 2.  **Esquemas Completos para el Constructor:** (Revalidado) Crear esquemas de Zod detallados para la estructura `CampaignConfig` y sus bloques (`PageBlock`) para validar el contenido completo de una campaña antes de guardarla.
+ * 3.  **Validación de Variables de Entorno:** (Revalidado) Utilizar Zod para validar las variables de entorno al iniciar la aplicación, asegurando que todas las claves de API y configuraciones necesarias estén presentes y tengan el formato correcto.
+ */
+
+/**
+ * @fileoverview El aparato `validators/index.ts` es la "carta de ley" del proyecto.
+ * @functionality
+ * - Define todos los esquemas de validación para los datos de entrada de los formularios (`SiteSchema`, `WorkspaceSchema`, `InvitationSchema`).
+ * - Define los tipos de datos que se utilizan para representar el estado de los formularios y los resultados de las operaciones (`ActionResult`, `CreateSiteFormState`, etc.).
+ * - Centraliza las reglas de negocio básicas para la validación de datos, asegurando que tanto el cliente como el servidor operen bajo el mismo conjunto de reglas.
+ * @relationships
+ * - Es consumido por los componentes de formulario de cliente (ej. `CreateSiteForm.tsx`, `InviteMemberForm.tsx`) a través de `zodResolver` para la validación en tiempo real.
+ * - Es importado por todas las Server Actions en `lib/actions/` para validar los datos recibidos de las peticiones HTTP.
+ * @expectations
+ * - Se espera que este aparato sea la única fuente de verdad para la validación de datos. Cualquier cambio en la estructura de un formulario o en los requisitos de datos debe reflejarse primero aquí para mantener la consistencia y la seguridad de tipos en todo el sistema.
+ */
+// Ruta: lib/validators/index.ts
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es la única fuente de verdad para la validación de la forma de
