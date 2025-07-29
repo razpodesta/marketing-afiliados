@@ -3,28 +3,45 @@
  * @file i18n.ts
  * @description Configura la carga de los archivos de mensajes (traducciones).
  *              Este aparato es el punto de entrada para que `next-intl`
- *              comprenda los idiomas y rutas de la aplicación.
+ *              comprenda los idiomas y rutas de la aplicación. Refactorizado
+ *              para una gestión de errores robusta y explícita.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.1.0 (Canonical Path Fix)
+ * @version 3.2.0 (Robust Locale Handling)
  */
 import { notFound } from "next/navigation";
 import { getRequestConfig } from "next-intl/server";
 
-// CORRECCIÓN CRÍTICA (Build Error): Se reemplaza la ruta relativa incorrecta
-// por el alias canónico que apunta a la única fuente de verdad para la
-// configuración de enrutamiento.
 import { locales } from "@/lib/navigation";
+import { logger } from "@/lib/logging";
 
 export default getRequestConfig(async ({ locale }) => {
-  // Valida que el `locale` entrante (ej. 'es-ES') es uno de los soportados.
+  // 1. Validar que el `locale` extraído de la URL es uno de los soportados.
+  //    Esta es una guarda de seguridad. Si el middleware falla, esto previene
+  //    que se intente cargar un archivo de mensajes que no existe.
   if (!locales.includes(locale as any)) {
+    logger.warn(`Intento de acceso con un locale inválido: "${locale}".`);
     notFound();
   }
 
-  return {
-    messages: (await import(`./messages/${locale}.json`)).default,
-  };
+  // 2. Cargar dinámicamente el archivo de mensajes correspondiente.
+  //    El bloque try/catch asegura que si un archivo JSON está corrupto o falta,
+  //    la aplicación no crashea, sino que muestra las claves de traducción.
+  try {
+    return {
+      messages: (await import(`./messages/${locale}.json`)).default,
+    };
+  } catch (error) {
+    logger.error(
+      `Error crítico al cargar el archivo de mensajes para el locale "${locale}":`,
+      error
+    );
+    // En caso de fallo, proveemos un objeto vacío para evitar un crash total.
+    return {
+      messages: {},
+    };
+  }
 });
+// Ruta: i18n.ts
 
 /*
  * =================================================================================================
