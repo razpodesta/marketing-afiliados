@@ -2,15 +2,16 @@
 
 "use client";
 
+import { motion } from "framer-motion";
+import { Bot, LayoutTemplate, PenSquare, PieChart } from "lucide-react";
+import React from "react";
+
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { motion } from "framer-motion";
-import { Bot, LayoutTemplate, PenSquare, PieChart } from "lucide-react";
-import React from "react";
 
 /**
  * @file Features.tsx

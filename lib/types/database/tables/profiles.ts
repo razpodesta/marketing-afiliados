@@ -6,8 +6,8 @@
  * @author L.I.A Legacy
  * @version 1.1.0 (Inferred Preferences Field)
  */
-import { type Enums } from "../enums";
 import { type Json } from "../_shared";
+import { type Enums } from "../enums";
 
 export type Profiles = {
   Row: {

@@ -5,10 +5,11 @@
  * @author L.I.A Legacy
  * @version 1.1.0 (Path Fix)
  */
+import { type NextRequest, type NextResponse } from "next/server";
+import createIntlMiddleware from "next-intl/middleware";
+
 import { logger } from "../../../lib/logging";
 import { localePrefix, locales, pathnames } from "../../../navigation";
-import createIntlMiddleware from "next-intl/middleware";
-import { type NextRequest, type NextResponse } from "next/server";
 
 export function handleI18n(request: NextRequest): NextResponse {
   logger.trace("[I18N_HANDLER] Iniciando gestión de internacionalización.");

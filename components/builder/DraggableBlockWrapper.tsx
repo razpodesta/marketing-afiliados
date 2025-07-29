@@ -1,16 +1,12 @@
-// Ruta: app/[locale]/builder/components/DraggableBlockWrapper.tsx
+/**
+ * @file components/builder/DraggableBlockWrapper.tsx
+ * @description Componente HOC que envuelve cada bloque en el canvas,
+ *              proporcionando interactividad, drag-and-drop y acciones contextuales.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 5.1.0 (Accessibility & Quality Patch)
+ */
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PageBlock } from "@/lib/builder/types.d";
-import { cn } from "@/lib/utils";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -22,18 +18,19 @@ import {
   Trash2,
 } from "lucide-react";
 import React from "react";
-import { useBuilderStore } from "../core/store";
 
-/**
- * @file DraggableBlockWrapper.tsx
- * @description Componente HOC que envuelve cada bloque en el canvas.
- * REFACTORIZACIÓN DE PRODUCTIVIDAD:
- * 1.  Se han añadido acciones de "Mover Arriba" y "Mover Abajo" al menú contextual,
- *     ofreciendo una alternativa de reordenamiento más precisa que el D&D.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Precise Movement Actions)
- */
+import { useBuilderStore } from "@/app/[locale]/builder/core/store";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type PageBlock } from "@/lib/builder/types.d";
+import { cn } from "@/lib/utils";
+
 export function DraggableBlockWrapper({
   block,
   children,
@@ -64,14 +61,14 @@ export function DraggableBlockWrapper({
     isDragging,
   } = useSortable({ id: block.id });
 
-  const dndStyles = {
+  const dndStyles: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 100 : "auto",
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const userDefinedStyles = {
+  const userDefinedStyles: React.CSSProperties = {
     backgroundColor: block.styles.backgroundColor,
     color: block.styles.textColor,
     paddingTop: block.styles.paddingTop,
@@ -87,13 +84,22 @@ export function DraggableBlockWrapper({
       ref={setNodeRef}
       style={{ ...dndStyles, ...userDefinedStyles }}
       onClick={() => setSelectedBlockId(block.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setSelectedBlockId(block.id);
+        }
+      }}
+      // CORRECCIÓN: Se añade role="button" para que el div sea un elemento interactivo accesible.
+      role="button"
+      aria-label={`Bloque de tipo ${block.type}`}
+      tabIndex={0}
       className={cn(
-        "relative group p-1 transition-shadow",
+        "relative group p-1 transition-shadow focus:outline-none focus:ring-2 focus:ring-primary",
         isSelected &&
           "ring-2 ring-primary ring-offset-background z-10 rounded-lg shadow-lg"
       )}
     >
-      {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
       <div
         data-lia-marker="true"
         className="absolute -top-1.5 -left-2 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -101,9 +107,9 @@ export function DraggableBlockWrapper({
         DraggableBlockWrapper.tsx
       </div>
 
-      {/* Controles visibles en hover/selección */}
       <div
         onClick={stopPropagation}
+        // CORRECCIÓN: Se eliminan manejadores de eventos de elementos no interactivos.
         className={cn(
           "absolute top-1/2 -translate-y-1/2 -left-10 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1",
           isSelected && "opacity-100"
@@ -112,7 +118,9 @@ export function DraggableBlockWrapper({
         <div
           {...attributes}
           {...listeners}
-          className="p-2 cursor-grab bg-card rounded-md border"
+          role="button"
+          aria-label="Arrastrar para reordenar"
+          className="p-2 cursor-grab active:cursor-grabbing bg-card rounded-md border"
         >
           <GripVertical className="h-5 w-5 text-muted-foreground" />
         </div>
@@ -127,7 +135,12 @@ export function DraggableBlockWrapper({
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" className="h-7 w-7">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-7 w-7"
+              aria-label="Opciones del bloque"
+            >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -166,7 +179,6 @@ export function DraggableBlockWrapper({
     </div>
   );
 }
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato actúa como una capa de control interactiva sobre cada bloque

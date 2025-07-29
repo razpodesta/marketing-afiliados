@@ -1,5 +1,10 @@
-// Ruta: lib/utils.ts
-import { clsx, type ClassValue } from "clsx";
+/**
+ * @file lib/utils.ts
+ * @description Colección de funciones de utilidad de propósito general.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.0.0 (Type-Safe Debounce)
+ */
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export const protocol =
@@ -19,7 +24,7 @@ export function cn(...inputs: ClassValue[]) {
  * @param {number} waitFor - El tiempo de espera en milisegundos.
  * @returns Una nueva función debounced.
  */
-export function debounce<F extends (...args: any[]) => any>(
+export function debounce<F extends (...args: Parameters<F>) => ReturnType<F>>(
   func: F,
   waitFor: number
 ) {

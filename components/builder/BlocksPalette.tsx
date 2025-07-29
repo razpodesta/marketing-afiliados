@@ -1,9 +1,10 @@
 // Ruta: app/locale/builder/components/BlocksPalette.tsx
 "use client";
 
-import { blockRegistry } from "@/components/templates";
 import { useDraggable } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
+
+import { blockRegistry } from "@/components/templates";
 
 /**
  * @file BlocksPalette.tsx

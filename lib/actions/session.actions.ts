@@ -8,8 +8,10 @@
  */
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+
 import { createAuditLog } from "./_helpers/audit-log.helper";
 
 /**

@@ -2,12 +2,6 @@
 "use client";
 
 import {
-  useBuilderStore,
-  type DevicePreview,
-} from "@/app/[locale]/builder/core/store";
-import { blockRegistry } from "@/components/templates";
-import { type PageBlock, type CampaignTheme } from "@/lib/builder/types.d";
-import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -15,13 +9,21 @@ import { motion } from "framer-motion";
 import { MousePointerSquareDashed } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+
+import {
+  useBuilderStore,
+  type DevicePreview,
+} from "@/app/[locale]/builder/core/store";
+import { blockRegistry } from "@/components/templates";
+import { type CampaignTheme, type PageBlock } from "@/lib/builder/types.d";
 import { DraggableBlockWrapper } from "./DraggableBlockWrapper";
 
 /**
  * @file Canvas.tsx
  * @description Entorno de Previsualización Aislado y Tematizado para el constructor.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.1.0 (Architectural Alignment)
+ *              Actúa como el lienzo principal donde los usuarios ven y manipulan los bloques de su campaña.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 5.2.0 (Architectural Alignment & Quality Patch)
  */
 
 const IFrame = ({
@@ -138,6 +140,7 @@ export function Canvas() {
                           margin: "0.5rem 0",
                         }}
                       >
+                        {/* CORRECCIÓN: Se escapan las comillas para cumplir la regla `react/no-unescaped-entities`. */}
                         Error: Bloque desconocido de tipo "{block.type}"
                       </div>
                     );
@@ -157,6 +160,51 @@ export function Canvas() {
   );
 }
 
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * Este aparato es el corazón visual y de renderizado del constructor de campañas. Su arquitectura
+ * está diseñada para la fidelidad, el aislamiento y la interactividad.
+ *
+ * 1.  **Aislamiento de Estilos (`IFrame` y `createPortal`):** La decisión arquitectónica más
+ *     importante aquí es renderizar el contenido del usuario dentro de un `<iframe>`. Esto crea
+ *     un entorno de `document` completamente separado, garantizando que los estilos de la UI del
+ *     editor (paneles, cabeceras, etc.) NUNCA puedan afectar la previsualización de la campaña.
+ *     `React.createPortal` es la tecnología que permite que el árbol de componentes de React "salte"
+ *     a este DOM separado del `<iframe>`, manteniendo el flujo de datos y estado de React.
+ *
+ * 2.  **Fuente de Verdad Única (`useBuilderStore`):** El Canvas es un componente de "solo lectura"
+ *     respecto al estado. Lee el `campaignConfig` (la estructura de la página) y el `devicePreview`
+ *     directamente desde el store de Zustand. No modifica el estado; su único trabajo es visualizarlo.
+ *
+ * 3.  **Renderizado Dinámico (`blockRegistry`):** Itera sobre el array `campaignConfig.blocks`. Para
+ *     cada objeto de bloque, busca dinámicamente el componente React correspondiente en el
+ *     `blockRegistry` y lo renderiza, pasándole las `props` del objeto. Esto lo hace extensible:
+ *     para añadir un nuevo tipo de bloque, solo necesita ser añadido al registro.
+ *
+ * 4.  **Habilitación de Interactividad (`SortableContext` y `DraggableBlockWrapper`):** Envuelve todos
+ *     los bloques renderizados en el `SortableContext` de `dnd-kit`, proporcionando el contexto
+ *     necesario para la funcionalidad de arrastrar y soltar. Luego, cada bloque individual es envuelto
+ *     en el `DraggableBlockWrapper`, que es el que realmente implementa la lógica de arrastre y
+ *     las acciones contextuales (seleccionar, eliminar, etc.).
+ *
+ * 5.  **Previsualización Responsiva (`motion.div`):** El contenedor principal del Canvas está envuelto
+ *     en un `motion.div` de Framer Motion. La propiedad `animate` está vinculada al estado
+ *     `devicePreview` del store, cambiando la `maxWidth` del canvas de forma animada para simular
+ *     diferentes tamaños de pantalla de forma fluida.
+ * =================================================================================================
+ */
+
+/*
+ * === MEJORAS FUTURAS DETECTADAS ===
+ *
+ * 1. **Edición Directa en el Canvas (Inline Editing):** La mejora de productividad más significativa sería permitir al usuario hacer doble clic en un elemento de texto dentro del `<iframe>` para editarlo directamente. Esto requiere una arquitectura de comunicación bidireccional (usando `window.postMessage`) entre el `Canvas` y su `IFrame` para enviar eventos de "entrar en modo edición" y recibir de vuelta los cambios de texto.
+ *
+ * 2. **Indicadores Visuales de Arrastre (Drop Indicators):** Para mejorar la experiencia de arrastrar y soltar, el `Canvas` podría mostrar una línea o un "espacio fantasma" para indicar precisamente dónde se insertará un bloque al ser soltado. Esto implica una lógica de detección de colisiones más avanzada en `dnd-kit` y pasar el estado `isOver` al `DraggableBlockWrapper` para que renderice el indicador.
+ *
+ * 3. **Carga de Fuentes de Google en el IFrame:** Actualmente, la `fontFamily` se aplica como un estilo en línea. Para soportar fuentes personalizadas como las de Google Fonts, el componente `IFrame` debería ser modificado para inyectar etiquetas `<link>` o `@import` en su `<head>` de forma dinámica, basándose en la configuración del `campaignConfig.theme`.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Comunicación Bidireccional con el IFrame: Para funcionalidades avanzadas como la selección de elementos dentro del `iframe` al hacer clic, se necesitaría establecer un sistema de comunicación de mensajes (`postMessage`) entre la ventana principal y el `iframe`.
  */

@@ -1,11 +1,11 @@
-// lib/hooks/useSitesManagement.ts
+/**
+ * @file lib/hooks/useSitesManagement.ts
+ * @description Hook personalizado para encapsular toda la lógica de gestión de la página "Mis Sitios".
+ * @author L.I.A Legacy
+ * @version 2.2.0 (Module Export Fix)
+ */
 "use client";
 
-import { sites as sitesActions } from "@/lib/actions";
-import { type CreateSiteFormState } from "@/lib/actions/schemas";
-import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { debounce } from "@/lib/utils";
-import { useRouter } from "@/navigation";
 import {
   useCallback,
   useEffect,
@@ -15,13 +15,22 @@ import {
 } from "react";
 import toast from "react-hot-toast";
 
+import { sites as sitesActions } from "@/lib/actions";
+import { type SiteWithCampaignsCount } from "@/lib/data/sites";
+import { debounce } from "@/lib/utils";
+import type { CreateSiteFormState } from "@/lib/validators";
+import { useRouter } from "@/navigation";
+
 /**
- * @file useSitesManagement.ts
- * @description Hook personalizado para encapsular toda la lógica de gestión de la página "Mis Sitios".
- * @author L.I.A Legacy
- * @version 2.0.0 (Type-Safe Architecture)
+ * @function useSitesManagement
+ * @description Hook personalizado para gestionar el estado y las acciones de la página de sitios.
+ *              Incluye funcionalidades de búsqueda, creación y exclusión optimista de sites.
+ * @param {SiteWithCampaignsCount[]} initialSites - La lista inicial de sitios proporcionada por el servidor.
+ * @returns {object} Un objeto conteniendo el estado y los manipuladores para la UI de sitios.
  */
+// --- INICIO DE CORRECCIÓN ---
 export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
+  // --- FIN DE CORRECCIÓN ---
   const [sites, setSites] = useState<SiteWithCampaignsCount[]>(initialSites);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
@@ -46,6 +55,13 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
     );
   }, [sites, searchQuery]);
 
+  /**
+   * @async
+   * @function handleDelete
+   * @description Manipulador para la exclusión de un sitio.
+   *              Implementa la actualización optimista de la UI para una mejor experiencia del usuario.
+   * @param {FormData} formData - Los datos del formulario que contiene el ID del sitio a ser excluido.
+   */
   const handleDelete = (formData: FormData) => {
     const siteId = formData.get("siteId") as string;
     if (!siteId) return;
@@ -57,16 +73,25 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
     startDeleteTransition(async () => {
       const result = await sitesActions.deleteSiteAction(formData);
       if (result.success) {
-        toast.success("Sitio eliminado con éxito.");
+        toast.success("Site excluído com sucesso.");
         router.refresh();
       } else {
-        toast.error(result.error || "No se pudo eliminar el sitio.");
+        toast.error(result.error || "Não foi possível excluir o site.");
         setSites(previousSites);
       }
       setDeletingSiteId(null);
     });
   };
 
+  /**
+   * @async
+   * @function handleCreate
+   * @description Manipulador para la creación de un nuevo sitio.
+   *              Implementa la actualización optimista de la UI para una mejor experiencia del usuario.
+   * @param {object} data - Los datos del nuevo sitio (subdominio e ícono).
+   * @param {string} data.subdomain - El subdominio del nuevo sitio.
+   * @param {string} data.icon - El ícono del nuevo sitio.
+   */
   const handleCreate = async (data: { subdomain: string; icon: string }) => {
     setIsCreating(true);
     const tempId = `temp-${Date.now()}`;
@@ -75,7 +100,7 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
       subdomain: data.subdomain,
       icon: data.icon,
       created_at: new Date().toISOString(),
-      workspace_id: "temp_workspace", // Valor temporal, no relevante para la UI
+      workspace_id: "temp_workspace",
       owner_id: null,
       custom_domain: null,
       updated_at: null,
@@ -84,7 +109,7 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
 
     setSites((current) => [newSiteOptimistic, ...current]);
     setCreateDialogOpen(false);
-    toast.loading("Creando sitio...");
+    toast.loading("Criando site...");
 
     const formData = new FormData();
     formData.append("subdomain", data.subdomain);
@@ -98,10 +123,10 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
     toast.dismiss();
 
     if (result.success) {
-      toast.success("¡Sitio creado exitosamente!");
+      toast.success("Site criado com sucesso!");
       router.refresh();
     } else {
-      toast.error(result.error || "No se pudo crear el sitio.");
+      toast.error(result.error || "Não foi possível criar o site.");
       setSites((current) => current.filter((s) => s.id !== tempId));
     }
     setIsCreating(false);
@@ -121,9 +146,11 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
   };
 }
 
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. AbortController para Búsqueda en Servidor: Si la búsqueda evoluciona para realizarse en el servidor, este hook debería usar un `AbortController` para cancelar las peticiones de búsqueda anteriores si el usuario sigue escribiendo, optimizando el uso de recursos.
- * 2. Estado de Carga por Tarjeta Individual: En lugar de un `deletingSiteId` global, se podría gestionar un `Map` o un objeto para los estados de carga individuales, permitiendo que múltiples acciones se ejecuten en paralelo sin bloquear toda la UI.
- * 3. Reversión de Estado más Robusta: El sistema de actualización optimista podría ser extraído a un hook genérico (`useOptimisticState`) para ser reutilizado en otras partes de la aplicación, como en la gestión de campañas.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar la gestión de sitios.
+ *
+ * 1.  **AbortController para Búsqueda en Servidor:** Si la búsqueda evoluciona para ser realizada en el servidor (para escalar a miles de sitios), este hook debería usar un `AbortController` para cancelar peticiones de búsqueda previas si el usuario continúa escribiendo, optimizando el uso de recursos de red.
+ * 2.  **Estado de Carga por Tarjeta Individual:** En lugar de un `deletingSiteId` global, se podría gestionar un `Map` o un objeto para los estados de carga individuales (`{ [siteId]: boolean }`). Esto permitiría que múltiples acciones de eliminación se ejecuten en paralelo visualmente sin bloquear toda la UI con un único estado `isPending`.
+ * 3.  **Abstracción a Hook Genérico `useOptimisticState`:** El patrón de "guardar estado previo -> actualizar UI -> llamar a la acción -> revertir en caso de error" es reutilizable. Podría ser extraído a un hook genérico (`useOptimisticState`) para ser reutilizado en otras partes de la aplicación, como en la gestión de campañas, promoviendo el principio DRY (Don't Repeat Yourself).
  */

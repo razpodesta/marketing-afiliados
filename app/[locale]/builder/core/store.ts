@@ -1,7 +1,8 @@
 // Ruta: app/locale/builder/core/store.ts
-import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 import { arrayMove } from "@dnd-kit/sortable";
 import { create, type StateCreator } from "zustand";
+
+import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 
 /**
  * @file store.ts

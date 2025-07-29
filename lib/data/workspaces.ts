@@ -1,9 +1,9 @@
 // Ruta: lib/data/workspaces.ts (REFACTORIZADO/NUEVO)
 "use server";
 
+import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Tables } from "@/lib/types/database";
-import { logger } from "@/lib/logging";
 
 /**
  * @file workspaces.ts
@@ -94,8 +94,8 @@ export async function getFirstWorkspaceForUser(
 }
 
 /*
-**[Análisis de Impacto]:**
-*   **Centralización:** El `DashboardLayout` ahora llamará a `getWorkspacesByUserId` en lugar de contener la lógica de la consulta. El `middleware` llamará a `getFirstWorkspaceForUser` para establecer la cookie inicial. Esto respeta la separación de responsabilidades.
-*   **Eficiencia:** La consulta a través de `workspace_members` es la forma correcta de obtener los datos en una relación muchos-a-muchos, usando un índice en `user_id` para un rendimiento óptimo.
-*   **Robustez:** El aplanamiento y filtrado de la respuesta asegura que el tipo de retorno sea siempre `Workspace[]`, eliminando ambigüedades.
-*/
+ **[Análisis de Impacto]:**
+ *   **Centralización:** El `DashboardLayout` ahora llamará a `getWorkspacesByUserId` en lugar de contener la lógica de la consulta. El `middleware` llamará a `getFirstWorkspaceForUser` para establecer la cookie inicial. Esto respeta la separación de responsabilidades.
+ *   **Eficiencia:** La consulta a través de `workspace_members` es la forma correcta de obtener los datos en una relación muchos-a-muchos, usando un índice en `user_id` para un rendimiento óptimo.
+ *   **Robustez:** El aplanamiento y filtrado de la respuesta asegura que el tipo de retorno sea siempre `Workspace[]`, eliminando ambigüedades.
+ */

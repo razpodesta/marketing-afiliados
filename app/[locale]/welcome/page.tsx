@@ -10,6 +10,9 @@
  */
 "use client";
 
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+
 import {
   Card,
   CardContent,
@@ -18,8 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CreateWorkspaceForm } from "@/components/workspaces/CreateWorkspaceForm";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 
 /**
  * @description Componente de cliente que maneja la lógica de la página de bienvenida.

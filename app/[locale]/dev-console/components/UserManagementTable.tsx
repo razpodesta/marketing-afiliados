@@ -1,6 +1,17 @@
 // app/[locale]/dev-console/components/UserManagementTable.tsx
 "use client";
 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Search,
+  UserCog,
+} from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
+import { toast } from "react-hot-toast";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -29,16 +40,6 @@ import {
 } from "@/components/ui/table";
 import { admin as adminActions } from "@/lib/actions";
 import type { Database, Tables } from "@/lib/types/database";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Search,
-  UserCog,
-} from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "react-hot-toast";
 
 /**
  * @file UserManagementTable.tsx

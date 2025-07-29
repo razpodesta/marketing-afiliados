@@ -1,10 +1,11 @@
 // Ruta: lib/data/modules.ts (REFACTORIZADO/PULIDO)
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { type User } from "@supabase/supabase-js";
 import { unstable_cache as cache } from "next/cache";
+
 import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * @file modules.ts
@@ -36,7 +37,9 @@ type PlanHierarchy = "free" | "pro" | "enterprise";
  */
 const getBaseModules = cache(
   async () => {
-    logger.info(`[Cache] MISS: Cargando feature_modules desde la base de datos.`);
+    logger.info(
+      `[Cache] MISS: Cargando feature_modules desde la base de datos.`
+    );
     const supabase = createClient();
     const { data, error } = await supabase
       .from("feature_modules")
@@ -68,7 +71,11 @@ export async function getFeatureModulesForUser(
   // Obtenemos los módulos base y el perfil del usuario en paralelo para eficiencia.
   const [baseModules, { data: profile }] = await Promise.all([
     getBaseModules(),
-    supabase.from("profiles").select("dashboard_layout").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("dashboard_layout")
+      .eq("id", user.id)
+      .single(),
   ]);
 
   if (!baseModules || baseModules.length === 0) {
@@ -85,7 +92,8 @@ export async function getFeatureModulesForUser(
   const userLevel = planHierarchy[userPlan] || 1;
 
   const modulesWithStatus: FeatureModule[] = baseModules.map((mod) => {
-    const requiredLevel = planHierarchy[mod.required_plan as PlanHierarchy] || 1;
+    const requiredLevel =
+      planHierarchy[mod.required_plan as PlanHierarchy] || 1;
     const isUnlocked = userLevel >= requiredLevel;
 
     // El estado final depende tanto del plan del usuario como del estado base del módulo.
@@ -108,9 +116,7 @@ export async function getFeatureModulesForUser(
   // Reordenar los módulos según la preferencia del usuario si existe
   const userLayout = profile?.dashboard_layout as string[] | null;
   if (userLayout && userLayout.length > 0) {
-    const moduleMap = new Map(
-      modulesWithStatus.map((mod) => [mod.id, mod])
-    );
+    const moduleMap = new Map(modulesWithStatus.map((mod) => [mod.id, mod]));
     const orderedModules: FeatureModule[] = [];
     const remainingModules = new Set(modulesWithStatus);
 

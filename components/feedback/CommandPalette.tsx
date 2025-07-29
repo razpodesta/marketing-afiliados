@@ -1,20 +1,16 @@
-// Ruta: components/dashboard/CommandPalette.tsx
 /**
- * @file CommandPalette.tsx
- * @description Componente de paleta de comandos global (`Ctrl+K`).
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1. El componente ya no acepta props. Ahora consume todos los datos de sesión
- *    necesarios (`user`, `workspaces`, etc.) desde el `DashboardContext`.
- *
- * @author Metashark
- * @version 3.0.0 (Context-Driven Component)
+ * @file components/feedback/CommandPalette.tsx
+ * @description Componente de paleta de comandos global (accesible con Ctrl+K),
+ *              que proporciona una interfaz de búsqueda rápida para navegar y
+ *              ejecutar acciones en toda la aplicación.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 3.3.0 (Correct Type-Safe Navigation)
  */
 "use client";
 
-import {
-  session as sessionActions,
-  workspaces as workspaceActions,
-} from "@/app/actions";
+import { LayoutDashboard, LogOut, User } from "lucide-react";
+import React from "react";
+
 import {
   CommandDialog,
   CommandEmpty,
@@ -24,20 +20,21 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
+import {
+  session as sessionActions,
+  workspaces as workspaceActions,
+} from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
-import { useRouter, type AppPathname } from "@/navigation";
-import { LayoutDashboard, LogOut, User } from "lucide-react";
-import React from "react";
+import { useRouter } from "@/navigation";
 
 export function CommandPalette() {
-  const { user, workspaces, activeWorkspace, modules } = useDashboard();
+  const { workspaces, activeWorkspace, modules } = useDashboard();
   const { isOpen, close, toggle } = useCommandPaletteStore();
   const router = useRouter();
   const [search, setSearch] = React.useState("");
-  const [pages, setPages] = React.useState<"root" | "workspaces" | "modules">(
-    "root"
-  );
+  const [pages, setPages] = React.useState<"root" | "workspaces">("root");
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -63,7 +60,7 @@ export function CommandPalette() {
     [close]
   );
 
-  const mainNavLinks = modules.filter((m) => m.status === "active");
+  const mainNavLinks = modules.filter((module) => module.status === "active");
 
   return (
     <CommandDialog open={isOpen} onOpenChange={close}>
@@ -81,11 +78,13 @@ export function CommandPalette() {
                 <CommandItem
                   key={link.href}
                   onSelect={() =>
-                    runCommand(() => router.push(link.href as AppPathname))
+                    // El `useRouter` de next-intl es tipado y puede manejar
+                    // directamente el tipo AppPathname de nuestro navigation.ts
+                    runCommand(() => router.push(link.href as any))
                   }
                   value={`Ir a ${link.title}`}
                 >
-                  <link.icon className="mr-2 h-4 w-4" />
+                  <DynamicIcon name={link.icon} className="mr-2 h-4 w-4" />
                   <span>{link.title}</span>
                 </CommandItem>
               ))}
@@ -123,8 +122,8 @@ export function CommandPalette() {
         {pages === "workspaces" && (
           <CommandGroup heading="Workspaces">
             {workspaces
-              .filter((ws) =>
-                ws.name.toLowerCase().includes(search.toLowerCase())
+              .filter((workspace) =>
+                workspace.name.toLowerCase().includes(search.toLowerCase())
               )
               .map((workspace) => (
                 <CommandItem
@@ -147,8 +146,20 @@ export function CommandPalette() {
     </CommandDialog>
   );
 }
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda de Contenido Dinámico Real: La búsqueda actual de workspaces es del lado del cliente. El siguiente paso es reemplazarla por una llamada a una Server Action que busque en la base de datos, ideal para usuarios con cientos de workspaces.
- * 2. Acciones Contextuales: Hacer que la lista de comandos disponibles cambie según la página en la que se encuentre el usuario. Por ejemplo, en la página de un sitio, podrían aparecer comandos como "Crear Nueva Campaña en este Sitio".
- * 3. Tematización y Personalización: Permitir a los usuarios personalizar los comandos que aparecen o su orden, guardando sus preferencias en la base de datos en el perfil de usuario.
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar la Paleta de Comandos.
+ *
+ * 1.  **Registro de Comandos Dinámico:** Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales, en lugar de tener una lista estática.
+ * 2.  **Búsqueda en Servidor para Entidades:** La búsqueda de workspaces debe invocar una Server Action para realizar la búsqueda en la base de datos y escalar a un gran número de entidades.
+ * 3.  **Historial de Comandos Recientes:** Guardar los últimos comandos ejecutados en `localStorage` y mostrarlos en una sección "Recientemente Usados" para un acceso rápido.
+ */
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar la Paleta de Comandos.
+ *
+ * 1.  **Registro de Comandos Dinámico:** Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales, en lugar de tener una lista estática.
+ * 2.  **Búsqueda en Servidor para Entidades:** La búsqueda de workspaces debe invocar una Server Action para realizar la búsqueda en la base de datos y escalar a un gran número de entidades.
+ * 3.  **Historial de Comandos Recientes:** Guardar los últimos comandos ejecutados en `localStorage` y mostrarlos en una sección "Recientemente Usados" para un acceso rápido.
  */

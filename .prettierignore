@@ -1,0 +1,9 @@
+# .prettierignore
+
+# Ignorar artefactos de compilación y dependencias
+node_modules
+.next
+.pnpm-store
+
+# Ignorar archivos de declaración de tipos generados automáticamente por Next.js
+next-env.d.ts

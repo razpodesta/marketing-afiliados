@@ -1,11 +1,12 @@
 // lib/context/DashboardContext.tsx
 "use client";
 
+import type { User } from "@supabase/supabase-js";
+import { createContext, type ReactNode, useContext } from "react";
+
 import type { FeatureModule } from "@/lib/data/modules";
 import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import type { Tables } from "@/lib/types/database";
-import type { User } from "@supabase/supabase-js";
-import { createContext, useContext, type ReactNode } from "react";
 
 /**
  * @file DashboardContext.tsx

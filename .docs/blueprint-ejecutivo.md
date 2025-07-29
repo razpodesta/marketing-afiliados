@@ -9,7 +9,7 @@ Visión: Ser la plataforma líder mundial que empodera a cada marketer de afilia
 Misión: Proporcionar una suite integral y predictiva, basada en una arquitectura segura y modular, que automatice tareas complejas y ofrezca insights accionables para el crecimiento exponencial en el marketing de afiliados.
 
 2. Panorama del Mercado y Oportunidad
-El marketing de afiliados es una industria global en auge, con proyecciones de superar los $15 mil millones de dólares en 2024. Los desafíos clave para los marketers incluyen la creación rápida de activos de marketing de calidad (landing pages), la optimización constante, la gestión de múltiples nichos/clientes y la producción de contenido persuasivo.
+   El marketing de afiliados es una industria global en auge, con proyecciones de superar los $15 mil millones de dólares en 2024. Los desafíos clave para los marketers incluyen la creación rápida de activos de marketing de calidad (landing pages), la optimización constante, la gestión de múltiples nichos/clientes y la producción de contenido persuasivo.
 
 Metashark aborda directamente estos puntos de dolor:
 Mercado Potencial Masivo: Dirigido a marketers de afiliados individuales, pequeños equipos y agencias. La naturaleza multi-tenant del proyecto es ideal para agencias que gestionan las campañas de múltiples clientes de forma aislada y segura.
@@ -21,10 +21,10 @@ Expansión Global (i18n): La implementación robusta de la internacionalización
 Escalabilidad Inherente: La arquitectura basada en subdominios multi-tenant permite a Metashark crecer linealmente con su base de usuarios sin re-arquitecturas mayores.
 
 3. Propuesta de Valor Única (PUV) e Innovaciones Clave
-Metashark Suite se distingue por ofrecer un conjunto de funcionalidades altamente demandadas, potenciadas por IA, que 
-no se encuentran de forma unificada y con esta profundidad de integración en el mercado:
-Constructor de Landing Pages Drag-and-Drop con IA (app/[locale]/builder/[campaignId]):
-Creación y Personalización "Hot Release": Permite a los usuarios diseñar y desplegar landing pages y otros activos de marketing de forma intuitiva, arrastrando y soltando bloques predefinidos.
+   Metashark Suite se distingue por ofrecer un conjunto de funcionalidades altamente demandadas, potenciadas por IA, que
+   no se encuentran de forma unificada y con esta profundidad de integración en el mercado:
+   Constructor de Landing Pages Drag-and-Drop con IA (app/[locale]/builder/[campaignId]):
+   Creación y Personalización "Hot Release": Permite a los usuarios diseñar y desplegar landing pages y otros activos de marketing de forma intuitiva, arrastrando y soltando bloques predefinidos.
 
 Optimización Asistida por IA: La IA puede sugerir estructuras, copys y elementos de diseño basándose en datos de conversión, permitiendo "Hot Release" y ajustes en vivo. La posibilidad de "optimización de imágenes y compresión" (inferido de asset_library.ts) y "temas de marca personalizados" (brand_kits.ts) lo llevan al siguiente nivel de flexibilidad.
 
@@ -44,7 +44,7 @@ Exportación y Flexibilidad (campaigns.ts content JSON): El hecho de que el cont
 Sistema de Gamificación (achievements.ts, user_achievements.ts): La implementación de logros y recompensas fomenta el engagement y la retención de usuarios, impulsando la actividad dentro de la plataforma.
 
 4. Cimientos Tecnológicos Robustos
-Framework de Desarrollo: Next.js 14 (App Router) proporciona renderizado híbrido (SSR, SSG, ISR), Server Components para el acceso seguro a datos, y Server Actions para mutaciones optimizadas. Esto garantiza alto rendimiento y un excelente SEO.
+   Framework de Desarrollo: Next.js 14 (App Router) proporciona renderizado híbrido (SSR, SSG, ISR), Server Components para el acceso seguro a datos, y Server Actions para mutaciones optimizadas. Esto garantiza alto rendimiento y un excelente SEO.
 
 Backend como Servicio (BaaS): Supabase (PostgreSQL, Auth, Realtime, Storage) ofrece una base de datos relacional poderosa, un sistema de autenticación avanzado, capacidades en tiempo real para colaboración y notificaciones, y almacenamiento de archivos, todo ello con Row Level Security (RLS) para una seguridad granular.
 
@@ -59,8 +59,8 @@ Seguridad: RLS, políticas de autenticación y la auditoría de seguridad del la
 Herramientas de Operaciones (DevOps): Los scripts de diagnóstico de Supabase (scripts/supabase/) son una joya. Permiten a los ingenieros realizar auditorías de conectividad, esquema, integridad de datos y RLS, asegurando la salud del sistema en todo momento.
 
 5. Escalabilidad y Estrategia de Crecimiento
-Multi-Tenant Horizontal: El diseño intrínseco de workspaces y sites permite una expansión horizontal ilimitada. Se pueden añadir miles de workspaces y millones de sitios sin afectar el rendimiento central.
-Escalabilidad de Supabase: PostgreSQL es una base de datos robusta. La capacidad de Supabase para escalar bases de datos (con Sloth o read replicas), Realtime y Storage, junto con Edge Functions (para lógica de negocio ligera), permite a la plataforma crecer con la demanda.
+   Multi-Tenant Horizontal: El diseño intrínseco de workspaces y sites permite una expansión horizontal ilimitada. Se pueden añadir miles de workspaces y millones de sitios sin afectar el rendimiento central.
+   Escalabilidad de Supabase: PostgreSQL es una base de datos robusta. La capacidad de Supabase para escalar bases de datos (con Sloth o read replicas), Realtime y Storage, junto con Edge Functions (para lógica de negocio ligera), permite a la plataforma crecer con la demanda.
 
 Monetización por Uso: El sistema user_tokens abre la puerta a modelos de negocio freemium o de pago por uso de la IA, lo que puede generar ingresos escalables sin requerir suscripciones fijas para todas las funcionalidades.
 

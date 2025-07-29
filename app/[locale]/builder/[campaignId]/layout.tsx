@@ -2,6 +2,20 @@
 "use client";
 
 import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  type UniqueIdentifier,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { LayoutTemplate, Settings } from "lucide-react";
+import React, { useEffect, useState } from "react";
+
+import {
   BlocksPalette,
   PaletteItemPreview,
 } from "@/components/builder/BlocksPalette";
@@ -10,19 +24,7 @@ import { SettingsPanel } from "@/components/builder/SettingsPanel";
 import { blockRegistry } from "@/components/templates";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-  type UniqueIdentifier,
-} from "@dnd-kit/core";
-import { LayoutTemplate, Settings } from "lucide-react";
-import React, { useEffect, useState } from "react";
+
 import { useBuilderStore } from "../core/store";
 
 /**

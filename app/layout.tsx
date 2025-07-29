@@ -1,8 +1,9 @@
 // Ruta: app/layout.tsx
 
-import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
 import "./globals.css";
+
+import { GeistSans } from "geist/font/sans";
+import type { Metadata } from "next";
 
 /**
  * @file app/layout.tsx

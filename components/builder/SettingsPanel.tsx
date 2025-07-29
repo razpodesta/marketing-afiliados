@@ -1,6 +1,9 @@
 // Ruta: app/locale/builder/components/SettingsPanel.tsx
 "use client";
 
+import React from "react";
+import { type ColorResult, SketchPicker } from "react-color";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PageBlock } from "@/lib/builder/types.d";
-import React from "react";
-import { SketchPicker, type ColorResult } from "react-color";
+
 import { useBuilderStore } from "../core/store";
 
 /**

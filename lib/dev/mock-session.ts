@@ -6,6 +6,7 @@
  * @version 2.1.0 (Explicit Typing)
  */
 import type { User } from "@supabase/supabase-js";
+
 import type { FeatureModule } from "@/lib/data/modules";
 import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import type { Tables } from "@/lib/types/database";

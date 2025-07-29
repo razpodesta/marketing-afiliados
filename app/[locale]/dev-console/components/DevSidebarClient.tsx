@@ -1,15 +1,6 @@
 // app/[locale]/dev-console/components/DevSidebarClient.tsx
 "use client";
 
-import { session as sessionActions } from "@/lib/actions";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   File,
   FileText,
@@ -23,6 +14,16 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { session as sessionActions } from "@/lib/actions";
+import { cn } from "@/lib/utils";
 
 /**
  * @file DevSidebarClient.tsx

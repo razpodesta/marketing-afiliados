@@ -7,13 +7,15 @@
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 8.1.0 (Corrected Data Layer Import)
  */
+import { AlertTriangle } from "lucide-react";
+import { cookies } from "next/headers";
+import { Suspense } from "react";
+
 import { Card } from "@/components/ui/card";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types/database";
-import { AlertTriangle } from "lucide-react";
-import { cookies } from "next/headers";
-import { Suspense } from "react";
+
 import { DashboardClient } from "./dashboard-client";
 
 const PageSkeleton = () => (

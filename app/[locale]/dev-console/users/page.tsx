@@ -11,6 +11,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+
 import { UserManagementTable } from "../components/UserManagementTable";
 
 const USERS_PER_PAGE = 20;

@@ -4,9 +4,9 @@
 
 import {
   motion,
+  type MotionValue,
   useMotionValue,
   useSpring,
-  type MotionValue,
 } from "framer-motion";
 import { useEffect } from "react";
 

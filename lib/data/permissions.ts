@@ -1,9 +1,9 @@
 // Ruta: lib/data/permissions.ts (REFACTORIZADO/NUEVO)
 "use server";
 
+import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/types/database";
-import { logger } from "@/lib/logging";
 
 // Exportamos el tipo para que sea reutilizable en toda la aplicación.
 export type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];

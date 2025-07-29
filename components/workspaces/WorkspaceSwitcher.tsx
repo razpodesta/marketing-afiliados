@@ -1,7 +1,22 @@
-// Ruta: components/dashboard/WorkspaceSwitcher.tsx
+/**
+ * @file components/workspaces/WorkspaceSwitcher.tsx
+ * @description Componente para seleccionar, crear y gestionar workspaces.
+ *              Actúa como el selector de contexto principal de la aplicación.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.2.0 (Architectural Path Correction)
+ */
 "use client";
 
-import { workspaces as workspaceActions } from "@/app/actions";
+import {
+  Check,
+  ChevronsUpDown,
+  LayoutGrid,
+  PlusCircle,
+  Settings,
+  UserPlus,
+} from "lucide-react";
+import React from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -25,39 +40,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { workspaces as workspaceActions } from "@/lib/actions"; // --- INICIO DE CORRECCIÓN ---
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/navigation";
-import {
-  Check,
-  ChevronsUpDown,
-  HelpCircle,
-  LayoutGrid,
-  PlusCircle,
-  Settings,
-  UserPlus,
-} from "lucide-react";
-import React from "react";
+
 import { CreateWorkspaceForm } from "../workspaces/CreateWorkspaceForm";
 import { InviteMemberForm } from "../workspaces/InviteMemberForm";
-
-/**
- * @file WorkspaceSwitcher.tsx
- * @description Componente para seleccionar, crear y gestionar workspaces.
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1. Corregido un error crítico de exportación. El componente ahora utiliza
- *    una exportación nombrada (`export function`) para ser correctamente
- *    importado por otros módulos.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.1.0 (Module Stability Patch)
- */
 
 type Workspace = { id: string; name: string; icon: string | null };
 
@@ -91,7 +80,6 @@ const WorkspaceItem = ({
   </CommandItem>
 );
 
-// CORRECCIÓN: Se utiliza `export function` para una exportación nombrada.
 export function WorkspaceSwitcher({ className }: { className?: string }) {
   const { workspaces, activeWorkspace } = useDashboard();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
@@ -137,14 +125,6 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
 
   return (
     <div className="relative">
-      {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-      <div
-        data-lia-marker="true"
-        className="absolute -top-1 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full z-10"
-      >
-        WorkspaceSwitcher.tsx
-      </div>
-
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -255,6 +235,14 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
   );
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el selector de workspaces a un centro de control de contexto de nivel superior.
+ *
+ * 1.  **Búsqueda de Workspaces en Servidor:** Para usuarios que pertenecen a un gran número de workspaces (ej. agencias con cientos de clientes), la búsqueda en el cliente dentro del `CommandInput` puede ser lenta. La funcionalidad debería evolucionar para que, al escribir, se llame a una Server Action que realice la búsqueda en la base de datos y devuelva solo los resultados coincidentes.
+ * 2.  **Carga Asíncrona "Bajo Demanda":** Relacionado con lo anterior, en lugar de cargar todos los workspaces en el `DashboardLayout` inicial, el `WorkspaceSwitcher` podría cargar solo los primeros 10 y obtener más a medida que el usuario se desplaza por la lista (`infinite scroll`) o realiza una búsqueda, optimizando drásticamente la carga inicial para usuarios con muchos workspaces.
+ * 3.  **Feedback Visual de Transición Mejorado:** Actualmente, el botón muestra "Cambiando..." durante la transición. Se podría mejorar el feedback visual mostrando un spinner (`<Loader2 />`) directamente en el botón y manteniendo el nombre del workspace anterior visible pero atenuado hasta que la transición se complete, reduciendo la sensación de "salto" en la UI.
+ */
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es el selector de contexto principal de la aplicación.

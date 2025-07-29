@@ -1,7 +1,17 @@
-// Ruta: components/layout/DashboardHeader.tsx (RECONECTADO Y COMPLETO)
+/**
+ * @file components/layout/DashboardHeader.tsx
+ * @description Encabezado principal para el área de contenido del dashboard,
+ *              orquestando la navegación móvil, el selector de workspaces,
+ *              la búsqueda global y las notificaciones.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 7.2.0 (Type-Safe Error Handling)
+ */
 "use client";
 
-import { workspaces as workspaceActions } from "@/lib/actions";
+import { Bell, Check, LayoutGrid, Menu, Search } from "lucide-react";
+import React from "react";
+import toast from "react-hot-toast";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,23 +26,12 @@ import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
+import { workspaces as workspaceActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
 import { useRealtimeInvitations } from "@/lib/hooks/use-realtime-invitations";
-import { Bell, Check, LayoutGrid, Menu, Search } from "lucide-react";
-import React from "react";
-import toast from "react-hot-toast";
-import { DashboardSidebarContent } from "./DashboardSidebar";
 
-/**
- * @file DashboardHeader.tsx
- * @description Encabezado principal para el área de contenido del dashboard.
- * REFACTORIZACIÓN ARQUITECTÓNICA: Las importaciones han sido actualizadas
- * para reflejar la nueva estructura granular de componentes.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.1.0 (Architectural Alignment)
- */
+import { DashboardSidebarContent } from "./DashboardSidebar";
 
 const InvitationBell = () => {
   const { user, pendingInvitations } = useDashboard();
@@ -46,7 +45,14 @@ const InvitationBell = () => {
       if (result.success) {
         toast.success(result.data?.message || "¡Te has unido al workspace!");
       } else {
-        toast.error(result.error);
+        // --- INICIO DE CORRECCIÓN ---
+        // Se añade un mensaje de fallback para asegurar que `result.error`
+        // nunca sea `undefined` al pasarlo a `toast.error`.
+        toast.error(
+          result.error ||
+            "No se pudo aceptar la invitación. Inténtalo de nuevo."
+        );
+        // --- FIN DE CORRECCIÓN ---
       }
     });
   };
@@ -68,29 +74,33 @@ const InvitationBell = () => {
         <DropdownMenuLabel>Invitaciones Pendientes</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {invitations.length > 0 ? (
-          invitations.map((inv) => (
+          invitations.map((invitation) => (
             <DropdownMenuItem
-              key={inv.id}
+              key={invitation.id}
               className="flex items-center justify-between gap-2"
-              onSelect={(e) => e.preventDefault()}
+              onSelect={(event) => event.preventDefault()}
             >
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
-                    {inv.workspaces?.icon || <LayoutGrid className="h-4 w-4" />}
+                    {invitation.workspaces?.icon || (
+                      <LayoutGrid className="h-4 w-4" />
+                    )}
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-sm">
                   <p className="font-medium">
                     Te invitaron a unirte a{" "}
-                    <strong>{inv.workspaces?.name || "un workspace"}</strong>
+                    <strong>
+                      {invitation.workspaces?.name || "un workspace"}
+                    </strong>
                   </p>
                 </div>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => handleAccept(inv.id)}
+                onClick={() => handleAccept(invitation.id)}
                 disabled={isPending}
                 className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
               >
@@ -148,6 +158,15 @@ export function DashboardHeader() {
     </header>
   );
 }
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el encabezado a un centro de control más dinámico.
+ *
+ * 1.  **Centro de Notificaciones Genérico:** Expandir el sistema de la `InvitationBell` para que sea un centro de notificaciones completo, capaz de mostrar no solo invitaciones, sino también otras alertas relevantes para el usuario (ej. "Tu campaña ha sido publicada", "Error al conectar una integración", "Has desbloqueado un nuevo logro"). Esto requeriría una tabla `notifications` en la base de datos.
+ * 2.  **Acción de Rechazar Invitaciones:** Añadir un botón de "Rechazar" (con un icono de 'X') junto al de aceptar en el `DropdownMenuItem`. Este botón invocaría una nueva `Server Action` (`rejectInvitationAction`) que actualizaría el estado de la invitación a "rejected", limpiando la lista de notificaciones del usuario de forma efectiva.
+ * 3.  **Breadcrumbs Dinámicos:** Integrar un componente de "migas de pan" (`Breadcrumbs`) justo debajo de este encabezado. Este componente leería la ruta actual (`usePathname`) para mostrar la jerarquía de navegación (ej. `Dashboard > Mis Sitios > Campañas de "Mi Sitio"`), mejorando significativamente la orientación del usuario dentro de la aplicación.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Notificaciones Genéricas: Expandir el sistema de la `InvitationBell` para que sea un centro de notificaciones genérico, capaz de mostrar no solo invitaciones, sino también otras alertas (ej. "Tu campaña ha sido publicada", "Error al conectar con una integración").
  * 2. Rechazar Invitaciones: Añadir un botón y una `Server Action` para que los usuarios puedan rechazar invitaciones, limpiando su lista de notificaciones.

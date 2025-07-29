@@ -7,8 +7,9 @@
  * @author Metashark
  * @version 2.1.0 (Cookie Syntax Fix)
  */
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+
 import type { Database } from "@/lib/database.types";
 
 export async function createClient(request: NextRequest) {

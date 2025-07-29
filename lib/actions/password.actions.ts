@@ -1,39 +1,44 @@
-// Ruta: app/actions/password.actions.ts
+// lib/actions/password.actions.ts
 /**
- * @file password.actions.ts
- * @description Contiene las Server Actions para el flujo de recuperación de contraseña.
- * REFACTORIZACIÓN CRÍTICA DE API:
- * 1. Se ha corregido la lógica para obtener un usuario por email, reemplazando la
- *    llamada incorrecta a `listUsers` por una consulta directa y segura a la tabla `auth.users`.
- *    Esto resuelve un error fatal de compilación y restaura la funcionalidad.
- *
- * @author Metashark
- * @version 1.2.0 (Secure User Lookup Fix)
+ * @file lib/actions/password.actions.ts
+ * @description Contém as Server Actions para o fluxo de recuperação e redefinição de senha.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 1.3.0 (Helper and Schema Imports Correction)
  */
 "use server";
 
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logging";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { EmailSchema, type RequestPasswordResetState } from "./schemas";
-import { createAuditLog, EmailService, rateLimiter } from "./_helpers";
+
+import { logger } from "@/lib/logging";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { EmailSchema, type RequestPasswordResetState } from "@/lib/validators"; // <-- CORREÇÃO: Importar de lib/validators
+
+import { createAuditLog, EmailService, rateLimiter } from "./_helpers"; // <-- CORREÇÃO: Importar do barrel file de helpers
 
 const ResetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "La contraseña debe tener al menos 8 caracteres."),
+    password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres."),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Las contraseñas no coinciden.",
+    message: "As senhas não coincidem.",
     path: ["confirmPassword"],
   });
 
 type UpdatePasswordFormState = { error: string | null; success: boolean };
 
+/**
+ * @async
+ * @function requestPasswordResetAction
+ * @description Solicita um link de redefinição de senha para o e-mail fornecido.
+ *              Inclui controle de taxa (rate limiting) e registro de auditoria.
+ *              Não revela se o e-mail existe para maior segurança.
+ * @param {RequestPasswordResetState} prevState - O estado anterior do formulário.
+ * @param {FormData} formData - Os dados do formulário (deve conter 'email').
+ * @returns {Promise<RequestPasswordResetState>} O novo estado do formulário com possíveis erros.
+ */
 export async function requestPasswordResetAction(
   prevState: RequestPasswordResetState,
   formData: FormData
@@ -47,13 +52,13 @@ export async function requestPasswordResetAction(
   const email = formData.get("email");
   const validation = EmailSchema.safeParse(email);
   if (!validation.success) {
-    return { error: "Por favor, introduce un email válido." };
+    return { error: "Por favor, digite um e-mail válido." };
   }
 
   const validatedEmail = validation.data;
   const adminSupabase = createAdminClient();
 
-  // CORRECCIÓN CRÍTICA: La forma correcta de buscar un usuario por email es consultando la tabla auth.users.
+  // A forma correta de buscar um usuário por e-mail é consultando a tabela auth.users.
   const { data: user, error: userError } = await adminSupabase
     .from("users")
     .select("id")
@@ -61,9 +66,9 @@ export async function requestPasswordResetAction(
     .single();
 
   if (userError && userError.code !== "PGRST116") {
-    // PGRST116 = 'Not Found', lo cual no es un error en este flujo.
+    // PGRST116 = 'Not Found', o que não é um erro neste fluxo.
     logger.error(
-      `[Auth] Error al buscar usuario por email ${validatedEmail}:`,
+      `[PasswordActions] Erro ao buscar usuário por e-mail ${validatedEmail}:`,
       userError
     );
   }
@@ -81,7 +86,7 @@ export async function requestPasswordResetAction(
 
     if (error || !data) {
       logger.error(
-        `[Auth] Error al generar enlace de recuperación para ${validatedEmail}:`,
+        `[PasswordActions] Erro ao gerar link de recuperação para ${validatedEmail}:`,
         error
       );
     } else {
@@ -92,13 +97,21 @@ export async function requestPasswordResetAction(
     }
   } else {
     logger.warn(
-      `[Auth] Solicitud de reseteo para email no existente (oculto al cliente): ${validatedEmail}`
+      `[PasswordActions] Solicitação de redefinição para e-mail não existente (oculto ao cliente): ${validatedEmail}`
     );
   }
 
   redirect("/auth-notice?message=check-email-for-reset");
 }
 
+/**
+ * @async
+ * @function updatePasswordAction
+ * @description Atualiza a senha do usuário.
+ * @param {UpdatePasswordFormState} prevState - O estado anterior do formulário.
+ * @param {FormData} formData - Os dados do formulário.
+ * @returns {Promise<UpdatePasswordFormState>} O novo estado do formulário.
+ */
 export async function updatePasswordAction(
   prevState: UpdatePasswordFormState,
   formData: FormData
@@ -111,7 +124,7 @@ export async function updatePasswordAction(
     const errorMessage =
       formErrors.password?.[0] ||
       formErrors.confirmPassword?.[0] ||
-      "Datos inválidos.";
+      "Dados inválidos.";
     return { error: errorMessage, success: false };
   }
 
@@ -124,7 +137,7 @@ export async function updatePasswordAction(
   if (userError || !user) {
     return {
       error:
-        "Sesión de recuperación inválida o expirada. Por favor, solicita un nuevo enlace.",
+        "Sessão de recuperação inválida ou expirada. Por favor, solicite um novo link.",
       success: false,
     };
   }
@@ -135,18 +148,17 @@ export async function updatePasswordAction(
 
   if (error) {
     logger.error(
-      `[Auth] Error al actualizar la contraseña para ${user.id}:`,
+      `[PasswordActions] Erro ao atualizar a senha para ${user.id}:`,
       error.message
     );
     if (error.message.includes("token has expired")) {
       return {
-        error:
-          "El enlace de reseteo ha expirado. Por favor, solicita uno nuevo.",
+        error: "O link de redefinição expirou. Por favor, solicite um novo.",
         success: false,
       };
     }
     return {
-      error: "No se pudo actualizar la contraseña. Inténtalo de nuevo.",
+      error: "Não foi possível atualizar a senha. Tente novamente.",
       success: false,
     };
   }
@@ -156,3 +168,10 @@ export async function updatePasswordAction(
 
   return { error: null, success: true };
 }
+
+/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
+ * 1. Prevenção de Reutilização de Senha: Para segurança de nível empresarial, a `updatePasswordAction` poderia consultar um hash das N senhas anteriores do usuário (se armazenadas de forma segura) para prevenir a reutilização de senhas recentes.
+ * 2. Integração com `zxcvbn`: Em vez de uma lógica de pontuação simples, pode-se integrar uma biblioteca como `zxcvbn-ts` para uma análise de força de senha muito mais robusta e precisa, que detecta padrões comuns e palavras de dicionário.
+ * 3. Internacionalização de Mensagens de Erro Zod: Integrar `zod-i18n` para que as mensagens de erro do schema de validação (e.g., "As senhas não coincidem") sejam traduzidas automaticamente com base no idioma do usuário.
+ * 4. Forçar Encerramento de Sessão em Outros Dispositivos: Após uma atualização de senha bem-sucedida, a função `supabase.auth.signOut({ scope: 'others' })` é invocada para invalidar todas as outras sessões ativas do usuário, uma prática de segurança recomendada. (Já implementado).
+ */

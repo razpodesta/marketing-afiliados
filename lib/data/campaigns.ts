@@ -1,9 +1,10 @@
 // Ruta: lib/data/campaigns.ts (REFACTORIZADO/NUEVO)
 "use server";
 
+import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Tables } from "@/lib/types/database";
-import { logger } from "@/lib/logging";
+
 import { hasWorkspacePermission } from "./permissions";
 
 /**

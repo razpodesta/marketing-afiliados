@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+
 import { CampaignViewerTable } from "../components/CampaignViewerTable";
 
 /**

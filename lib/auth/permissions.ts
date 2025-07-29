@@ -11,9 +11,9 @@
 "use server";
 
 // <-- CORRECCIÓN: Rutas de importación ajustadas a la ubicación del archivo.
+import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/types/database";
-import { logger } from "@/lib/logging";
 
 type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];
 

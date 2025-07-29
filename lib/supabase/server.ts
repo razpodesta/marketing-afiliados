@@ -9,9 +9,10 @@
  * @author Metashark
  * @version 3.2.0 (Usage Context Clarification)
  */
-import { type Database } from "@/lib/types/database";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+import { type Database } from "@/lib/types/database";
 
 /**
  * @description Crea una instancia del cliente de Supabase para el servidor que opera en nombre del usuario.

@@ -1,8 +1,9 @@
 // Ruta: app/[locale]/lia-chat/page.tsx
 
-import { Input } from "@/components/ui/input";
+import { Bot, Send } from "lucide-react"; // CORRECCIÓN: Se añade la importación del icono 'Bot'
+
 import { Button } from "@/components/ui/button";
-import { Send, Bot } from "lucide-react"; // CORRECCIÓN: Se añade la importación del icono 'Bot'
+import { Input } from "@/components/ui/input";
 
 /**
  * @file page.tsx

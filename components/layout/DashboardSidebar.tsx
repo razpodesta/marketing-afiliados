@@ -1,31 +1,13 @@
-// Ruta: components/dashboard/DashboardSidebar.tsx
 /**
- * @file DashboardSidebar.tsx
+ * @file components/layout/DashboardSidebar.tsx
  * @description Barra lateral de navegación principal del dashboard.
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1. El componente ya no acepta props. Ahora consume todos los datos de sesión
- *    necesarios (`user`) desde el `DashboardContext` a través del hook `useDashboard`.
- * 2. Se ha añadido una guarda de seguridad para manejar el caso en que el
- *    contexto aún no esté disponible, mostrando un esqueleto de carga.
- *
- * @author Metashark
- * @version 10.0.0 (Context-Driven & Fully Decoupled)
+ *              Consume los datos del usuario desde el DashboardContext para
+ *              renderizar los enlaces de navegación y el menú de perfil.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 10.1.0 (Architectural Path Correction)
  */
 "use client";
 
-import { signOutAction } from "@/app/actions/session.actions";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useDashboard } from "@/lib/context/DashboardContext";
-import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import {
   Globe,
@@ -40,6 +22,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { session as sessionActions } from "@/lib/actions"; // --- INICIO DE CORRECCIÓN ---
+import { useDashboard } from "@/lib/context/DashboardContext";
+import { cn } from "@/lib/utils";
 
 interface NavLinkProps {
   href: string;
@@ -77,7 +73,7 @@ const UserMenuSkeleton = () => (
 );
 
 export function DashboardSidebarContent() {
-  const { user } = useDashboard(); // <-- CORRECCIÓN: Consume desde el contexto
+  const { user } = useDashboard();
 
   if (!user) {
     return (
@@ -191,7 +187,9 @@ export function DashboardSidebarContent() {
               <span>Soporte</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <form action={signOutAction} className="w-full">
+            {/* --- INICIO DE CORRECCIÓN --- */}
+            <form action={sessionActions.signOutAction} className="w-full">
+              {/* --- FIN DE CORRECCIÓN --- */}
               <button type="submit" className="w-full">
                 <DropdownMenuItem>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -210,23 +208,21 @@ export function DashboardSidebar() {
   return (
     <aside className="hidden border-r bg-card md:block">
       <div className="flex h-full max-h-screen flex-col gap-2">
-        {/* CORRECCIÓN: Se elimina el paso de props */}
         <DashboardSidebarContent />
       </div>
     </aside>
   );
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
- * 2. Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario.
- * 3. Cargar Enlaces desde API: Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos, permitiendo a un administrador configurar los elementos de navegación de la aplicación sin necesidad de un despliegue de código.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar la barra lateral a un centro de navegación más inteligente.
+ *
+ * 1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en `localStorage` para que la preferencia del usuario se mantenga entre sesiones.
+ * 2.  **Indicadores de Notificación:** Añadir un pequeño componente de "punto" o "contador" junto a los iconos en `NavLink`. Este podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario hacia áreas que requieren su atención.
+ * 3.  **Carga de Enlaces desde la Base de Datos:** Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos (una tabla `feature_modules`), permitiendo a un administrador configurar los elementos de navegación de la aplicación (añadir, quitar, reordenar, marcar como "beta") sin necesidad de un despliegue de código.
  */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
- * 2. Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario.
- * 3. Cargar Enlaces desde API: Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos, permitiendo a un administrador configurar los elementos de navegación de la aplicación sin necesidad de un despliegue de código.
- */
+
 /* MEJORAS FUTURAS DETECTADAS
 Navegación Basada en Roles: El array mainNavLinks está codificado en duro. Una mejora arquitectónica significativa sería filtrar este array basándose en el app_role del usuario. Esto permitiría, por ejemplo, mostrar un enlace a /admin o /dev-console directamente en la barra lateral solo para los usuarios con los permisos adecuados.
 Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.

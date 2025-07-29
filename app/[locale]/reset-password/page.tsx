@@ -1,19 +1,20 @@
 // app/[locale]/reset-password/page.tsx
 "use client";
 
-import { password as passwordActions } from "@/lib/actions";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
+import toast from "react-hot-toast";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { password as passwordActions } from "@/lib/actions";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
-import toast from "react-hot-toast";
 
 /**
  * @file page.tsx

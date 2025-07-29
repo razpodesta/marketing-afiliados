@@ -1,11 +1,12 @@
 // app/not-found.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { locales } from "@/navigation";
 import { AlertTriangle, ArrowLeft, Home } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { locales } from "@/navigation";
 
 /**
  * @file not-found.tsx (Global & Autonomous)

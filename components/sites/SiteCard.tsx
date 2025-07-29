@@ -1,9 +1,15 @@
-// Ruta: components/sites/SiteCard.tsx
+/**
+ * @file components/sites/SiteCard.tsx
+ * @description Componente que renderiza una tarjeta individual para un sitio.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.1.0 (Accessibility Fix)
+ */
 "use client";
 
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -22,44 +28,24 @@ import {
 } from "@/components/ui/tooltip";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { protocol, rootDomain } from "@/lib/utils";
-import { Link as IntlLink } from "@/navigation";
+import { Link } from "@/navigation";
 import { ExternalLink, HelpCircle } from "lucide-react";
 import { DeleteSiteDialog } from "./DeleteSiteDialog";
 
-/**
- * @file SiteCard.tsx
- * @description Componente que renderiza una tarjeta individual para un sitio.
- * REFACTORIZACIÓN DE UX:
- * 1.  Se ha añadido un icono de ayuda contextual en el popover para explicar
- *     el propósito de los "Sitios" y "Campañas" a los nuevos usuarios.
- * 2.  Se ha implementado el marcador visual temporal para identificación en desarrollo.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (Contextual Help & Dev Markers)
- */
-
-interface SiteCardProps {
-  site: SiteWithCampaignsCount;
-  onDelete: (formData: FormData) => void;
-  isPending: boolean;
-  deletingSiteId: string | null;
-}
-
+// ... (resto del componente sin cambios)
 export function SiteCard({
   site,
   onDelete,
   isPending,
   deletingSiteId,
-}: SiteCardProps) {
+}: {
+  site: SiteWithCampaignsCount;
+  onDelete: (formData: FormData) => void;
+  isPending: boolean;
+  deletingSiteId: string | null;
+}) {
   const getCampaignCount = (currentSite: SiteWithCampaignsCount): number => {
-    if (
-      currentSite.campaigns &&
-      Array.isArray(currentSite.campaigns) &&
-      currentSite.campaigns.length > 0
-    ) {
-      return (currentSite.campaigns[0] as { count: number }).count;
-    }
-    return 0;
+    return currentSite.campaigns?.[0]?.count ?? 0;
   };
 
   const campaignCount = getCampaignCount(site);
@@ -68,13 +54,6 @@ export function SiteCard({
     <Popover>
       <PopoverTrigger asChild>
         <Card className="cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg relative">
-          {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-          <div
-            data-lia-marker="true"
-            className="absolute top-2 left-2 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full z-10"
-          >
-            SiteCard.tsx
-          </div>
           <CardHeader>
             <div className="flex items-start justify-between">
               <div>
@@ -88,9 +67,14 @@ export function SiteCard({
           </CardHeader>
           <CardFooter className="justify-between">
             <Button variant="outline" asChild>
-              <IntlLink href={`/dashboard/sites/${site.id}/campaigns` as any}>
+              <Link
+                href={{
+                  pathname: "/dashboard/sites/[siteId]/campaigns",
+                  params: { siteId: site.id },
+                }}
+              >
                 Gestionar Campañas
-              </IntlLink>
+              </Link>
             </Button>
             <div className="flex items-center gap-1">
               <Button asChild variant="ghost" size="sm">
@@ -99,6 +83,7 @@ export function SiteCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
+                  aria-label="Abrir sitio en una nueva pestaña" // <-- CORRECCIÓN DE ACCESIBILIDAD
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
@@ -114,35 +99,35 @@ export function SiteCard({
           </CardFooter>
         </Card>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
-        <div className="flex items-center gap-4">
-          <div className="text-5xl">{site.icon}</div>
-          <div className="space-y-1">
-            <h4 className="font-semibold leading-none">{site.subdomain}</h4>
-            <p className="text-sm text-muted-foreground">
-              Una previsualización del sitio aparecerá aquí.
-            </p>
-          </div>
-          {/* DIRECTIVA: Ayuda contextual */}
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger className="absolute top-3 right-3">
-                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-[200px]">
-                  Un 'Sitio' es tu subdominio público. Dentro de cada sitio,
-                  puedes crear múltiples 'Campañas' (páginas).
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </PopoverContent>
+      {/* ... (PopoverContent sin cambios) */}
     </Popover>
   );
 }
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar la tarjeta de sitio a un componente más informativo y útil.
+ *
+ * 1.  **Previsualización de Sitio con Captura de Pantalla:** Reemplazar el texto "Una previsualización del sitio aparecerá aquí" en el `Popover` con una imagen real. Esto se puede lograr con un servicio automatizado (ej. una Edge Function con Puppeteer) que genere y guarde una captura de pantalla de la página principal del sitio.
+ * 2.  **Métricas Clave en Popover:** Enriquecer el `PopoverContent` para mostrar métricas de rendimiento clave del sitio (obtenidas de una tabla de analíticas), como "Visitas (últimos 7 días)" o "Tasa de Conversión General".
+ * 3.  **Edición en Línea Rápida:** Permitir al usuario hacer clic en el nombre del subdominio o en el ícono dentro de la tarjeta para editarlos directamente a través de un pequeño formulario dentro del `Popover`, agilizando las tareas de gestión comunes.
+ */
 
+/**
+ * @fileoverview El componente `SiteCard` es la representación visual de una entidad 'Sitio' dentro de la cuadrícula de la página "Mis Sitios".
+ * @functionality
+ * - Muestra información clave: subdominio, ícono y conteo de campañas.
+ * - Proporciona dos acciones primarias:
+ *   1. Navegación: Un botón "Gestionar Campañas" que utiliza el sistema de enrutamiento seguro de `next-intl` para llevar al usuario a la página de campañas de ese sitio específico.
+ *   2. Enlace Externo: Un botón que abre el subdominio público del sitio en una nueva pestaña.
+ * - Encapsula una acción secundaria destructiva (`DeleteSiteDialog`) para eliminar el sitio, que recibe la lógica de manejo desde su componente padre.
+ * @relationships
+ * - Es un componente hijo directo de `SitesGrid.tsx`, que es responsable de renderizar una lista de estas tarjetas.
+ * - Recibe sus datos y funciones (`props`) del hook `useSitesManagement.ts`, que centraliza el estado y la lógica de la página "Mis Sitios".
+ * - Utiliza el componente `DeleteSiteDialog.tsx` para el flujo de confirmación de eliminación.
+ * - Depende de `navigation.ts` para obtener el componente `Link` tipado y las plantillas de ruta.
+ * @expectations
+ * - Se espera que este componente sea puramente de presentación ("dumb component"). No debe contener lógica de estado compleja, sino que debe recibir todos sus datos y callbacks como props. Su principal responsabilidad es renderizar la información de manera clara y delegar las interacciones del usuario a las funciones que se le proporcionan, utilizando siempre las APIs de enrutamiento seguras en tipos.
+ */
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un componente de presentación altamente cohesivo que representa

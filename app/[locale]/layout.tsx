@@ -1,9 +1,10 @@
 // app/[locale]/layout.tsx
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { logger } from "@/lib/logging";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Toaster } from "react-hot-toast";
+
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { logger } from "@/lib/logging";
 
 /**
  * @file layout.tsx

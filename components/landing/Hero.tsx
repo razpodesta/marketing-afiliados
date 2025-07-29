@@ -2,10 +2,11 @@
 
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
 
 /**
  * @file AnimatedGridBackground.tsx

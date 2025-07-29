@@ -1,6 +1,9 @@
 // Ruta: components/sites/SitesHeader.tsx
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { PlusCircle, Search, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,8 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AnimatePresence, motion } from "framer-motion";
-import { PlusCircle, Search, X } from "lucide-react";
+
 import { CreateSiteForm } from "./CreateSiteForm";
 
 // CORRECCIÓN: La interfaz de props ahora espera una función `onSubmit` y un estado `isSubmitting`.

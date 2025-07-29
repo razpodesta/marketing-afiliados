@@ -11,7 +11,7 @@
 
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 
 /**
  * @typedef {Record<string, string>} NameMap

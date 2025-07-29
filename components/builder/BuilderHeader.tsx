@@ -1,9 +1,6 @@
 // components/builder/BuilderHeader.tsx
 "use client";
 
-import { builder as builderActions } from "@/lib/actions";
-import { Button } from "@/components/ui/button";
-import { useBuilderStore } from "@/app/[locale]/builder/core/store";
 import {
   CheckCircle,
   Laptop,
@@ -17,11 +14,16 @@ import { useEffect, useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { shallow } from "zustand/shallow";
 
+import { useBuilderStore } from "@/app/[locale]/builder/core/store";
+import { Button } from "@/components/ui/button";
+import { builder as builderActions } from "@/lib/actions";
+
 /**
  * @file BuilderHeader.tsx
- * @description Encabezado principal del entorno del constructor.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Architectural Alignment)
+ * @description Encabezado del constructor de campañas. Orquesta las acciones de
+ *              guardado, la previsualización en diferentes dispositivos y la navegación.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 2.2.0 (State Logic Correction)
  */
 export function BuilderHeader() {
   const { campaignConfig } = useBuilderStore();
@@ -44,7 +46,7 @@ export function BuilderHeader() {
     if (campaignConfig) {
       setInitialState(JSON.stringify(campaignConfig));
     }
-  }, []);
+  }, [campaignConfig]); // <-- CORRECCIÓN: Se añade la dependencia que faltaba.
 
   useEffect(() => {
     if (campaignConfig && initialState) {
@@ -140,7 +142,6 @@ export function BuilderHeader() {
     </header>
   );
 }
-
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Atajo de Teclado (Ctrl+S): Implementar un listener de eventos de teclado global para capturar `Ctrl+S` (o `Cmd+S` en Mac) y que dispare la función `handleSave`, una característica estándar en cualquier editor.
  * 2. Prevenir Cierre de Pestaña sin Guardar: Utilizar el evento `beforeunload` del navegador para detectar si `isDirty` es `true` y, en ese caso, mostrar un diálogo nativo al usuario preguntando si está seguro de que quiere abandonar la página con cambios sin guardar.

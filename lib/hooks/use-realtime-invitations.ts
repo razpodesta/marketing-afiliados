@@ -10,11 +10,12 @@
 
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
 import { type User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * @typedef {object} InvitationPayload

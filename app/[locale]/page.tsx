@@ -10,13 +10,14 @@
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 8.0.0 (Developer Mode Integration)
  */
+import { redirect } from "next/navigation";
+
 import { Features } from "@/components/landing/Features";
 import { Hero } from "@/components/landing/Hero";
 import { LandingFooter } from "@/components/layout/LandingFooter";
 import { LandingHeader } from "@/components/layout/LandingHeader";
 import { CursorTrail } from "@/components/ui/CursorTrail";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export default async function HomePage() {
   // --- INTERRUPTOR DEL MODO DE DESARROLLO ---

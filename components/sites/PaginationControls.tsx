@@ -1,10 +1,11 @@
 // Ruta: components/sites/PaginationControls.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+
+import { Button } from "@/components/ui/button";
 
 /**
  * @file PaginationControls.tsx
@@ -57,14 +58,14 @@ const usePaginationRange = (
     const lastPageIndex = totalPages;
 
     if (!shouldShowLeftDots && shouldShowRightDots) {
-      let leftItemCount = 3 + 2 * siblingCount;
-      let leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+      const leftItemCount = 3 + 2 * siblingCount;
+      const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
       return [...leftRange, DOTS, lastPageIndex];
     }
 
     if (shouldShowLeftDots && !shouldShowRightDots) {
-      let rightItemCount = 3 + 2 * siblingCount;
-      let rightRange = Array.from(
+      const rightItemCount = 3 + 2 * siblingCount;
+      const rightRange = Array.from(
         { length: rightItemCount },
         (_, i) => totalPages - rightItemCount + i + 1
       );
@@ -72,7 +73,7 @@ const usePaginationRange = (
     }
 
     if (shouldShowLeftDots && shouldShowRightDots) {
-      let middleRange = Array.from(
+      const middleRange = Array.from(
         { length: rightSiblingIndex - leftSiblingIndex + 1 },
         (_, i) => leftSiblingIndex + i
       );

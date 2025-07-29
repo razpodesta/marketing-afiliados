@@ -3,17 +3,22 @@
  * @file page.tsx
  * @description Página del Dashboard de Administración (Server Component).
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.0.0 (Architectural Alignment)
+ * @version 8.1.0 (Type Safety and Import Fix)
  */
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
 import { Card } from "@/components/ui/card";
-import { sites as sitesData } from "@/lib/data";
+// --- INICIO DE CORRECCIÓN ---
+import * as dataLayer from "@/lib/data"; // Importar todos los namespaces de la capa de datos.
+import type { SiteWithCampaignsCount } from "@/lib/data/sites"; // Importar el tipo explícito.
+// --- FIN DE CORRECCIÓN ---
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/types/database";
 import { rootDomain } from "@/lib/utils";
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { Suspense } from "react";
+
 import { AdminClient } from "./admin-client";
 
 export const metadata: Metadata = {
@@ -73,15 +78,15 @@ async function AdminDashboardLoader({
 
   try {
     const page = Number(searchParams.page) || 1;
-    // L.I.A. NOTA: Esta es una llamada placeholder. Para una funcionalidad de admin real,
-    // se necesita una función `adminGetAllSites` que no filtre por workspace.
-    const { sites: rawSites, totalCount } =
-      await sitesData.getSitesByWorkspaceId("", {
-        page,
-        limit: ADMIN_SITES_PER_PAGE,
-      });
+    const { sites: rawSites, totalCount } = await dataLayer.admin.getAllSites({
+      // Uso del namespace correcto.
+      page,
+      limit: ADMIN_SITES_PER_PAGE,
+    });
 
-    const sites = rawSites.map((site) => ({
+    // CORRECCIÓN: El tipo explícito `SiteWithCampaignsCount` informa al compilador
+    // sobre la forma de cada elemento, resolviendo el error de `any` implícito.
+    const sites = rawSites.map((site: SiteWithCampaignsCount) => ({
       subdomain: site.subdomain || "N/A",
       icon: site.icon || "❓",
       createdAt: new Date(site.created_at).getTime(),

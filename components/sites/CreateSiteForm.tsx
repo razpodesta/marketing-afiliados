@@ -1,18 +1,12 @@
-// Ruta: components/sites/CreateSiteForm.tsx
+/**
+ * @file components/sites/CreateSiteForm.tsx
+ * @description Formulario de cliente inteligente para la creación de nuevos sitios,
+ *              con validación de subdominio síncrona y asíncrona.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 3.2.0 (Accessibility & Hook Fixes)
+ */
 "use client";
 
-import { SiteSchema } from "@/app/actions/schemas";
-import { checkSubdomainAvailabilityAction } from "@/app/actions/sites.actions";
-import { Button } from "@/components/ui/button";
-import { EmojiPicker } from "@/components/ui/emoji-picker";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { debounce, rootDomain } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -20,12 +14,24 @@ import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { sites as sitesActions } from "@/lib/actions";
+import { debounce, rootDomain } from "@/lib/utils";
+import { SiteSchema } from "@/lib/validators";
+
+import { Button } from "../ui/button";
+import { EmojiPicker } from "../ui/emoji-picker";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+
 type FormData = z.infer<typeof SiteSchema>;
 type AvailabilityStatus = "idle" | "checking" | "available" | "unavailable";
 
 interface CreateSiteFormProps {
-  // CORRECCIÓN: La firma de la prop onSubmit se ha actualizado para aceptar
-  // un objeto FormData, que es lo que la lógica de actualización optimista necesita.
   onSubmit: (formData: FormData) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -50,6 +56,7 @@ export function CreateSiteForm({
 
   const subdomainValue = watch("subdomain");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedCheck = useCallback(
     debounce(async (subdomain: string) => {
       if (subdomain.length < 3) {
@@ -57,7 +64,8 @@ export function CreateSiteForm({
         return;
       }
       setAvailability("checking");
-      const { isAvailable } = await checkSubdomainAvailabilityAction(subdomain);
+      const { isAvailable } =
+        await sitesActions.checkSubdomainAvailabilityAction(subdomain);
       setAvailability(isAvailable ? "available" : "unavailable");
     }, 500),
     []
@@ -90,13 +98,6 @@ export function CreateSiteForm({
       onSubmit={handleSubmit(handleFormSubmit)}
       className="space-y-6 relative"
     >
-      <div
-        data-lia-marker="true"
-        className="absolute -top-4 -left-4 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        CreateSiteForm.tsx
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="subdomain">{t("subdomainLabel")}</Label>
         <div className="flex items-center">
@@ -106,7 +107,6 @@ export function CreateSiteForm({
               placeholder={t("subdomainPlaceholder")}
               className="w-full rounded-r-none focus:z-10 bg-input"
               {...register("subdomain")}
-              autoFocus
             />
             <div className="absolute inset-y-0 right-3 flex items-center">
               {renderAvailabilityIcon()}
@@ -167,6 +167,14 @@ export function CreateSiteForm({
     </form>
   );
 }
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el formulario de creación de sitios.
+ *
+ * 1.  **Sugerencias de Subdominios:** Si el subdominio elegido no está disponible (`availability === "unavailable"`), se podría invocar una Server Action `suggestAvailableSubdomains(subdomain)` que use lógica simple o una IA para sugerir alternativas (ej. "tu-subdominio-123", "tu-subdominio-pro"). Estas sugerencias se mostrarían como botones clicables debajo del campo de entrada.
+ * 2.  **Previsualización en Vivo:** Añadir una pequeña sección de previsualización dentro del modal que muestre cómo se verá la URL completa del subdominio (`https://...`) y el ícono seleccionado. Esta previsualización se actualizaría en tiempo real a medida que el usuario escribe, reforzando la conexión entre la entrada de datos y el resultado final.
+ * 3.  **Selector de Plantillas Iniciales:** Expandir el formulario para incluir un selector visual de plantillas de sitio. Esto permitiría al usuario empezar con una estructura de sitio predefinida (ej. "Landing de Producto", "Página de Captura de Leads") en lugar de un lienzo en blanco, acelerando drásticamente su flujo de trabajo inicial.
+ */
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato funciona como un formulario de cliente inteligente para crear sitios.

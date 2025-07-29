@@ -2,7 +2,6 @@
 
 "use client";
 
-import { usePathname, useRouter } from "@/navigation";
 import { Globe } from "lucide-react";
 import { useParams } from "next/navigation";
 
@@ -13,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"; // CORREGIDO: Importación correcta
+import { usePathname, useRouter } from "@/navigation";
 import { locales } from "@/navigation";
 
 /**

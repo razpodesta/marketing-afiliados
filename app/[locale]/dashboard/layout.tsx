@@ -5,6 +5,11 @@
  * @author L.I.A Legacy
  * @version 9.2.1 (API Contract Fix)
  */
+import { unstable_cache as cache } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import React from "react";
+
 import { CommandPalette } from "@/components/feedback/CommandPalette";
 import { LiaChatWidget } from "@/components/feedback/LiaChatWidget";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
@@ -19,10 +24,6 @@ import { getMockLayoutData } from "@/lib/dev/mock-session";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types/database";
-import { unstable_cache as cache } from "next/cache";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import React from "react";
 
 type Workspace = Tables<"workspaces">;
 type Invitation = {

@@ -12,8 +12,9 @@
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 3.0.0 (Stable Locale Handling)
  */
-import { getRequestConfig } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { getRequestConfig } from "next-intl/server";
+
 import { locales } from "./navigation";
 
 export default getRequestConfig(async ({ locale }) => {

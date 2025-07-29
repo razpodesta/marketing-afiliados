@@ -1,26 +1,25 @@
 // Ruta: components/campaigns/CreateCampaignForm.tsx
 "use client";
 
-import { campaigns as campaignActions } from "@/app/actions";
-import { type ActionResult } from "@/app/actions/schemas";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
+import { campaigns as campaignActions } from "@/lib/actions";
+import { type ActionResult } from "@/lib/validators";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 /**
  * @file CreateCampaignForm.tsx
- * @description Formulario para la creación de una nueva campaña. Este aparato
- *              utiliza el patrón `useFormState` para una integración directa
- *              y progresivamente mejorada con Server Actions.
- *
- * @author L.I.A Legacy
- * @version 1.0.0 (Initial Creation)
+ * @description Formulario de cliente para la creación de nuevas campañas.
+ *              Se integra directamente con Server Actions para un manejo de estado
+ *              y feedback al usuario eficientes.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 2.2.0 (Accessibility Patch)
  */
-
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -55,13 +54,6 @@ export function CreateCampaignForm({
 
   return (
     <form action={formAction} className="space-y-4 relative">
-      {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-      <div
-        data-lia-marker="true"
-        className="absolute -top-2 -left-2 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        CreateCampaignForm.tsx
-      </div>
       <input type="hidden" name="siteId" value={siteId} />
       <div className="space-y-2">
         <Label htmlFor="name">Nombre de la Campaña</Label>
@@ -70,7 +62,6 @@ export function CreateCampaignForm({
           name="name"
           placeholder="Ej: Lanzamiento Producto X"
           required
-          autoFocus
         />
         {state.error && (
           <p className="text-sm text-destructive">{state.error}</p>
@@ -80,7 +71,6 @@ export function CreateCampaignForm({
     </form>
   );
 }
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un formulario de cliente diseñado para la creación de campañas.

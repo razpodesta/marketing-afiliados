@@ -1,24 +1,25 @@
 // app/[locale]/forgot-password/page.tsx
 "use client";
 
-import { auth as authActions } from "@/lib/actions";
-import { type RequestPasswordResetState } from "@/lib/validators";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { auth as authActions } from "@/lib/actions";
+import { type RequestPasswordResetState } from "@/lib/validators";
+
 /**
  * @file page.tsx
- * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.1.0 (Architectural Alignment & Type Fix)
+ * @description Página para solicitar la recuperación de contraseña.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 3.1.0 (Accessibility Patch)
  */
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -80,7 +81,6 @@ export default function ForgotPasswordPage() {
                 placeholder="tu@email.com"
                 required
                 className="mt-1"
-                autoFocus
               />
             </div>
             {state?.error && (
@@ -93,7 +93,6 @@ export default function ForgotPasswordPage() {
     </main>
   );
 }
-
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Rate Limiting (Server-Side): Implementar limitación de tasa en la `requestPasswordResetAction` para prevenir ataques de bombardeo de correos electrónicos.
  * 2. Validación en Tiempo Real en Cliente: Migrar a `react-hook-form` con `zodResolver` para mostrar errores de validación instantáneamente mientras el usuario escribe.

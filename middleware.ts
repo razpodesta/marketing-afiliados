@@ -7,6 +7,8 @@
  * @version 6.0.0 (Pure Chaining Pipeline)
  */
 import { type NextRequest, NextResponse } from "next/server";
+
+import { logger } from "./lib/logging";
 import {
   handleAuth,
   handleI18n,
@@ -14,7 +16,6 @@ import {
   handleMultitenancy,
   handleRedirects,
 } from "./middleware/handlers";
-import { logger } from "./lib/logging";
 
 export async function middleware(request: NextRequest) {
   logger.trace(

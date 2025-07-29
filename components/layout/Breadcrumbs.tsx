@@ -10,11 +10,12 @@
 
 "use client";
 
-import { useBreadcrumbs } from "@/lib/context/BreadcrumbsContext";
-import { Link, usePathname } from "@/navigation";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React from "react";
+
+import { useBreadcrumbs } from "@/lib/context/BreadcrumbsContext";
+import { Link, usePathname } from "@/navigation";
 
 /**
  * @description Renderiza las migas de pan para la navegación del dashboard.

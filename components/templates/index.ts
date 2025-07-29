@@ -5,8 +5,9 @@
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 2.0.0 (Path Alias Correction)
  */
-import type { PageBlock } from "@/lib/builder/types.d";
 import React from "react";
+
+import type { PageBlock } from "@/lib/builder/types.d";
 import { Header1 } from "@/templates/Headers/Header1";
 import { Hero1 } from "@/templates/Heros/Hero1";
 

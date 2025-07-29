@@ -1,85 +1,42 @@
-// Ruta: app/actions/admin.actions.ts
+// lib/actions/admin.actions.ts
 /**
- * @file app/actions/admin.actions.ts
- * @description Contiene Server Actions restringidas a roles administrativos ('admin', 'developer').
- * REFACTORIZACIÓN DE MÓDULO Y FUNCIONALIDAD: Se ha corregido el error de exportación
- * eliminando la declaración local de `ActionResult` y importándola desde el
- * módulo de esquemas centralizado. Se ha implementado la mejora "Acción de Suplantación",
- * añadiendo la potente `impersonateUserAction` para depuración.
- *
- * @author Metashark
- * @version 2.1.0 (Shared Types & User Impersonation)
+ * @file lib/actions/admin.actions.ts
+ * @description Contém Server Actions restringidas a roles administrativos ('admin', 'developer').
+ *              Essas ações são sensíveis e exigem verificação rigorosa de permissões.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 2.4.0 (Type Fixes and Audit Log Integration)
  */
-
 "use server";
 
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logging";
-import { type Database } from "@/lib/types/database";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { type User } from "@supabase/supabase-js";
-import { type ActionResult } from "./schemas"; // <-- CORRECCIÓN: Importación desde la fuente central.
-import { redirect } from "next/navigation";
+
+import { requireAppRole } from "@/lib/auth/user-permissions";
+import { logger } from "@/lib/logging";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/types/database"; // <-- CORREÇÃO: Importar Database
+import { type ActionResult } from "@/lib/validators"; // Importa ActionResult de lib/validators
+
+import { createAuditLog } from "./_helpers"; // Importa createAuditLog do barrel de helpers
 
 /**
- * @description Obtiene el usuario autenticado y su perfil desde la base de datos.
- * @returns {Promise<{user: User, profile: {app_role: Database["public"]["Enums"]["app_role"]}} | null>}
- */
-async function getAuthenticatedUser() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("app_role")
-    .eq("id", user.id)
-    .single();
-  if (!profile) return null;
-
-  return { user, profile };
-}
-
-/**
- * @description Verifica si el usuario autenticado tiene uno de los roles requeridos.
- * @param {Array<Database["public"]["Enums"]["app_role"]>} requiredRoles - Los roles permitidos.
- * @returns {Promise<{user: User, profile: {app_role: Database["public"]["Enums"]["app_role"]}} | {error: string}>}
- */
-async function verifyUserRole(
-  requiredRoles: Array<Database["public"]["Enums"]["app_role"]>
-) {
-  const authData = await getAuthenticatedUser();
-  if (!authData)
-    return { error: "Acción no autorizada. Sesión no encontrada." };
-
-  if (!requiredRoles.includes(authData.profile.app_role)) {
-    logger.warn(
-      `VIOLACIÓN DE SEGURIDAD: Usuario ${authData.user.id} con rol '${
-        authData.profile.app_role
-      }' intentó una acción restringida a '${requiredRoles.join(", ")}'.`
-    );
-    return { error: "Permiso denegado." };
-  }
-
-  return authData;
-}
-
-/**
- * @description Genera un enlace de inicio de sesión mágico para suplantar a un usuario.
- *              Restringido al rol 'developer'.
- * @param {string} userId - El ID del usuario a suplantar.
- * @returns {Promise<ActionResult<{ signInLink: string }>>} El resultado con el enlace de inicio de sesión.
+ * @async
+ * @function impersonateUserAction
+ * @description Gera um link de login mágico para personificar um usuário.
+ *              Restrito ao role 'developer'.
+ * @param {string} userId - O ID do usuário a ser personificado.
+ * @returns {Promise<ActionResult<{ signInLink: string }>>} O resultado com o link de login.
  */
 export async function impersonateUserAction(
   userId: string
 ): Promise<ActionResult<{ signInLink: string }>> {
-  const roleCheck = await verifyUserRole(["developer"]);
-  if ("error" in roleCheck) return { success: false, error: roleCheck.error };
+  const roleCheck = await requireAppRole(["developer"]);
+  if (!roleCheck.success) {
+    return { success: false, error: roleCheck.error };
+  }
 
-  if (roleCheck.user.id === userId) {
-    return { success: false, error: "No puedes suplantarte a ti mismo." };
+  // Lógica adicional para garantir que o desenvolvedor não personifique a si mesmo
+  if (roleCheck.data.user.id === userId) {
+    return { success: false, error: "Você não pode personificar a si mesmo." };
   }
 
   const adminSupabase = createAdminClient();
@@ -88,10 +45,10 @@ export async function impersonateUserAction(
 
   if (userError || !userData.user) {
     logger.error(
-      `Error al obtener usuario para suplantación ${userId}:`,
+      `[AdminActions] Erro ao obter usuário para personificação ${userId}:`,
       userError
     );
-    return { success: false, error: "Usuario no encontrado." };
+    return { success: false, error: "Usuário não encontrado." };
   }
 
   const { data, error } = await adminSupabase.auth.admin.generateLink({
@@ -101,68 +58,92 @@ export async function impersonateUserAction(
 
   if (error) {
     logger.error(
-      `Error al generar enlace de suplantación para ${userId}:`,
+      `[AdminActions] Erro ao gerar link de personificação para ${userId}:`,
       error
     );
     return {
       success: false,
-      error: "No se pudo generar el enlace de suplantación.",
+      error: "Não foi possível gerar o link de personificação.",
     };
   }
 
   const signInLink = data.properties.action_link;
 
+  await createAuditLog("user_impersonated", {
+    userId: roleCheck.data.user.id,
+    targetEntityId: userId,
+    targetEntityType: "user",
+    metadata: { impersonatedEmail: userData.user.email },
+  });
+
   return { success: true, data: { signInLink } };
 }
 
 /**
- * @description Elimina un sitio de la plataforma.
- * @param {FormData} formData - Debe contener el 'subdomain' a eliminar.
- * @returns {Promise<ActionResult<{ message: string }>>} El resultado de la operación.
+ * @description Exclui um site da plataforma.
+ * @param {FormData} formData - Deve conter o 'subdomain' a ser excluído.
+ * @returns {Promise<ActionResult<{ message: string }>>} O resultado da operação.
  */
 export async function deleteSiteAsAdminAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
-  const roleCheck = await verifyUserRole(["admin", "developer"]);
-  if ("error" in roleCheck) return { success: false, error: roleCheck.error };
+  const roleCheck = await requireAppRole(["admin", "developer"]);
+  if (!roleCheck.success) {
+    return { success: false, error: roleCheck.error };
+  }
 
   const subdomain = formData.get("subdomain") as string;
-  if (!subdomain) return { success: false, error: "Falta el subdominio." };
+  if (!subdomain) return { success: false, error: "Subdomínio ausente." };
 
   const adminSupabase = createAdminClient();
-  const { error } = await adminSupabase
+  // Precisamos selecionar o ID para o log de auditoria, já que 'subdomain' não é o ID.
+  const { error, data: deletedSite } = await adminSupabase
     .from("sites")
     .delete()
-    .eq("subdomain", subdomain);
+    .eq("subdomain", subdomain)
+    .select("id, subdomain") // Seleciona o ID e o subdomain do site excluído
+    .single();
 
-  if (error) {
-    logger.error(`Error al eliminar el sitio ${subdomain}:`, error);
-    return { success: false, error: "No se pudo eliminar el sitio." };
+  if (error || !deletedSite) {
+    logger.error(`[AdminActions] Erro ao excluir o site ${subdomain}:`, error);
+    return { success: false, error: "Não foi possível excluir o site." };
   }
 
   revalidateTag(`sites:${subdomain}`);
   revalidatePath("/admin");
+
+  // CORREÇÃO: Usar o ID real do site como targetEntityId. O subdomain pode ser metadados.
+  await createAuditLog("site_deleted_admin", {
+    userId: roleCheck.data.user.id,
+    targetEntityId: deletedSite.id, // Usar o ID real do site excluído
+    targetEntityType: "site",
+    metadata: { subdomain: deletedSite.subdomain }, // Passar o subdomain como metadado
+  });
+
   return {
     success: true,
-    data: { message: `Sitio ${subdomain} eliminado correctamente.` },
+    data: { message: `Site ${subdomain} excluído corretamente.` },
   };
 }
 
 /**
- * @description Actualiza el rol de un usuario. Acción restringida al rol 'developer'.
- * @param {string} userId - El UUID del usuario a modificar.
- * @param {Database["public"]["Enums"]["app_role"]} newRole - El nuevo rol a asignar.
- * @returns {Promise<ActionResult>} El resultado de la operación.
+ * @description Atualiza o role de um usuário. Ação restrita ao role 'developer'.
+ * @param {string} userId - O UUID do usuário a ser modificado.
+ * @param {Database["public"]["Enums"]["app_role"]} newRole - O novo role a ser atribuído.
+ * @returns {Promise<ActionResult>} O resultado da operação.
  */
 export async function updateUserRoleAction(
   userId: string,
   newRole: Database["public"]["Enums"]["app_role"]
 ): Promise<ActionResult> {
-  const roleCheck = await verifyUserRole(["developer"]);
-  if ("error" in roleCheck) return { success: false, error: roleCheck.error };
+  const roleCheck = await requireAppRole(["developer"]);
+  if (!roleCheck.success) {
+    return { success: false, error: roleCheck.error };
+  }
 
-  if (roleCheck.user.id === userId) {
-    return { success: false, error: "No puedes cambiar tu propio rol." };
+  // Lógica adicional para garantir que o desenvolvedor não mude o próprio role.
+  if (roleCheck.data.user.id === userId) {
+    return { success: false, error: "Você não pode mudar o seu próprio role." };
   }
 
   const adminSupabase = createAdminClient();
@@ -172,26 +153,27 @@ export async function updateUserRoleAction(
     .eq("id", userId);
 
   if (error) {
-    logger.error(`Error al actualizar rol para ${userId}:`, error);
-    return { success: false, error: "No se pudo actualizar el rol." };
+    logger.error(
+      `[AdminActions] Erro ao atualizar role para ${userId}:`,
+      error
+    );
+    return { success: false, error: "Não foi possível atualizar o role." };
   }
 
   revalidatePath("/dev-console/users");
+
+  await createAuditLog("user_role_updated", {
+    userId: roleCheck.data.user.id,
+    targetEntityId: userId,
+    targetEntityType: "user",
+    metadata: { newRole },
+  });
+
   return { success: true, data: null };
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Logging de Auditoría: Implementar una función `createAuditLog` que se llame desde acciones críticas como `updateUserRoleAction` y `impersonateUserAction` para registrar quién hizo qué, a quién y cuándo.
- * 2. Permisos Más Granulares: En lugar de un `verifyUserRole` genérico, se podrían crear hooks de permisos más específicos como `ensureIsDeveloper()` que arrojen errores, simplificando el código de las acciones.
- * 3. Manejo de Errores Centralizado: Crear un wrapper para las Server Actions que centralice el manejo de errores (try/catch), el logging y la validación de sesión para reducir el código repetitivo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Logging de Auditoría: Implementar una función `createAuditLog` que se llame desde acciones críticas como `updateUserRoleAction` y `impersonateUserAction` para registrar quién hizo qué, a quién y cuándo.
- * 2. Permisos Más Granulares: En lugar de un `verifyUserRole` genérico, se podrían crear hooks de permisos más específicos como `ensureIsDeveloper()` que arrojen errores, simplificando el código de las acciones.
- * 3. Manejo de Errores Centralizado: Crear un wrapper para las Server Actions que centralice el manejo de errores (try/catch), el logging y la validación de sesión para reducir el código repetitivo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Logging de Auditoría: Implementar una función `createAuditLog` que se llame desde acciones críticas como `updateUserRoleAction` y `impersonateUserAction` para registrar quién hizo qué, a quién y cuándo.
- * 2. Permisos Más Granulares: En lugar de un `verifyUserRole` genérico, se podrían crear hooks de permisos más específicos como `ensureIsDeveloper()` que arrojen errores, simplificando el código de las acciones.
- * 3. Manejo de Errores Centralizado: Crear un wrapper para las Server Actions que centralice el manejo de errores (try/catch), el logging y la validación de sesión para reducir el código repetitivo.
+/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
+ * 1. Logging de Auditoria Detalhado: Implementação completa de `createAuditLog` para todas as ações críticas, incluindo IDs de entidade e metadados relevantes. (Implementado).
+ * 2. Mensagens de Erro Específicas: Para algumas falhas de DB, as mensagens de erro podem ser mais específicas, talvez usando um mapeamento de códigos de erro Supabase para mensagens amigáveis.
+ * 3. Proteção Contra Exclusão/Rebaixamento de Administrador Mestre: Implementar lógica para impedir que o último administrador/desenvolvedor seja rebaixado de role ou excluído, garantindo que sempre haja acesso administrativo à plataforma. (Mantido como melhoria futura).
  */

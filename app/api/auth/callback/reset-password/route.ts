@@ -9,10 +9,11 @@
  * @author Metashark
  * @version 3.1.0 (Route Handler Stability & Security)
  */
-import { type NextRequest, NextResponse } from "next/server";
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+
 import type { Database } from "@/lib/types/database";
 
 const PasswordUpdateSchema = z.object({

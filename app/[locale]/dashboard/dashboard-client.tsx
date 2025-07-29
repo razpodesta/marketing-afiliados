@@ -1,6 +1,28 @@
 // app/[locale]/dashboard/dashboard-client.tsx
 "use client";
 
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { motion } from "framer-motion";
+import { HelpCircle, LayoutTemplate, PenSquare, Plus, Zap } from "lucide-react";
+import { useFormatter } from "next-intl";
+import React, { useState, useTransition } from "react";
+import toast from "react-hot-toast";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -9,63 +31,74 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { profiles as profileActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
+import type { FeatureModule } from "@/lib/data/modules";
 import type { Tables } from "@/lib/types/database";
-import { useRouter, type AppPathname } from "@/navigation";
-import { motion } from "framer-motion";
-import { HelpCircle, LayoutTemplate, PenSquare, Plus, Zap } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { type AppPathname, useRouter } from "@/navigation";
 
 /**
  * @file dashboard-client.tsx
  * @description Interfaz de usuario principal del "Centro de Comando de Campañas".
+ *              Ahora con personalización de layout mediante drag-and-drop.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 13.0.0 (Type Stability)
+ * @version 14.0.0 (Dashboard Personalization)
  */
-const ActionCard = ({
-  title,
-  description,
-  icon: Icon,
-  onClick,
+const SortableActionCard = ({
+  module,
   isPrimary = false,
 }: {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  onClick?: () => void;
+  module: FeatureModule;
   isPrimary?: boolean;
-}) => (
-  <motion.div
-    variants={{
-      hidden: { opacity: 0, scale: 0.95, y: 10 },
-      show: { opacity: 1, scale: 1, y: 0 },
-    }}
-    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-  >
-    <Card
-      onClick={onClick}
-      className={`group h-full cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
-        isPrimary
-          ? "bg-primary/10 border-primary/40 hover:border-primary/80 hover:shadow-primary/20"
-          : "bg-card hover:border-primary/40 hover:shadow-primary/10"
-      }`}
-    >
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-10 w-10 items-center justify-center rounded-lg ${isPrimary ? "bg-primary/20" : "bg-muted"}`}
-          >
-            <Icon
-              className={`h-5 w-5 ${isPrimary ? "text-primary" : "text-foreground"}`}
-            />
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: module.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.7 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <Card
+        className={`group h-full cursor-grab active:cursor-grabbing transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+          isPrimary
+            ? "bg-primary/10 border-primary/40 hover:border-primary/80 hover:shadow-primary/20"
+            : "bg-card hover:border-primary/40 hover:shadow-primary/10"
+        }`}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                isPrimary ? "bg-primary/20" : "bg-muted"
+              }`}
+            >
+              <Plus
+                className={`h-5 w-5 ${
+                  isPrimary ? "text-primary" : "text-foreground"
+                }`}
+              />
+            </div>
+            <h3 className="text-md font-semibold">{module.title}</h3>
           </div>
-          <h3 className="text-md font-semibold">{title}</h3>
-        </div>
-        <p className="text-sm text-muted-foreground pt-2">{description}</p>
-      </CardHeader>
-    </Card>
-  </motion.div>
-);
+          <p className="text-sm text-muted-foreground pt-2">
+            {module.description}
+          </p>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+};
 
 const RecentCampaigns = ({
   campaigns,
@@ -146,22 +179,56 @@ export function DashboardClient({
 }: {
   recentCampaigns: Tables<"campaigns">[];
 }) {
-  const { user } = useDashboard();
+  const { user, modules: initialModules } = useDashboard();
+  const [modules, setModules] = useState(initialModules);
+  const [isPending, startTransition] = useTransition();
   const username = user.user_metadata?.full_name || user.email;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = modules.findIndex((m) => m.id === active.id);
+      const newIndex = modules.findIndex((m) => m.id === over!.id);
+      const newOrder = arrayMove(modules, oldIndex, newIndex);
+      setModules(newOrder);
+
+      startTransition(async () => {
+        const moduleIds = newOrder.map((m) => m.id);
+        const result =
+          await profileActions.updateDashboardLayoutAction(moduleIds);
+        if (!result.success) {
+          toast.error(
+            result.error || "No se pudo guardar el orden del dashboard."
+          );
+          setModules(modules); // Revertir en caso de error
+        }
+      });
+    }
+  };
 
   const creationActions = [
     {
+      id: "create-campaign", // Usar un ID único y estable
       title: "Crear Campaña Completa",
       description: "Inicia el flujo guiado para una nueva campaña.",
       icon: Plus,
       isPrimary: true,
     },
     {
+      id: "quick-landing",
       title: "Landing Rápida",
       description: "Genera una landing a partir de una idea.",
       icon: LayoutTemplate,
     },
     {
+      id: "ad-script-generator",
       title: "Generar Script de Anuncio",
       description: "Crea un copy persuasivo para tus ads.",
       icon: PenSquare,
@@ -169,60 +236,69 @@ export function DashboardClient({
   ];
 
   return (
-    <div className="flex h-full flex-col gap-8 relative">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="absolute top-0 right-0">
-              <HelpCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="max-w-xs">
-              Este es tu Centro de Comando. Desde aquí puedes iniciar nuevas
-              campañas, usar herramientas de IA, o retomar tus proyectos
-              recientes.
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <div className="flex h-full flex-col gap-8 relative">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="absolute top-0 right-0">
+                <HelpCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">
+                Este es tu Centro de Comando. Arrastra y suelta las tarjetas
+                para personalizar tu layout.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: 0.1 } },
-        }}
-        className="flex flex-col gap-8"
-      >
         <motion.div
-          variants={{
-            hidden: { opacity: 0, y: 10 },
-            show: { opacity: 1, y: 0 },
-          }}
-        >
-          <h1 className="text-2xl font-bold text-foreground">
-            Bienvenido, {username}
-          </h1>
-          <p className="text-md text-muted-foreground">
-            ¿Qué campaña de alto rendimiento vamos a lanzar hoy?
-          </p>
-        </motion.div>
-        <motion.div
+          initial="hidden"
+          animate="show"
           variants={{
             hidden: {},
-            show: { transition: { staggerChildren: 0.07 } },
+            show: { transition: { staggerChildren: 0.1 } },
           }}
-          className="grid grid-cols-1 gap-4 md:grid-cols-3"
+          className="flex flex-col gap-8"
         >
-          {creationActions.map((action) => (
-            <ActionCard key={action.title} {...action} />
-          ))}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: { opacity: 1, y: 0 },
+            }}
+          >
+            <h1 className="text-2xl font-bold text-foreground">
+              Bienvenido, {username}
+            </h1>
+            <p className="text-md text-muted-foreground">
+              ¿Qué campaña de alto rendimiento vamos a lanzar hoy?
+            </p>
+          </motion.div>
+          <SortableContext
+            items={creationActions.map((a) => a.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {creationActions.map((action) => (
+                <SortableActionCard
+                  key={action.id}
+                  module={{
+                    ...action,
+                    href: "",
+                    status: "active",
+                    tooltip: "",
+                  }} // Adaptar al tipo FeatureModule
+                  isPrimary={action.isPrimary}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          <RecentCampaigns campaigns={recentCampaigns} />
         </motion.div>
-        <RecentCampaigns campaigns={recentCampaigns} />
-      </motion.div>
-    </div>
+      </div>
+    </DndContext>
   );
 }
 /* MEJORAS FUTURAS DETECTADAS

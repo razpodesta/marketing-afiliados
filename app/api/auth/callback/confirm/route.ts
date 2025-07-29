@@ -10,9 +10,10 @@
  * @author Metashark
  * @version 4.1.0 (Route Handler Stability & Security)
  */
-import { type NextRequest, NextResponse } from "next/server";
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { logger } from "@/lib/logging";
 import type { Database } from "@/lib/types/database";
 

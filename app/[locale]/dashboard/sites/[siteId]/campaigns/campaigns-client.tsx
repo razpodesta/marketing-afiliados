@@ -1,6 +1,20 @@
 // Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
 "use client";
 
+import {
+  ArrowLeft,
+  Edit,
+  Loader2,
+  PlusCircle,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+import { useFormatter } from "next-intl";
+import { useState } from "react";
+
+// Importaciones de la nueva arquitectura
+import { CreateCampaignForm } from "@/components/campaigns"; // <-- CORRECCIÓN: Importación desde el barril.
+import { PaginationControls } from "@/components/sites/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -21,22 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Link, type AppPathname } from "@/navigation";
-import {
-  ArrowLeft,
-  Edit,
-  Loader2,
-  PlusCircle,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
-import { useFormatter } from "next-intl";
-import { useState } from "react";
-// Importaciones de la nueva arquitectura
-import { CreateCampaignForm } from "@/components/campaigns"; // <-- CORRECCIÓN: Importación desde el barril.
-import { PaginationControls } from "@/components/sites/PaginationControls";
 import { useCampaignsManagement } from "@/lib/hooks/useCampaignsManagement";
 import type { Tables } from "@/lib/types/database";
+import { type AppPathname, Link } from "@/navigation";
 
 /**
  * @file campaigns-client.tsx

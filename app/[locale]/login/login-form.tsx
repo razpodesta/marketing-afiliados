@@ -15,12 +15,13 @@
  */
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-import { brandTheme } from "@/lib/supabase/auth-theme";
 import { Auth } from "@supabase/auth-ui-react";
 import type { Provider } from "@supabase/supabase-js";
-import { useSearchParams } from "next/navigation";
 import { AlertCircle } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+
+import { brandTheme } from "@/lib/supabase/auth-theme";
+import { createClient } from "@/lib/supabase/client";
 
 // Asumimos que estos componentes de shadcn/ui existen en el proyecto
 // aunque no estén en el snapshot.

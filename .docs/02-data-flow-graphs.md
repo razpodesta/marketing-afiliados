@@ -4,9 +4,9 @@ Flujo 1: Onboarding de Nuevo Usuario (Crítico para la Estabilidad)
 Este flujo es automático y se dispara por un trigger de base de datos para garantizar que ningún usuario quede en un estado "huérfano" sin un workspace.
 Generated mermaid
 graph TD
-    subgraph "Navegador del Usuario"
-        A[Registro con Email/OAuth] --> B{Formulario de Login};
-    end
+subgraph "Navegador del Usuario"
+A[Registro con Email/OAuth] --> B{Formulario de Login};
+end
 
     subgraph "Supabase Auth"
         B --> C[auth.users];
@@ -32,27 +32,27 @@ Flujo 2: Carga y Renderizado del Dashboard de Sitios (Bucle Principal de la UI)
 Este es el flujo más común para un usuario que regresa a la aplicación.
 Generated mermaid
 graph TD
-    A[Usuario accede a /dashboard/sites] --> B{Middleware};
-    B -- Valida sesión --> C[Server Component: sites/page.tsx];
-    C -- Lee cookie 'active_workspace_id' --> D[Capa de Datos: lib/data/sites.ts];
-    D -- Llama a getSitesByWorkspaceId() --> E[Supabase DB];
-    E -- Retorna sitios + count(campaigns) --> D;
-    D --> C;
-    C -- Pasa datos como props --> F[Client Component: sites-client.tsx];
-    F -- Renderiza UI --> G[Cuadrícula de Sitios Interactiva];
+A[Usuario accede a /dashboard/sites] --> B{Middleware};
+B -- Valida sesión --> C[Server Component: sites/page.tsx];
+C -- Lee cookie 'active_workspace_id' --> D[Capa de Datos: lib/data/sites.ts];
+D -- Llama a getSitesByWorkspaceId() --> E[Supabase DB];
+E -- Retorna sitios + count(campaigns) --> D;
+D --> C;
+C -- Pasa datos como props --> F[Client Component: sites-client.tsx];
+F -- Renderiza UI --> G[Cuadrícula de Sitios Interactiva];
 
 Mermaid
 Flujo 3: Guardado de una Campaña (Interacción con el Constructor)
 Este flujo demuestra el patrón de Server Actions para la mutación de datos.
 Generated mermaid
 graph TD
-    A[Usuario edita en el Builder] --> B{Estado en Zustand Store se actualiza};
-    B --> C[Usuario hace clic en 'Guardar' en BuilderHeader.tsx];
-    C --> D[Llamada a Server Action: updateCampaignContentAction(campaignId, content)];
-    D -- "use server" --> E{Lógica del Servidor};
-    E -- 1. Valida permisos del usuario --> F[Supabase DB];
-    E -- 2. UPDATE campaigns SET content = ... --> F;
-    F -- Retorna éxito/error --> D;
-    D -- 3. Llama a revalidatePath() --> G[Cache de Next.js se invalida];
-    D --> H[Cliente recibe respuesta];
-    H --> I[Muestra Toast de Éxito/Error];
+A[Usuario edita en el Builder] --> B{Estado en Zustand Store se actualiza};
+B --> C[Usuario hace clic en 'Guardar' en BuilderHeader.tsx];
+C --> D[Llamada a Server Action: updateCampaignContentAction(campaignId, content)];
+D -- "use server" --> E{Lógica del Servidor};
+E -- 1. Valida permisos del usuario --> F[Supabase DB];
+E -- 2. UPDATE campaigns SET content = ... --> F;
+F -- Retorna éxito/error --> D;
+D -- 3. Llama a revalidatePath() --> G[Cache de Next.js se invalida];
+D --> H[Cliente recibe respuesta];
+H --> I[Muestra Toast de Éxito/Error];

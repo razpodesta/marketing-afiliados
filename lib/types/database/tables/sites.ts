@@ -65,4 +65,3 @@ export type Sites = {
  * 3. **Soft Deletes**: Implementar borrado lógico añadiendo un campo `deleted_at: string | null` para permitir la recuperación de sitios eliminados.
  */
 // lib/types/database/tables/sites.ts
-

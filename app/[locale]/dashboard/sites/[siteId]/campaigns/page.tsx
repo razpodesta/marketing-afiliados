@@ -11,12 +11,14 @@
  * @author Metashark
  * @version 2.0.0 (Scalable & Context-Aware Page)
  */
+import { AlertTriangle } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+
 import { Card } from "@/components/ui/card";
 import { BreadcrumbsProvider } from "@/lib/context/BreadcrumbsContext";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
-import { AlertTriangle } from "lucide-react";
-import { notFound, redirect } from "next/navigation";
+
 import { CampaignsClient } from "./campaigns-client";
 
 const CAMPAIGNS_PER_PAGE = 10;

@@ -8,11 +8,13 @@
  * @author Metashark
  * @version 4.1.0 (Dynamic View Prop)
  */
-import { Card, CardContent } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
-import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
+
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {

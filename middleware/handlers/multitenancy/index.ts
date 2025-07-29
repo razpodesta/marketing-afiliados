@@ -1,8 +1,9 @@
 // middleware/handlers/multitenancy/index.ts
+import { type NextRequest, NextResponse } from "next/server";
+
 import { getSiteDataByHost } from "../../../lib/data/sites";
 import { logger } from "../../../lib/logging";
 import { rootDomain } from "../../../lib/utils";
-import { type NextRequest, NextResponse } from "next/server";
 
 /**
  * @file middleware/handlers/multitenancy/index.ts

@@ -8,9 +8,11 @@
  */
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+
 import { Card } from "@/components/ui/card";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { AnimatePresence, motion } from "framer-motion";
+
 import { SiteCard } from "./SiteCard";
 
 interface SitesGridProps {

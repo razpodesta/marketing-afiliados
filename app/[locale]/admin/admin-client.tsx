@@ -1,8 +1,21 @@
 // app/[locale]/admin/admin-client.tsx
 "use client";
 
-import { admin, session } from "@/lib/actions";
-import { type ActionResult } from "@/lib/validators";
+import type { User } from "@supabase/supabase-js";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  LogOut,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import { useState, useTransition } from "react";
+import toast from "react-hot-toast";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,21 +34,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { admin, session } from "@/lib/actions";
 import { protocol, rootDomain } from "@/lib/utils";
-import type { User } from "@supabase/supabase-js";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  Loader2,
-  LogOut,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import Link from "next/link";
-import { useState, useTransition } from "react";
-import toast from "react-hot-toast";
+import { type ActionResult } from "@/lib/validators";
 
 /**
  * @file Componente Cliente del Dashboard de Administración

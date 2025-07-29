@@ -5,13 +5,14 @@
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 4.0.0 (Architectural Alignment)
  */
+import { notFound, redirect } from "next/navigation";
+
+import { useBuilderStore } from "@/app/[locale]/builder/core/store";
+import { Canvas } from "@/components/builder/Canvas";
+import type { CampaignConfig } from "@/lib/builder/types.d";
 import { data as dataLayer } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
-import { Canvas } from "@/components/builder/Canvas";
-import { useBuilderStore } from "@/app/[locale]/builder/core/store";
-import type { CampaignConfig } from "@/lib/builder/types.d";
 
 export default async function BuilderPage({
   params,

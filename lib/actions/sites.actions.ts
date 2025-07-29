@@ -1,33 +1,34 @@
-// Ruta: app/actions/sites.actions.ts
 /**
- * @file app/actions/sites.actions.ts
+ * @file lib/actions/sites.actions.ts
  * @description Contiene las Server Actions para la gestión de sitios (subdominios).
- * REFACTORIZACIÓN 360 - SEGURIDAD Y ARQUITECTURA:
- * 1. La lógica de permisos de eliminación ha sido abstraída al nuevo módulo
- *    centralizado `lib/auth/permissions.ts`, mejorando la mantenibilidad y el DRY.
- * 2. Integrado el logging de auditoría para registrar eventos de creación y eliminación.
- *
+ *              Incluye validación de datos y verificaciones de permisos
+ *              críticas para la arquitectura multi-tenant, ahora con seguridad
+ *              de tipos mejorada.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.0.0 (Centralized Permissions Refactor)
+ * @version 6.0.0 (Type-Safe Permission Handling & Audit Log Detail)
  */
 "use server";
 
-import { getSiteDataBySubdomain } from "@/lib/data/sites";
-import { logger } from "@/lib/logging";
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { createAuditLog } from "./_helpers";
+
+import { requireWorkspacePermission } from "@/lib/auth/user-permissions";
+import { getSiteDataByHost } from "@/lib/data/sites";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
 import {
-  SiteSchema,
   type ActionResult,
   type CreateSiteFormState,
-} from "./schemas";
-import { hasWorkspacePermission } from "@/lib/auth/permissions"; // <-- NUEVA IMPORTACIÓN
+  SiteSchema,
+} from "@/lib/validators";
+
+import { createAuditLog } from "./_helpers";
 
 /**
- * @description Comprueba si un subdominio ya existe en la base de datos.
- * @param {string} subdomain - El subdominio a verificar.
+ * @async
+ * @function checkSubdomainAvailabilityAction
+ * @description Verifica si un subdominio ya existe en la base de datos.
+ * @param {string} subdomain - El subdominio a ser verificado.
  * @returns {Promise<{ isAvailable: boolean }>} Un objeto indicando la disponibilidad.
  */
 export async function checkSubdomainAvailabilityAction(
@@ -37,15 +38,20 @@ export async function checkSubdomainAvailabilityAction(
     return { isAvailable: false };
   }
   try {
-    const existingSite = await getSiteDataBySubdomain(subdomain);
+    const existingSite = await getSiteDataByHost(subdomain);
     return { isAvailable: !existingSite };
   } catch (error) {
-    logger.error(`Error al verificar disponibilidad de ${subdomain}:`, error);
+    logger.error(
+      `[SitesActions] Error al verificar disponibilidad de ${subdomain}:`,
+      error
+    );
     return { isAvailable: false };
   }
 }
 
 /**
+ * @async
+ * @function createSiteAction
  * @description Crea un nuevo sitio (subdominio) asociado al workspace activo.
  * @param {CreateSiteFormState} prevState - El estado anterior del formulario.
  * @param {FormData} formData - Los datos del formulario.
@@ -77,27 +83,39 @@ export async function createSiteAction(
   }
 
   const { subdomain, icon } = validation.data;
-  const existingSite = await getSiteDataBySubdomain(subdomain);
+  const existingSite = await getSiteDataByHost(subdomain);
   if (existingSite) {
     return { error: "Este subdominio ya está en uso." };
   }
 
+  const permissionCheck = await requireWorkspacePermission(workspaceId, [
+    "owner",
+    "admin",
+    "member",
+  ]);
+  if (!permissionCheck.success) {
+    logger.warn(
+      `[SitesActions] Violación de seguridad: Usuario ${user.id} intentó crear un sitio en el workspace ${workspaceId} sin permisos. Motivo: ${permissionCheck.error}`
+    );
+    return { success: false, error: permissionCheck.error };
+  }
+
   const { data: newSite, error } = await supabase
     .from("sites")
-    .insert({ subdomain, icon, workspace_id: workspaceId })
+    .insert({ subdomain, icon, workspace_id: workspaceId, owner_id: user.id })
     .select("id")
     .single();
 
   if (error || !newSite) {
-    logger.error("Error al crear el sitio:", error);
-    return { error: "No se pudo crear el sitio. Inténtalo de nuevo." };
+    logger.error("[SitesActions] Error al crear el sitio:", error);
+    return { error: "No fue posible crear el sitio. Tente nuevamente." };
   }
 
   await createAuditLog("site_created", {
     userId: user.id,
-    siteId: newSite.id,
-    subdomain,
-    workspaceId,
+    targetEntityId: newSite.id,
+    targetEntityType: "site",
+    metadata: { subdomain, workspaceId },
   });
 
   revalidatePath("/dashboard/sites");
@@ -105,18 +123,16 @@ export async function createSiteAction(
 }
 
 /**
- * @description Elimina un sitio, verificando primero los permisos del usuario.
- * @param {FormData} formData - Debe contener el `siteId` a eliminar.
+ * @async
+ * @function deleteSiteAction
+ * @description Excluye un sitio, verificando primero los permisos del usuario.
+ * @param {FormData} formData - Debe contener el `siteId` a ser excluido.
  * @returns {Promise<ActionResult>} El resultado de la operación.
  */
 export async function deleteSiteAction(
   formData: FormData
 ): Promise<ActionResult> {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado." };
 
   const siteId = formData.get("siteId") as string;
   if (!siteId)
@@ -132,22 +148,31 @@ export async function deleteSiteAction(
     return { success: false, error: "Sitio no encontrado." };
   }
 
-  // REFACTORIZACIÓN: Lógica de permisos centralizada
-  const isAuthorized = await hasWorkspacePermission(
-    user.id,
-    site.workspace_id,
-    ["owner", "admin"]
-  );
+  const permissionCheck = await requireWorkspacePermission(site.workspace_id, [
+    "owner",
+    "admin",
+  ]);
 
-  if (!isAuthorized) {
+  // --- INICIO DE CORRECCIÓN DE TIPO: GUARDA DE TIPO (TYPE GUARD) ---
+  // La siguiente comprobación es la solución al error reportado.
+  // Al verificar `!permissionCheck.success`, TypeScript entiende que en el
+  // bloque de código posterior, `permissionCheck.success` solo puede ser `true`.
+  // Esto permite acceder de forma segura a `permissionCheck.data`, ya que el
+  // compilador sabe que existe en la rama de éxito de la unión de tipos.
+  if (!permissionCheck.success) {
+    const userIdForLog = "N/A (No autenticado/Sin permiso)";
     logger.warn(
-      `VIOLACIÓN DE SEGURIDAD: Usuario ${user.id} intentó eliminar el sitio ${siteId} sin permisos.`
+      `[SitesActions] Violación de seguridad: Usuario ${userIdForLog} intentó excluir el sitio ${siteId} sin permisos. Motivo: ${permissionCheck.error}`
     );
     return {
       success: false,
-      error: "No tienes los permisos necesarios para eliminar este sitio.",
+      error: permissionCheck.error,
     };
   }
+  // --- FIN DE CORRECCIÓN DE TIPO ---
+
+  // A partir de aquí, es seguro acceder a `permissionCheck.data`.
+  const { user: performingUser } = permissionCheck.data;
 
   const { error: deleteError } = await supabase
     .from("sites")
@@ -156,30 +181,28 @@ export async function deleteSiteAction(
 
   if (deleteError) {
     logger.error(
-      `Error al eliminar el sitio ${siteId} por el usuario ${user.id}:`,
+      `[SitesActions] Error al excluir el sitio ${siteId} por el usuario ${performingUser.id}:`,
       deleteError
     );
-    return { success: false, error: "No se pudo eliminar el sitio." };
+    return { success: false, error: "No fue posible excluir el sitio." };
   }
 
   await createAuditLog("site_deleted", {
-    userId: user.id,
-    siteId: siteId,
-    subdomain: site.subdomain,
-    workspaceId: site.workspace_id,
+    userId: performingUser.id,
+    targetEntityId: siteId,
+    targetEntityType: "site",
+    metadata: { subdomain: site.subdomain, workspaceId: site.workspace_id },
   });
 
   revalidatePath("/dashboard/sites", "layout");
   return { success: true, data: null };
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Soft Deletes: Implementar un sistema de borrado lógico añadiendo un campo `deleted_at` a la tabla `sites`. La `deleteSiteAction` actualizaría este campo en lugar de una eliminación permanente, permitiendo la recuperación de datos.
- * 2. Update Site Action: Crear una nueva acción `updateSiteAction` para modificar detalles de un sitio (ej. cambiar el ícono o el subdominio). Esta acción deberá reutilizar el helper `hasWorkspacePermission` para la validación.
- * 3. Garantizar Integridad de Datos con Cascade Deletes: A nivel de base de datos, es crucial establecer una política `ON DELETE CASCADE` en la clave foránea `campaigns.site_id`. Esto asegura que al eliminar un sitio, todas sus campañas y datos asociados se eliminen automáticamente, previniendo datos huérfanos.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Eliminación en Cascada (Cascade Delete): La eliminación actual solo borra la fila en la tabla `sites`. Es crucial configurar una eliminación en cascada en la base de datos (usando `ON DELETE CASCADE` en las claves foráneas) para que al eliminar un sitio, también se eliminen automáticamente todas las campañas, páginas y datos asociados a él, previniendo datos huérfanos.
- * 2. Soft Deletes (Borrado Lógico): Para permitir la recuperación de sitios eliminados accidentalmente, se podría implementar un sistema de "soft delete". Esto implicaría añadir una columna `deleted_at` a la tabla `sites`. La acción de eliminar simplemente establecería una marca de tiempo en esta columna, y todas las consultas de la aplicación se modificarían para filtrar los sitios donde `deleted_at` es nulo.
- * 3. Logging de Auditoría en Base de Datos: La `deleteSiteAction` es una acción crítica que debería ser registrada en la tabla `audit_logs` usando la función helper `createAuditLog`, incluyendo qué usuario eliminó qué sitio y cuándo.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para robustecer la gestión de sitios.
+ *
+ * 1.  **Soft Deletes (Exclusión Lógica):** Implementar un sistema de exclusión lógica añadiendo un campo `deleted_at` a la tabla `sites`. La `deleteSiteAction` actualizaría este campo en lugar de una exclusión permanente, permitiendo la recuperación de datos. Todas las consultas de sitios deberían entonces filtrar por `deleted_at IS NULL`.
+ * 2.  **Acción de Actualización (`updateSiteAction`):** Crear una nueva Server Action para modificar detalles de un sitio (ej. cambiar el ícono, dominio personalizado). Esa acción debe reutilizar el helper `requireWorkspacePermission` para validación.
+ * 3.  **Garantizar Integridad de Datos con Cascade Deletes:** A nivel de base de datos, es crucial establecer una política `ON DELETE CASCADE` en la clave foránea `campaigns.site_id`. Esto garantiza que, al excluir un sitio, todas sus campañas y datos asociados sean automáticamente excluidos, previniendo datos huérfanos.
  */

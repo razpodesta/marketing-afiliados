@@ -1,34 +1,38 @@
+// lib/actions/workspaces.actions.ts
 /**
- * @file app/actions/workspaces.actions.ts
- * @description Contiene las Server Actions para la gestión de workspaces.
- * @refactor
- * REFACTORIZACIÓN DE CACHÉ: Se ha añadido `revalidateTag` a la acción de aceptar
- * invitaciones para invalidar la caché de datos del layout del dashboard,
- * asegurando que la lista de workspaces se actualice inmediatamente.
- *
- * @author Metashark
- * @version 3.2.0 (Cache Revalidation)
+ * @file lib/actions/workspaces.actions.ts
+ * @description Contém as Server Actions para a gestão de workspaces.
+ *              Inclui validação de dados e verificações de permissões
+ *              críticas para a arquitetura multi-tenant.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 3.4.0 (Imports and Audit Log Integration)
  */
 
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logging";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { requireWorkspacePermission } from "@/lib/auth/user-permissions";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
 import {
-  WorkspaceSchema,
-  InvitationSchema,
-  type CreateWorkspaceFormState,
-  type InviteMemberFormState,
   type ActionResult,
-} from "./schemas";
-import type { Database } from "@/lib/types/database";
+  type CreateWorkspaceFormState,
+  InvitationSchema,
+  type InviteMemberFormState,
+  WorkspaceSchema,
+} from "@/lib/validators"; // <-- CORREÇÃO: Importar de lib/validators
+
+import { createAuditLog } from "./_helpers"; // <-- CORREÇÃO: Importar do barrel file de helpers
 
 /**
- * @description Establece el workspace activo para el usuario en una cookie y redirige al dashboard.
- * @param {string} workspaceId - El UUID del workspace a activar.
+ * @async
+ * @function setActiveWorkspaceAction
+ * @description Estabelece o workspace ativo para o usuário em um cookie e redireciona para o dashboard.
+ * @param {string} workspaceId - O UUID do workspace a ser ativado.
+ * @returns {Promise<void>}
  */
 export async function setActiveWorkspaceAction(
   workspaceId: string
@@ -43,11 +47,13 @@ export async function setActiveWorkspaceAction(
 }
 
 /**
- * @description Crea un nuevo workspace con un nombre y un icono, y asigna al usuario
- *              actual como propietario en una única transacción atómica.
- * @param {CreateWorkspaceFormState} prevState - El estado anterior del formulario.
- * @param {FormData} formData - Los datos del formulario.
- * @returns {Promise<CreateWorkspaceFormState>} El nuevo estado del formulario.
+ * @async
+ * @function createWorkspaceAction
+ * @description Cria um novo workspace com um nome e um ícone, e atribui o usuário
+ *              atual como proprietário em uma única transação atômica.
+ * @param {CreateWorkspaceFormState} prevState - O estado anterior do formulário.
+ * @param {FormData} formData - Os dados do formulário.
+ * @returns {Promise<CreateWorkspaceFormState>} O novo estado do formulário.
  */
 export async function createWorkspaceAction(
   prevState: CreateWorkspaceFormState,
@@ -59,7 +65,7 @@ export async function createWorkspaceAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "No autenticado. Inicia sesión de nuevo.", success: false };
+    return { error: "Não autenticado. Faça login novamente.", success: false };
   }
 
   const validation = WorkspaceSchema.safeParse(
@@ -71,33 +77,47 @@ export async function createWorkspaceAction(
     const errorMessage =
       formErrors.workspaceName?.[0] ||
       formErrors.icon?.[0] ||
-      "Datos inválidos.";
+      "Dados inválidos.";
     return { error: errorMessage, success: false };
   }
 
   const { workspaceName, icon } = validation.data;
 
-  const { error } = await supabase.rpc("create_workspace_with_owner", {
-    owner_user_id: user.id,
-    new_workspace_name: workspaceName,
-    new_workspace_icon: icon,
-  });
+  // Chamada RPC para criar o workspace e atribuir o proprietário atomicamente
+  const { error, data: newWorkspace } = await supabase
+    .rpc("create_workspace_with_owner", {
+      owner_user_id: user.id,
+      new_workspace_name: workspaceName,
+      new_workspace_icon: icon,
+    })
+    .select("*")
+    .single(); // Adicionar .select("*").single() para tipagem do RPC e retorno do objeto criado
 
-  if (error) {
-    logger.error("Error en RPC al crear el workspace con icono:", error);
-    return { error: "No se pudo crear el workspace.", success: false };
+  if (error || !newWorkspace) {
+    logger.error(
+      "[WorkspacesActions] Erro em RPC ao criar o workspace com ícone:",
+      error
+    );
+    return { error: "Não foi possível criar o workspace.", success: false };
   }
+
+  await createAuditLog("workspace_created", {
+    userId: user.id,
+    targetEntityId: newWorkspace.id,
+    targetEntityType: "workspace",
+    metadata: { workspaceName, icon },
+  });
 
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
 
 /**
- * @description Crea un registro de invitación para un nuevo miembro a un workspace.
- *              Verifica que el usuario que invita tenga los permisos necesarios.
- * @param {InviteMemberFormState} prevState - El estado anterior del formulario.
- * @param {FormData} formData - Los datos del formulario.
- * @returns {Promise<InviteMemberFormState>} El nuevo estado del formulario.
+ * @description Cria um registro de convite para um novo membro em um workspace.
+ *              Verifica se o usuário que convida tem as permissões necessárias.
+ * @param {InviteMemberFormState} prevState - O estado anterior do formulário.
+ * @param {FormData} formData - Os dados do formulário.
+ * @returns {Promise<InviteMemberFormState>} O novo estado do formulário.
  */
 export async function sendWorkspaceInvitationAction(
   prevState: InviteMemberFormState,
@@ -106,10 +126,10 @@ export async function sendWorkspaceInvitationAction(
   const supabase = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(); // Ainda precisamos do user para checar o email de quem convida.
 
   if (!user) {
-    return { error: "No autenticado." };
+    return { error: "Não autenticado." };
   }
 
   const validation = InvitationSchema.safeParse(
@@ -117,32 +137,26 @@ export async function sendWorkspaceInvitationAction(
   );
 
   if (!validation.success) {
-    return { error: "Datos de invitación inválidos." };
+    return { error: "Dados de convite inválidos." };
   }
 
   const { email: inviteeEmail, role, workspaceId } = validation.data;
 
   if (inviteeEmail === user.email) {
-    return { error: "No puedes invitarte a ti mismo." };
+    return { error: "Você não pode convidar a si mesmo." };
   }
 
-  const { data: member, error: memberError } = await supabase
-    .from("workspace_members")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("workspace_id", workspaceId)
-    .single();
+  // REFACTORIZAÇÃO: Usar o novo aparato centralizado para verificar permissões de workspace.
+  const permissionCheck = await requireWorkspacePermission(
+    workspaceId,
+    ["owner", "admin"] // Roles permitidos para enviar convites
+  );
 
-  if (memberError || !member) {
-    return { error: "No eres miembro de este workspace." };
-  }
-
-  const allowedRoles: Array<Database["public"]["Enums"]["workspace_role"]> = [
-    "owner",
-    "admin",
-  ];
-  if (!allowedRoles.includes(member.role)) {
-    return { error: "No tienes permisos para invitar a nuevos miembros." };
+  if (!permissionCheck.success) {
+    logger.warn(
+      `[WorkspacesActions] Violação de segurança: Usuário ${user.id} tentou enviar convite para ${inviteeEmail} no workspace ${workspaceId} sem permissões. Motivo: ${permissionCheck.error}`
+    );
+    return { error: permissionCheck.error };
   }
 
   const { error: invitationError } = await supabase.from("invitations").insert({
@@ -155,21 +169,37 @@ export async function sendWorkspaceInvitationAction(
 
   if (invitationError) {
     if (invitationError.code === "23505") {
-      return { error: "Este usuario ya ha sido invitado a este workspace." };
+      // Código para violação de unique constraint (convite duplicado)
+      return {
+        error:
+          "Este usuário já foi convidado para este workspace ou já é membro.",
+      };
     }
-    logger.error("Error al crear la invitación:", invitationError);
-    return { error: "No se pudo enviar la invitación." };
+    logger.error(
+      "[WorkspacesActions] Erro ao criar o convite:",
+      invitationError
+    );
+    return { error: "Não foi possível enviar o convite." };
   }
 
-  revalidatePath(`/dashboard/settings`);
-  return { success: true, message: `Invitación enviada a ${inviteeEmail}.` };
+  await createAuditLog("workspace_invitation_sent", {
+    actorId: user.id,
+    targetEntityId: workspaceId,
+    targetEntityType: "workspace",
+    metadata: { invitedEmail: inviteeEmail, role },
+  });
+
+  revalidatePath(`/dashboard/settings`); // Revalida a página de configurações onde os convites podem ser listados
+  revalidateTag(`invitations:${inviteeEmail}`); // Opcional: tag para o usuário convidado.
+
+  return { success: true, message: `Convite enviado para ${inviteeEmail}.` };
 }
 
 /**
- * @description Permite al usuario autenticado aceptar una invitación a un workspace.
- *              Invoca una función RPC segura para garantizar la integridad de los datos.
- * @param {string} invitationId - El ID de la invitación a aceptar.
- * @returns {Promise<ActionResult<{ message: string }>>} El resultado de la operación.
+ * @description Permite ao usuário autenticado aceitar um convite para um workspace.
+ *              Invoca uma função RPC segura para garantir a integridade dos dados.
+ * @param {string} invitationId - O ID do convite a ser aceito.
+ * @returns {Promise<ActionResult<{ message: string }>>} O resultado da operação.
  */
 export async function acceptInvitationAction(
   invitationId: string
@@ -180,7 +210,7 @@ export async function acceptInvitationAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { success: false, error: "No autenticado." };
+    return { success: false, error: "Não autenticado." };
   }
 
   const { data, error } = await supabase.rpc("accept_workspace_invitation", {
@@ -189,29 +219,39 @@ export async function acceptInvitationAction(
   });
 
   if (error) {
-    logger.error("Error en RPC al aceptar invitación:", error);
-    return { success: false, error: "No se pudo aceptar la invitación." };
+    logger.error("[WorkspacesActions] Erro em RPC ao aceitar convite:", error);
+    return { success: false, error: "Não foi possível aceitar o convite." };
   }
 
+  // O RPC retorna um JSON com { success: boolean, error?: string, message?: string }
   if (data && !data.success) {
     return { success: false, error: data.error };
   }
 
-  // MEJORA: Invalidar la caché de workspaces e invitaciones para el usuario.
+  await createAuditLog("workspace_invitation_accepted", {
+    userId: user.id,
+    targetEntityId: invitationId,
+    targetEntityType: "invitation",
+    metadata: { status: "accepted" },
+  });
+
+  // MELHORIA: Invalidar o cache de workspaces e convites para o usuário para atualização imediata na UI.
   revalidateTag(`workspaces:${user.id}`);
   revalidateTag(`invitations:${user.id}`);
-  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard", "layout"); // Revalida o layout para que a sidebar e o switcher atualizem
 
-  return { success: true, data: { message: data.message } };
+  return {
+    success: true,
+    data: {
+      message: data.message || "Você se juntou ao workspace com sucesso!",
+    },
+  };
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Envío de Email Real: La mejora más crítica es reemplazar el TODO en `sendWorkspaceInvitationAction` con una integración real a un servicio de email transaccional (como Resend) para enviar un correo con un enlace de invitación único y seguro.
- * 2. Acción para Rechazar Invitación: Crear una nueva `Server Action` `declineInvitationAction` que simplemente actualice el estado de la invitación a 'declined', permitiendo al usuario limpiar su lista de invitaciones pendientes.
- * 3. Notificaciones en Tiempo Real: Integrar Supabase Realtime para que, cuando se reciba una nueva invitación, el `InvitationBell` se actualice en tiempo real sin necesidad de recargar la página.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Envío de Email Real: La mejora más crítica es reemplazar el `TODO` con una integración real a un servicio de email transaccional (como Resend) para enviar un correo con un enlace de invitación único y seguro.
- * 2. Gestión de Invitaciones Pendientes: Crear una nueva página en los ajustes del workspace que muestre una tabla con las invitaciones pendientes, permitiendo a los administradores reenviar o revocar invitaciones.
- * 3. Notificaciones en la App: Cuando se envía una invitación, se podría crear una notificación en la base de datos para el administrador, confirmando que la invitación fue enviada.
+/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
+ * 1. Envio de Email Real (sendWorkspaceInvitationAction): A melhoria mais crítica é integrar um serviço de e-mail transacional (e.g., Resend) para enviar e-mails com links de convite únicos e seguros, substituindo a simulação atual.
+ * 2. Ação para Recusar Convite (`declineInvitationAction`): Criar uma nova Server Action que simplesmente atualize o status do convite para 'declined', permitindo ao usuário limpar sua lista de convites pendentes.
+ * 3. Gestão de Convites Pendentes no UI: Criar uma nova página nas configurações do workspace que liste todos os convites pendentes enviados (pelo usuário atual), permitindo aos administradores reenviar ou revogar convites.
+ * 4. Notificações em Tempo Real (useRealtimeInvitations): Garantir que as Server Actions de convite/aceitação/recusa ativem a atualização em tempo real (`router.refresh()` ou triggers específicos do Supabase Realtime) para atualizações instantâneas na UI. (Já previsto no TSDoc).
+ * 5. Log de Auditoria Detalhado: Garantir que `createAuditLog` seja chamado consistentemente para todas as ações de criação, atualização e exclusão, com metadados relevantes. (Já implementado).
  */
