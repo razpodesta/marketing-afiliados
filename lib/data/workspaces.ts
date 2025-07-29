@@ -6,7 +6,7 @@
  *              interfaz permitida para acceder a los datos de los workspaces,
  *              garantizando consistencia, seguridad y rendimiento.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.2.0 (Corrected Type-Safe Data Transformation)
+ * @version 2.3.0 (Robust Data Transformation with flatMap)
  */
 "use server";
 
@@ -42,15 +42,11 @@ export async function getWorkspacesByUserId(
     throw new Error("No se pudieron cargar los datos de los workspaces.");
   }
 
-  // CORRECCIÓN CRÍTICA (TS2322, TS2677): La consulta con join de Supabase
-  // devuelve un array de objetos con una propiedad anidada: `[{ workspaces: {...} }]`.
-  // El tipo esperado por el resto de la app es un array plano: `Workspace[]`.
-  // 1. Mapeamos el array para extraer la propiedad `workspaces`.
-  // 2. Filtramos cualquier resultado nulo usando una guarda de tipo (type guard)
-  //    para garantizar que la salida sea siempre un `Workspace[]` limpio y seguro.
-  const workspaces: Workspace[] = data
-    .map((item) => item.workspaces)
-    .filter((ws): ws is Workspace => ws !== null && typeof ws === "object");
+  // CORRECCIÓN ARQUITECTÓNICA: La consulta con join devuelve [{ workspaces: {...} }].
+  // Usamos .flatMap() para mapear y aplanar la estructura en un solo paso.
+  // Si item.workspaces es null o undefined, flatMap lo omite automáticamente.
+  // Esto resuelve el error de tipos de forma robusta y concisa.
+  const workspaces: Workspace[] = data.flatMap((item) => item.workspaces || []);
 
   return workspaces;
 }
@@ -75,7 +71,6 @@ export async function getFirstWorkspaceForUser(
 
   if (error) {
     if (error.code !== "PGRST116") {
-      // 'Not Found' no es un error en este caso.
       logger.error(
         `Error al obtener el primer workspace para el usuario ${userId}:`,
         error
@@ -84,15 +79,13 @@ export async function getFirstWorkspaceForUser(
     return null;
   }
 
-  // Se maneja de forma segura el caso de que `data` o `data.workspaces` sean nulos.
-  // La consulta .single() con join puede devolver un objeto anidado o un array vacío si la relación es múltiple.
-  // Nos aseguramos de manejar ambos casos.
   const workspaceData = data?.workspaces;
   const workspace: Workspace | null =
     workspaceData && !Array.isArray(workspaceData) ? workspaceData : null;
 
   return workspace;
 }
+// Ruta: lib/data/workspaces.ts
 
 /*
  * =================================================================================================
