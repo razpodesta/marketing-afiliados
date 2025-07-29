@@ -1,4 +1,3 @@
-<!-- Ruta: README.md -->
 <p align="center">
   <img src="public/images/logo.png" alt="Logo de MetaShark" width="150"/>
 </p>
@@ -123,26 +122,6 @@ Fiabilidad por Diseño: Implementamos una suite completa de pruebas de integraci
 5. Hoja de Ruta (Roadmap)
    Nuestra visión es ambiciosa y nuestro plan de ejecución es claro.
 
-```gantt
-    title Hoja de Ruta de MetaShark Suite
-    dateFormat  YYYY-MM-DD
-    axisFormat %b %Y
-
-    section Q3 2025: Lanzamiento MVP
-    Plataforma Core Estable       :done,    des1, 2025-07-20, 2025-08-10
-    Constructor Visual (Beta)   :active,  des2, 2025-08-11, 2025-09-15
-    Onboarding de Usuarios      :         des3, 2025-09-16, 2025-09-30
-
-    section Q4 2025: Monetización y Colaboración
-    Integración con Stripe        :         des4, 2025-10-01, 2025-10-31
-    Planes y Suscripciones      :         des5, 2025-11-01, 2025-11-30
-    Centro de Notificaciones    :         des6, 2025-12-01, 2025-12-20
-
-    section H1 2026: Ecosistema y Expansión
-    API Pública (Beta)            :         des7, 2026-01-15, 2026-03-15
-    Marketplace de Afiliados (MVP):         des8, 2026-03-16, 2026-06-30
-```
-
 6. El Equipo
    MetaShark es el resultado de la sinergia entre la visión de ingeniería humana y la potencia de la inteligencia artificial.
    Ingeniero a Cargo de Proyecto: Raz Podestá
@@ -162,12 +141,12 @@ Fiabilidad por Diseño: Implementamos una suite completa de pruebas de integraci
    Clonar el Repositorio:
 
 ```bash
-git clone [URL_DEL_REPOSITORIO] && cd marketing-afiliados
+git clone https://github.com/razpodesta/marketing-afiliados && cd marketing-afiliados
 ```
 
-```Bash
 Instalar Dependencias:
-Generated bash
+
+```Bash
 pnpm install
 ```
 
@@ -184,8 +163,13 @@ Comandos del Proyecto
 Comando Descripción
 
 pnpm dev Inicia el servidor de desarrollo.
+
 pnpm build Compila la aplicación para producción.
+
 pnpm lint:fix Ejecuta el linter y corrige errores automáticamente.
+
 pnpm test:ci Ejecuta la suite completa de pruebas en modo CI.
+
 pnpm gen:types Regenera los tipos de TypeScript desde el esquema de Supabase.
+
 pnpm diag:all (Crítico) Ejecuta la suite completa de diagnóstico del sistema.
