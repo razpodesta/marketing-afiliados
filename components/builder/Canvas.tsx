@@ -4,7 +4,7 @@
  * @description Entorno de Previsualización Aislado y Tematizado para el constructor.
  *              Actúa como el lienzo principal donde los usuarios ven y manipulan los bloques de su campaña.
  * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
- * @version 5.2.5 (Definitive Linting Fix - Verification Protocol)
+ * @version 5.2.6 (Definitive Linting Fix - Manual Verification Protocol)
  */
 "use client";
 
@@ -156,6 +156,7 @@ export function Canvas() {
     </motion.div>
   );
 }
+// Ruta: components/builder/Canvas.tsx
 /* Ruta: app/[locale]/builder/components/Canvas.tsx
  * 1. **Contenedor de Bloque Interactivo:** Envolver cada `BlockComponent` en un `InteractiveBlockWrapper`. Este wrapper sería responsable de manejar los eventos de `onClick` (para seleccionar el bloque), `onHover` (para mostrar un borde de resaltado), y de ser el `handle` para el drag-and-drop.
  * 2. **Aplicación de Estilos Dinámicos:** El `InteractiveBlockWrapper` también leería la propiedad `block.styles` y la aplicaría como estilos en línea a su contenedor, permitiendo la personalización de padding, márgenes y colores de fondo.

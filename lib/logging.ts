@@ -43,7 +43,4 @@ const pinoConfig = {
  *              Debe ser importado desde este módulo para garantizar una configuración consistente.
  */
 export const logger = pino(pinoConfig);
-/* MEJORAS PROPUESTAS
- * 1. **Integración con Servicio Externo:** Esta utilidad es el lugar perfecto para integrar un servicio de logging profesional como Sentry, Pino o Logtail. En las funciones `error` y `warn`, además de hacer `console.log`, se podría enviar el evento al servicio externo.
- * 2. **Niveles de Log:** Implementar niveles de log configurables a través de variables de entorno (ej. `LOG_LEVEL=debug`), para mostrar más o menos información según el entorno (desarrollo vs. producción).
- */
+// Ruta: lib/logging.ts

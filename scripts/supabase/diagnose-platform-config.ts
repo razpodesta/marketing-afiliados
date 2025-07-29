@@ -1,21 +1,21 @@
-// Ruta: scripts/supabase/diagnose-platform-config.ts (CORREGIDO)
+// Ruta: scripts/supabase/diagnose-platform-config.ts
 /**
  * @file diagnose-platform-config.ts
  * @description Aparato de Auditoría de Configuración de la Plataforma Supabase.
- * @author L.I.A Legacy
- * @version 2.0.1 (Type Safety & Execution Fix)
+ *              Utiliza la API de gestión de Supabase para verificar la configuración
+ *              crítica del proyecto, como URLs, proveedores de OAuth y políticas de email.
+ * @author L.I.A Legacy & RaZ Podestá
+ * @version 2.1.0 (Native Fetch API Refactor)
  */
-
 import dotenv from "dotenv";
-import fetch from "node-fetch";
 
-dotenv.config({ path: "../../.env.local" });
+// Carga las variables de entorno desde la raíz del proyecto.
+dotenv.config({ path: ".env.local" });
 
 const { NEXT_PUBLIC_SUPABASE_URL, SUPABASE_ACCESS_TOKEN } = process.env;
 const API_VERSION = "v1";
 
-// CORRECCIÓN: Se define un tipo para la respuesta esperada de la API.
-// Este es el "contrato de datos" que esperamos que Supabase cumpla.
+// Contrato de datos: define la estructura que esperamos de la API de Supabase.
 type SupabaseAuthConfig = {
   SITE_URL: string;
   DISABLE_SIGNUP: boolean;
@@ -31,9 +31,14 @@ type SupabaseAuthConfig = {
   URI_ALLOW_LIST: string[] | null;
 };
 
+/**
+ * @async
+ * @function diagnosePlatformConfig
+ * @description Orquesta la auditoría de configuración de la plataforma.
+ */
 async function diagnosePlatformConfig() {
   console.log(
-    "🚀 [AUDITORÍA DE CONFIGURACIÓN DE PLATAFORMA V2.0] Iniciando..."
+    "🚀 [AUDITORÍA DE CONFIGURACIÓN DE PLATAFORMA V2.1] Iniciando..."
   );
   console.log("--------------------------------------------------");
 
@@ -43,20 +48,26 @@ async function diagnosePlatformConfig() {
     SUPABASE_ACCESS_TOKEN === "tu_nuevo_token_de_acceso_personal_aqui"
   ) {
     console.error(
-      "❌ ERROR CATASTRÓFICO: Las variables de entorno de Supabase no están configuradas."
+      "❌ ERROR CATASTRÓFICO: Las variables de entorno de Supabase no están configuradas en .env.local"
     );
     process.exit(1);
   }
 
-  const projectId = NEXT_PUBLIC_SUPABASE_URL.split(".")[0].replace(
-    "https://",
-    ""
-  );
+  const projectIdMatch = NEXT_PUBLIC_SUPABASE_URL.match(/https?:\/\/([^.]+)/);
+  if (!projectIdMatch || !projectIdMatch[1]) {
+    console.error(
+      "❌ ERROR: No se pudo extraer el ID del proyecto desde NEXT_PUBLIC_SUPABASE_URL."
+    );
+    process.exit(1);
+  }
+  const projectId = projectIdMatch[1];
   console.log(
     `🔬 Realizando auditoría para el proyecto de Supabase con ID: ${projectId}`
   );
 
   try {
+    // REFACTORIZACIÓN: Se elimina la dependencia 'node-fetch' y se utiliza
+    // la API `fetch` global y nativa, disponible en Node.js v18+.
     const response = await fetch(
       `https://api.supabase.com/${API_VERSION}/projects/${projectId}/auth/config`,
       {
@@ -74,7 +85,7 @@ async function diagnosePlatformConfig() {
       throw new Error("Token de acceso inválido.");
     }
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData: unknown = await response.json();
       console.error(
         `❌ ERROR al obtener la configuración (Status: ${response.status}):`,
         JSON.stringify(errorData, null, 2)
@@ -82,8 +93,6 @@ async function diagnosePlatformConfig() {
       throw new Error("Fallo en la llamada a la Management API.");
     }
 
-    // CORRECCIÓN: Se realiza una aserción de tipo para informar a TypeScript
-    // que confiamos en que los datos recibidos tienen la forma de 'SupabaseAuthConfig'.
     const config = (await response.json()) as SupabaseAuthConfig;
 
     console.log("✅ Configuración de la plataforma obtenida con éxito.");
@@ -131,21 +140,6 @@ async function diagnosePlatformConfig() {
         "   - No hay proveedores de OAuth habilitados en esta plataforma."
       );
     }
-
-    console.log("\n[ URLs de Redirección y Lista Blanca ]");
-    if (config.URI_ALLOW_LIST && config.URI_ALLOW_LIST.length > 0) {
-      console.log("   - URIs en la lista blanca:");
-      config.URI_ALLOW_LIST.forEach((uri: string) =>
-        console.log(`     - ${uri}`)
-      );
-      if (!config.URI_ALLOW_LIST.includes(process.env.NEXT_PUBLIC_SITE_URL!)) {
-        console.warn(
-          `   - 🟡 ADVERTENCIA: La URL de tu sitio local (${process.env.NEXT_PUBLIC_SITE_URL}) no está en la lista blanca.`
-        );
-      }
-    } else {
-      console.warn("   - 🟡 ADVERTENCIA: La lista blanca de URIs está vacía.");
-    }
     console.log("--------------------------------------------------");
   } catch (e: any) {
     console.error(
@@ -159,5 +153,5 @@ async function diagnosePlatformConfig() {
   );
 }
 
-// CORRECCIÓN: Se llama a la función correcta.
 diagnosePlatformConfig();
+// Ruta: scripts/supabase/diagnose-platform-config.ts

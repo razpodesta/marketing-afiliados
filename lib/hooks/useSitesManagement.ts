@@ -5,7 +5,7 @@
  *              y la orquestación de acciones para la página "Mis Sitios".
  *              Este aparato es el "cerebro" de la experiencia de gestión de sitios.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 2.2.4 (Definitive Linting Fix - Verification Protocol)
+ * @version 2.2.5 (Definitive Linting Fix - Manual Verification Protocol)
  */
 "use client";
 
@@ -125,7 +125,6 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
     deletingSiteId,
   };
 }
-// Ruta: lib/hooks/useSitesManagement.ts
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
