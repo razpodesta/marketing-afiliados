@@ -1,6 +1,12 @@
-// Ruta: app/[locale]/builder/[campaignId]/layout.tsx
+// app/[locale]/builder/[campaignId]/layout.tsx
 "use client";
 
+import {
+  BlocksPalette,
+  PaletteItemPreview,
+} from "@/components/builder/BlocksPalette";
+import { BuilderHeader } from "@/components/builder/BuilderHeader";
+import { SettingsPanel } from "@/components/builder/SettingsPanel";
 import { blockRegistry } from "@/components/templates";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,34 +23,21 @@ import {
 } from "@dnd-kit/core";
 import { LayoutTemplate, Settings } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { BlocksPalette, PaletteItemPreview } from "../components/BlocksPalette";
-import { BuilderHeader } from "../components/BuilderHeader";
-import { SettingsPanel } from "../components/SettingsPanel";
 import { useBuilderStore } from "../core/store";
 
 /**
  * @file layout.tsx
  * @description Layout principal del constructor.
- * REFACTORIZACIÓN DE ROBUSTEZ Y CLARIDAD:
- * 1.  La lógica de `handleDragEnd` ahora comprueba la propiedad explícita
- *     `event.active.data.current?.origin === 'palette'` en lugar de depender
- *     de una "cadena mágica" en el ID, haciendo el código más robusto y legible.
- *
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Explicit D&D Logic)
+ * @version 5.0.0 (Architectural Alignment)
  */
 export default function BuilderLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const {
-    addBlock,
-    moveBlock,
-    selectedBlockId,
-    setSelectedBlockId,
-    campaignConfig,
-  } = useBuilderStore();
+  const { addBlock, moveBlock, selectedBlockId, campaignConfig } =
+    useBuilderStore();
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [activeTab, setActiveTab] = useState("add");
 
@@ -68,7 +61,6 @@ export default function BuilderLayout({
     setActiveId(null);
     if (!over) return;
 
-    // REFACTORIZACIÓN: Lógica de D&D explícita y más robusta.
     const isFromPalette = active.data.current?.origin === "palette";
 
     if (isFromPalette) {
@@ -93,13 +85,6 @@ export default function BuilderLayout({
       onDragEnd={handleDragEnd}
     >
       <div className="flex h-screen w-screen flex-col bg-muted relative">
-        {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-        <div
-          data-lia-marker="true"
-          className="absolute top-1 left-1 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full z-10"
-        >
-          builder/[campaignId]/layout.tsx
-        </div>
         <BuilderHeader />
         <div className="flex flex-1 overflow-hidden">
           <aside className="w-96 h-full bg-card border-r flex flex-col">
@@ -148,7 +133,6 @@ export default function BuilderLayout({
     </DndContext>
   );
 }
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es el orquestador principal de la interfaz y la lógica de

@@ -1,4 +1,11 @@
 {
+  "NotFoundPage": {
+    "title": "Error 404",
+    "description": "La página en la ruta {pathname} no existe o fue movida.",
+    "backToHome": "Volver al Inicio",
+    "goToDashboard": "Ir al Dashboard"
+  },
+
   "HomePage": {
     "title": "MetaShark",
     "description": "Crea tu propio subdominio con un emoji personalizado",

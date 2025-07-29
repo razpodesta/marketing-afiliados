@@ -1,20 +1,24 @@
-// Ruta: lib/context/DashboardContext.tsx
-/**
- * @file DashboardContext.tsx
- * @description Proveedor de contexto para compartir datos de sesión y de la
- *              aplicación a través de todos los componentes del dashboard.
- *              Este patrón evita el "prop drilling" y crea una única fuente
- *              de verdad para los datos obtenidos en el layout del servidor.
- *
- * @author Metashark
- * @version 1.0.0 (Initial Creation)
- */
+// lib/context/DashboardContext.tsx
 "use client";
 
-import type { User } from "@supabase/supabase-js";
+import type { FeatureModule } from "@/lib/data/modules";
+import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import type { Tables } from "@/lib/types/database";
-import type { FeatureModule } from "@/app/[locale]/dashboard/dashboard-client";
+import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, type ReactNode } from "react";
+
+/**
+ * @file DashboardContext.tsx
+ * @description Proveedor de contexto para compartir datos a través de todos
+ *              los componentes del dashboard.
+ * @refactor
+ * REFACTORIZACIÓN MODO DESARROLLO: El contexto ha sido extendido para incluir
+ * `sites` y `totalCount`, permitiendo al layout actuar como el único proveedor
+ * de datos para toda la sección del dashboard.
+ *
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.0.0 (Extended Data Context)
+ */
 
 type Workspace = Tables<"workspaces">;
 type Invitation = {
@@ -33,6 +37,9 @@ interface DashboardContextProps {
   activeWorkspace: Workspace | null;
   pendingInvitations: Invitation[];
   modules: FeatureModule[];
+  // --- DATOS EXTENDIDOS PARA PÁGINAS HIJAS ---
+  sites: SiteWithCampaignsCount[];
+  totalCount: number;
 }
 
 const DashboardContext = createContext<DashboardContextProps | undefined>(
@@ -41,8 +48,6 @@ const DashboardContext = createContext<DashboardContextProps | undefined>(
 
 /**
  * @description Proveedor que hace que los datos del dashboard estén disponibles para sus hijos.
- * @param {object} props
- * @returns {JSX.Element}
  */
 export const DashboardProvider = ({
   children,
@@ -72,3 +77,8 @@ export const useDashboard = (): DashboardContextProps => {
   }
   return context;
 };
+
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Separación de Contextos: A medida que la aplicación crezca, este contexto puede volverse muy grande. Podría dividirse en contextos más pequeños y especializados (ej. `SessionContext`, `WorkspaceContext`, `PageDataContext`) para mejorar la granularidad y optimizar los re-renders.
+ * 2. Acciones en el Contexto: El contexto podría incluir no solo datos, sino también funciones para modificar esos datos (ej. `setActiveWorkspace`), convirtiéndolo en un mini-store de estado en lugar de un simple proveedor de datos estáticos.
+ */

@@ -1,31 +1,35 @@
-/* Ruta: app/[locale]/page.tsx */
-
+// app/[locale]/page.tsx
 /**
  * @file Página de Inicio Pública (Landing Page)
  * @description Esta es la página de marketing principal.
- * ACTUALIZACIÓN CRÍTICA: Se ha reactivado la redirección automática al dashboard
- * para usuarios autenticados. Este es el comportamiento estándar y esperado
- * para una aplicación SaaS, mejorando el flujo de usuario para los clientes existentes.
+ * @refactor
+ * REFACTORIZACIÓN MODO DESARROLLO:
+ * 1. Se ha añadido un "interruptor" que, si `DEV_MODE_ENABLED` está activo,
+ *    simula una sesión de usuario existente y redirige inmediatamente al dashboard.
  *
- * @author Metashark
- * @version 6.0.0 (Re-enable Auth Redirect)
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 8.0.0 (Developer Mode Integration)
  */
 import { Features } from "@/components/landing/Features";
-import { Footer } from "@/components/landing/Footer";
-import { LandingHeader } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
+import { LandingFooter } from "@/components/layout/LandingFooter";
+import { LandingHeader } from "@/components/layout/LandingHeader";
 import { CursorTrail } from "@/components/ui/CursorTrail";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
+  // --- INTERRUPTOR DEL MODO DE DESARROLLO ---
+  if (process.env.DEV_MODE_ENABLED === "true") {
+    redirect("/dashboard");
+  }
+  // --- FIN DEL INTERRUPTOR ---
+
   const supabase = createClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // La redirección está ahora activa. Si un usuario con una sesión válida
-  // visita la página de inicio, será enviado directamente a su dashboard.
   if (session) {
     redirect("/dashboard");
   }
@@ -38,10 +42,15 @@ export default async function HomePage() {
         <Hero />
         <Features />
       </main>
-      <Footer />
+      <LandingFooter />
     </div>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Testing de Variantes de Landing en Dev Mode: El modo de desarrollo podría usarse para forzar la visualización de diferentes variantes de la página de inicio para pruebas A/B, leyendo un parámetro de la URL (ej. `/?variant=b`) y renderizando un componente Hero o Features alternativo.
+ */
+
 /* Ruta: app/[locale]/page.tsx */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Carga de Sesión Optimizada: La llamada `getSession()` se realiza aquí y también en el `middleware`. Para optimizar en el borde, se podría pasar la información de la sesión desde el middleware a la página a través de cabeceras de petición personalizadas, evitando una lectura duplicada de la cookie.

@@ -1,20 +1,14 @@
-/* Ruta: templates/index.ts */
-
-import React from "react";
-import { Header1, type Header1Props } from "../../templates/Header/Header1";
-import { Hero1, type Hero1Props } from "../../templates/Hero/Hero1";
-import { PageBlock } from "@/lib/builder/types.d";
-
+// components/templates/index.ts
 /**
  * @file index.ts
  * @description Registro central de todos los bloques de construcción disponibles.
- * Este objeto actúa como un mapa que asocia el `type` de un bloque (un string)
- * con su componente React real. Es el núcleo del motor de renderizado dinámico.
- * Añadir un nuevo bloque a la plataforma solo requiere importarlo y añadirlo a este mapa.
- *
- * @author Metashark
- * @version 1.0.0
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.0.0 (Path Alias Correction)
  */
+import type { PageBlock } from "@/lib/builder/types.d";
+import React from "react";
+import { Header1 } from "@/templates/Headers/Header1";
+import { Hero1 } from "@/templates/Heros/Hero1";
 
 type BlockComponent = React.ComponentType<any>;
 
@@ -22,6 +16,8 @@ export const blockRegistry: Record<string, BlockComponent> = {
   Header1,
   Hero1,
   // A medida que añadamos más bloques, los registraremos aquí.
-  // Footer1: Footer1,
 };
-/* Ruta: templates/index.ts */
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Carga Dinámica de Bloques (Lazy Loading): A medida que el registro crezca, importarlos todos estáticamente puede aumentar el tamaño del bundle inicial. Se podría refactorizar para usar `React.lazy` y `dynamic` de Next.js, de modo que el código de un bloque solo se cargue cuando se arrastre al canvas por primera vez.
+ */

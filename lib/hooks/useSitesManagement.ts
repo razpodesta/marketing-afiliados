@@ -1,8 +1,8 @@
-// Ruta: lib/hooks/useSitesManagement.ts
+// lib/hooks/useSitesManagement.ts
 "use client";
 
-import { sites as sitesActions } from "@/app/actions";
-import type { CreateSiteFormState } from "@/app/actions/schemas";
+import { sites as sitesActions } from "@/lib/actions";
+import { type CreateSiteFormState } from "@/lib/actions/schemas";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { debounce } from "@/lib/utils";
 import { useRouter } from "@/navigation";
@@ -18,15 +18,10 @@ import toast from "react-hot-toast";
 /**
  * @file useSitesManagement.ts
  * @description Hook personalizado para encapsular toda la lógica de gestión de la página "Mis Sitios".
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1.  Se ha añadido tipado explícito `useState<SiteWithCampaignsCount[]>` para prevenir
- *     la inferencia de tipo 'never' por parte de TypeScript.
- *
  * @author L.I.A Legacy
- * @version 1.1.0 (Type Stability Patch)
+ * @version 2.0.0 (Type-Safe Architecture)
  */
 export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
-  // CORRECCIÓN: Se añade el tipo explícito para el estado.
   const [sites, setSites] = useState<SiteWithCampaignsCount[]>(initialSites);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
@@ -75,7 +70,6 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
   const handleCreate = async (data: { subdomain: string; icon: string }) => {
     setIsCreating(true);
     const tempId = `temp-${Date.now()}`;
-    // CORRECCIÓN: El objeto optimista ahora incluye todas las propiedades del tipo.
     const newSiteOptimistic: SiteWithCampaignsCount = {
       id: tempId,
       subdomain: data.subdomain,
@@ -126,3 +120,10 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
     deletingSiteId,
   };
 }
+
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. AbortController para Búsqueda en Servidor: Si la búsqueda evoluciona para realizarse en el servidor, este hook debería usar un `AbortController` para cancelar las peticiones de búsqueda anteriores si el usuario sigue escribiendo, optimizando el uso de recursos.
+ * 2. Estado de Carga por Tarjeta Individual: En lugar de un `deletingSiteId` global, se podría gestionar un `Map` o un objeto para los estados de carga individuales, permitiendo que múltiples acciones se ejecuten en paralelo sin bloquear toda la UI.
+ * 3. Reversión de Estado más Robusta: El sistema de actualización optimista podría ser extraído a un hook genérico (`useOptimisticState`) para ser reutilizado en otras partes de la aplicación, como en la gestión de campañas.
+ */

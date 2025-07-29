@@ -1,8 +1,9 @@
+// components/sites/DeleteSiteDialog.tsx
 /**
  * @file DeleteSiteDialog.tsx
  * @description Modal de confirmación para la eliminación irreversible de un sitio.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 1.2.0 (Type Stability Patch)
+ * @version 2.0.0 (Decoupled & Robust)
  */
 "use client";
 
@@ -19,15 +20,20 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
 
-// CORRECCIÓN: Se define una interfaz local y simple para eliminar la ambigüedad.
-// Esto asegura que el componente solo dependa de los datos que realmente necesita.
+/**
+ * @interface SimpleSite
+ * @description Define una interfaz local y simple para las props del componente.
+ *              Esto desacopla el componente de la forma de datos completa `SiteWithCampaignsCount`,
+ *              haciéndolo más reutilizable y robusto, ya que solo depende de los datos que
+ *              realmente necesita para su operación.
+ */
 interface SimpleSite {
   id: string;
   subdomain: string | null;
 }
 
 interface DeleteSiteDialogProps {
-  site: SimpleSite; // Se utiliza la interfaz simple y explícita.
+  site: SimpleSite;
   onDelete: (formData: FormData) => void;
   isPending: boolean;
 }
@@ -81,3 +87,9 @@ export function DeleteSiteDialog({
     </Dialog>
   );
 }
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Input de Confirmación: Para acciones destructivas de alto riesgo, se podría añadir un campo de texto donde el usuario deba escribir el nombre del subdominio para habilitar el botón de eliminar. Esto previene eliminaciones accidentales.
+ * 2. Feedback de Carga Específico: El estado `isPending` podría ser más granular, indicando no solo la carga, sino también los estados "success" y "error" para mostrar un feedback visual dentro del modal antes de que se cierre.
+ * 3. Reutilización del Componente: Este patrón de diálogo de confirmación es altamente reutilizable. Podría ser abstraído a un componente genérico `<ConfirmationDialog>` que acepte título, descripción y la acción a ejecutar.
+ */

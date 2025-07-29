@@ -1,4 +1,4 @@
-// Ruta: app/[locale]/dashboard/dashboard-client.tsx
+// app/[locale]/dashboard/dashboard-client.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -6,34 +6,35 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger,
   TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import type { Tables } from "@/lib/types/database";
+import { useRouter, type AppPathname } from "@/navigation";
 import { motion } from "framer-motion";
 import { HelpCircle, LayoutTemplate, PenSquare, Plus, Zap } from "lucide-react";
 import { useFormatter } from "next-intl";
-import { useRouter } from "@/navigation";
 
 /**
  * @file dashboard-client.tsx
  * @description Interfaz de usuario principal del "Centro de Comando de Campañas".
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1. Se ha restaurado la palabra clave `export` en la declaración del componente,
- *    corrigiendo un error crítico de importación que impedía el renderizado.
- *
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 12.1.0 (Module Stability Patch)
+ * @version 13.0.0 (Type Stability)
  */
-
 const ActionCard = ({
   title,
   description,
   icon: Icon,
   onClick,
   isPrimary = false,
-}: any) => (
+}: {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  onClick?: () => void;
+  isPrimary?: boolean;
+}) => (
   <motion.div
     variants={{
       hidden: { opacity: 0, scale: 0.95, y: 10 },
@@ -52,14 +53,10 @@ const ActionCard = ({
       <CardHeader>
         <div className="flex items-center gap-3">
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-              isPrimary ? "bg-primary/20" : "bg-muted"
-            }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg ${isPrimary ? "bg-primary/20" : "bg-muted"}`}
           >
             <Icon
-              className={`h-5 w-5 ${
-                isPrimary ? "text-primary" : "text-foreground"
-              }`}
+              className={`h-5 w-5 ${isPrimary ? "text-primary" : "text-foreground"}`}
             />
           </div>
           <h3 className="text-md font-semibold">{title}</h3>
@@ -117,7 +114,9 @@ const RecentCampaigns = ({
           <Card
             key={campaign.id}
             className="group cursor-pointer hover:border-primary/40"
-            onClick={() => router.push(`/builder/${campaign.id}`)}
+            onClick={() =>
+              router.push(`/builder/${campaign.id}` as AppPathname)
+            }
           >
             <CardHeader>
               <h3 className="font-semibold truncate">{campaign.name}</h3>
@@ -142,7 +141,6 @@ const RecentCampaigns = ({
   );
 };
 
-// CORRECCIÓN: Se añade la palabra clave 'export' para que el componente sea visible para otros módulos.
 export function DashboardClient({
   recentCampaigns,
 }: {
@@ -172,13 +170,6 @@ export function DashboardClient({
 
   return (
     <div className="flex h-full flex-col gap-8 relative">
-      <div
-        data-lia-marker="true"
-        className="absolute -top-2 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        dashboard-client.tsx
-      </div>
-
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -218,7 +209,6 @@ export function DashboardClient({
             ¿Qué campaña de alto rendimiento vamos a lanzar hoy?
           </p>
         </motion.div>
-
         <motion.div
           variants={{
             hidden: {},
@@ -230,7 +220,6 @@ export function DashboardClient({
             <ActionCard key={action.title} {...action} />
           ))}
         </motion.div>
-
         <RecentCampaigns campaigns={recentCampaigns} />
       </motion.div>
     </div>

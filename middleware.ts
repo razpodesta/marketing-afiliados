@@ -1,66 +1,74 @@
-// Ruta: middleware.ts
+// middleware.ts
 /**
  * @file middleware.ts
- * @description Middleware principal de la aplicación.
- * REFACTORIZACIÓN ARQUITECTÓNICA: Este archivo ahora actúa como un orquestador
- * que encadena manejadores de middleware modulares y de responsabilidad única.
- * La lógica específica ha sido abstraída en la carpeta `middleware/handlers/`.
- *
- * @author Metashark
- * @version 20.0.0 (Modular Middleware Pipeline)
+ * @description Orquestador del pipeline de middleware. Define el orden de
+ *              ejecución de manejadores atómicos y desacoplados.
+ * @author L.I.A Legacy
+ * @version 6.0.0 (Pure Chaining Pipeline)
  */
-import createIntlMiddleware from "next-intl/middleware";
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import {
   handleAuth,
+  handleI18n,
   handleMaintenance,
   handleMultitenancy,
   handleRedirects,
 } from "./middleware/handlers";
-import { localePrefix, locales, pathnames } from "./navigation";
+import { logger } from "./lib/logging";
 
 export async function middleware(request: NextRequest) {
-  // Cadena de Responsabilidad del Middleware
-  const handlers = [handleMaintenance, handleRedirects];
+  logger.trace(
+    { path: request.nextUrl.pathname, method: request.method },
+    `[PIPELINE] >>> INICIO Petición entrante.`
+  );
 
-  for (const handler of handlers) {
-    const response = handler(request);
-    if (response) {
-      return response;
-    }
+  // --- Pipeline de Ejecución Secuencial ---
+
+  // 1. Manejadores síncronos que pueden terminar la cadena temprano.
+  const maintenanceResponse = handleMaintenance(request);
+  if (maintenanceResponse) {
+    logger.trace("[PIPELINE] <<< FIN: Interrumpido por handleMaintenance.");
+    return maintenanceResponse;
   }
 
-  // El middleware de i18n siempre devuelve una respuesta y añade el locale.
-  const intlResponse = createIntlMiddleware({
-    locales,
-    localePrefix,
-    pathnames,
-    defaultLocale: "pt-BR",
-  })(request);
-
-  const locale = intlResponse.headers.get("x-next-intl-locale") || "pt-BR";
-
-  // Manejadores que dependen del locale
-  const multitenancyResponse = await handleMultitenancy(request, locale);
-  if (multitenancyResponse) {
-    return multitenancyResponse;
+  const redirectResponse = handleRedirects(request);
+  if (redirectResponse) {
+    logger.trace("[PIPELINE] <<< FIN: Interrumpido por handleRedirects.");
+    return redirectResponse;
   }
 
-  const authResponse = await handleAuth(request, locale);
-  if (authResponse) {
-    return authResponse;
-  }
+  // 2. Manejador de I18n: Crea la respuesta base y añade el contexto de locale.
+  let response = handleI18n(request);
 
-  return intlResponse; // Si ningún manejador intercepta, se devuelve la respuesta de i18n.
+  // 3. Manejador de Multitenancy: Recibe la respuesta de i18n y puede modificarla.
+  response = await handleMultitenancy(request, response);
+
+  // 4. Manejador de Autenticación: Recibe la respuesta y la modifica.
+  response = await handleAuth(request, response);
+
+  logger.trace(
+    { status: response.status },
+    `[PIPELINE] <<< FIN: Devolviendo respuesta final.`
+  );
+  return response;
 }
 
 export const config = {
-  // El matcher se mantiene igual para evitar que el middleware se ejecute en assets.
   matcher: [
     "/((?!api|_next/static|_next/image|images|favicon.ico|maintenance.html).*)",
   ],
 };
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Clase Orquestadora de Pipeline: Para una gestión aún más avanzada, la lógica de encadenamiento podría ser abstraída en una clase `MiddlewarePipeline` que permita registrar manejadores de forma programática (ej. `pipeline.use(handleI18n).run(request)`).
+ */
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Clase Orquestadora de Pipeline: Para una gestión aún más avanzada y declarativa, la lógica de encadenamiento en este archivo podría ser abstraída en una clase `MiddlewarePipeline`. Esto permitiría registrar manejadores de forma programática (ej. `pipeline.use(handleI18n).use(handleAuth).run(request)`), haciendo el orden de ejecución aún más explícito y fácil de modificar.
+ */
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Contexto de Petición Enriquecido: En lugar de pasar solo el `locale`, se podría crear un objeto de contexto (`RequestContext`) al principio del pipeline. Cada manejador podría leerlo y añadirle información (ej. sesión de usuario, datos del sitio). Esto evitaría que manejadores posteriores tengan que recalcular datos ya obtenidos, optimizando el rendimiento.
+ * 2. Inyección de Dependencias para Handlers: A medida que los manejadores se vuelvan más complejos y necesiten dependencias (como un cliente de Redis para caché), se podría implementar un pequeño sistema de inyección de dependencias para proveer estos servicios a los manejadores de forma desacoplada.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Clase Orquestadora: Para una lógica de encadenamiento más avanzada, se podría crear una clase `MiddlewarePipeline` que permita registrar manejadores y ejecute la cadena, simplificando aún más este archivo.
  * 2. Inyección de Dependencias para Handlers: En el futuro, los manejadores podrían necesitar dependencias (como un cliente de base de datos o de caché). Se podría implementar un pequeño sistema de inyección de dependencias para proveer estos servicios a los manejadores.

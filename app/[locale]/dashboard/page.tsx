@@ -1,23 +1,20 @@
-// Ruta: app/[locale]/dashboard/page.tsx
-import { logger } from "@/lib/logging";
-import { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/lib/types/database";
-import { cookies } from "next/headers";
-import { Suspense } from "react";
-import { DashboardClient } from "./dashboard-client";
-
+// app/[locale]/dashboard/page.tsx
 /**
  * @file page.tsx
  * @description Punto de entrada para la página del dashboard principal.
- *              Obtiene los datos iniciales necesarios para el Centro de Comando.
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1.  Se ha añadido una guarda para asegurar que la prop `recentCampaigns`
- *     siempre sea un array, previniendo un error de runtime si no hay
- *     un workspace activo o si la consulta a la base de datos falla.
- *
+ *              Obtiene los datos iniciales necesarios para el Centro de Comando,
+ *              como las campañas recientes del workspace activo.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.1.0 (Data Stability Patch)
+ * @version 8.1.0 (Corrected Data Layer Import)
  */
+import { Card } from "@/components/ui/card";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/types/database";
+import { AlertTriangle } from "lucide-react";
+import { cookies } from "next/headers";
+import { Suspense } from "react";
+import { DashboardClient } from "./dashboard-client";
 
 const PageSkeleton = () => (
   <div className="flex h-full flex-col gap-8 animate-pulse">
@@ -41,71 +38,83 @@ const PageSkeleton = () => (
   </div>
 );
 
-/**
- * @description Obtiene las campañas modificadas más recientemente para todos los sitios de un workspace.
- * @param workspaceId El ID del workspace activo.
- * @param limit El número de campañas a obtener.
- * @returns Una promesa que resuelve a un array de campañas.
- */
-async function getRecentCampaignsForWorkspace(
-  workspaceId: string,
-  limit = 4
-): Promise<Tables<"campaigns">[]> {
-  const supabase = createClient();
-  // Esta consulta ahora es más robusta:
-  // 1. Obtiene los sitios que pertenecen al workspace.
-  // 2. Luego obtiene las campañas que pertenecen a esos sitios.
-  const { data: sites, error: sitesError } = await supabase
-    .from("sites")
-    .select("id")
-    .eq("workspace_id", workspaceId);
-
-  if (sitesError || !sites || sites.length === 0) {
-    if (sitesError) {
-      logger.error(
-        `Error obteniendo sitios para el workspace ${workspaceId}`,
-        sitesError
-      );
-    }
-    return [];
-  }
-
-  const siteIds = sites.map((s) => s.id);
-
-  const { data: campaigns, error: campaignsError } = await supabase
-    .from("campaigns")
-    .select("*")
-    .in("site_id", siteIds)
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
-
-  if (campaignsError) {
-    logger.error(
-      `Error al obtener campañas recientes para el workspace ${workspaceId}:`,
-      campaignsError
+async function DashboardPageLoader() {
+  if (process.env.DEV_MODE_ENABLED === "true") {
+    logger.trace(
+      "[DASHBOARD_PAGE] Modo DEV: Devolviendo datos de campañas simuladas."
     );
-    return [];
+    return <DashboardClient recentCampaigns={[]} />;
   }
-  return campaigns;
-}
 
-export default async function DashboardPage() {
   const cookieStore = cookies();
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
 
-  let recentCampaignsData: Tables<"campaigns">[] = [];
-
-  if (activeWorkspaceId) {
-    recentCampaignsData =
-      await getRecentCampaignsForWorkspace(activeWorkspaceId);
+  if (!activeWorkspaceId) {
+    logger.warn(
+      "[DASHBOARD_PAGE] No hay workspace activo. No se pueden cargar campañas recientes."
+    );
+    return <DashboardClient recentCampaigns={[]} />;
   }
 
+  try {
+    const supabase = createClient();
+    const { data: sites, error: sitesError } = await supabase
+      .from("sites")
+      .select("id")
+      .eq("workspace_id", activeWorkspaceId);
+
+    if (sitesError) throw sitesError;
+    if (!sites || sites.length === 0)
+      return <DashboardClient recentCampaigns={[]} />;
+
+    const siteIds = sites.map((s) => s.id);
+
+    const { data: campaigns, error: campaignsError } = await supabase
+      .from("campaigns")
+      .select("*")
+      .in("site_id", siteIds)
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(4);
+
+    if (campaignsError) throw campaignsError;
+
+    return <DashboardClient recentCampaigns={campaigns || []} />;
+  } catch (error) {
+    logger.error("[DASHBOARD_PAGE] Error al cargar campañas recientes:", error);
+    return (
+      <Card className="flex flex-col items-center justify-center h-full p-8 text-center bg-destructive/10 border-destructive/50">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-bold text-destructive-foreground">
+          Error al Cargar Datos
+        </h2>
+        <p className="text-muted-foreground mt-2">
+          No se pudo obtener la información de tus campañas recientes.
+        </p>
+      </Card>
+    );
+  }
+}
+
+export default async function DashboardPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <DashboardClient recentCampaigns={recentCampaignsData} />
+      <DashboardPageLoader />
     </Suspense>
   );
 }
+/**
+ * @description Este aparato es el punto de entrada del servidor para el dashboard principal.
+ * Se espera que obtenga el contexto del workspace activo a través de las cookies y luego realice las consultas necesarias para obtener los datos que necesita su componente hijo de cliente, en este caso, las campañas más recientes. También maneja los estados de carga (con Suspense) y de error.
+ * @propose_new_improvements
+ * 1. Abstracción a Capa de Datos: La consulta para obtener campañas recientes está directamente en el componente. Debería moverse a un nuevo aparato `getRecentCampaignsByWorkspaceId` en `lib/data/campaigns.ts` para mantener la arquitectura limpia.
+ * 2. Rendimiento con `Promise.all`: La obtención de sitios y luego campañas es secuencial. Podría optimizarse si la base de datos lo permite con una única consulta más compleja o manteniendo la lógica en la capa de datos.
+ * 3. Cacheo de Datos con `unstable_cache`: La lista de campañas recientes es una candidata ideal para ser cacheada en el servidor por un corto período (ej. 1-5 minutos) para mejorar el rendimiento en navegaciones frecuentes al dashboard.
+ */
+// app/[locale]/dashboard/page.tsx
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Abstracción a Capa de Datos: La consulta para obtener campañas recientes está directamente en el componente. Debería moverse a un nuevo aparato `getRecentCampaignsByWorkspaceId` en `lib/data/campaigns.ts` para mantener la arquitectura limpia.
+ * 2. Rendimiento con `Promise.all`: La obtención de sitios y luego campañas es secuencial. Podría optimizarse si la base de datos lo permite con una única consulta más compleja o manteniendo la lógica en la capa de datos.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Esqueleto de Carga Sofisticado: El componente `PageSkeleton` actual es muy simple. Podría ser reemplazado por un esqueleto más detallado que imite la estructura de `DashboardClient` (título, cuadrícula de tarjetas), mejorando la experiencia de carga percibida (LCP).
  * 2. Estado de Bienvenida Contextual: Aunque el layout redirige en el onboarding, esta página podría mostrar un componente especial de "Bienvenida" en la primera visita después de la creación del workspace, en lugar del dashboard completo, para guiar al usuario en sus siguientes pasos.

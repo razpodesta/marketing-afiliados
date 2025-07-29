@@ -1,24 +1,21 @@
-// Ruta: app/[locale]/dashboard/sites/page.tsx
+// app/[locale]/dashboard/sites/page.tsx
+/**
+ * @file page.tsx
+ * @description Página de servidor para "Mis Sitios". Obtiene los datos de los
+ *              sitios para el workspace activo y los pasa al componente cliente.
+ *              Soporta un bypass para el modo de desarrollo.
+ * @author L.I.A Legacy
+ * @version 4.0.0 (Data Logic Restored & DevMode-Aware)
+ */
 import { Card } from "@/components/ui/card";
-import { getSitesByWorkspaceId } from "@/lib/data/sites";
+import { sites as sitesData } from "@/lib/data";
+import { mockSites } from "@/lib/dev/mock-session";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { AlertTriangle } from "lucide-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SitesClient } from "./sites-client"; // <-- CORRECCIÓN: La importación se ha corregido para apuntar al componente correcto.
-
-/**
- * @file page.tsx
- * @description Página de servidor para gestionar los sitios de un workspace.
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1.  Corregida la ruta de importación del componente de cliente para que apunte
- *     a `./sites-client` en lugar de una ruta inexistente, resolviendo un
- *     error de compilación crítico.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.3.0 (Module Stability Patch)
- */
+import { SitesClient } from "./sites-client";
 
 const SITES_PER_PAGE = 9;
 
@@ -27,6 +24,18 @@ export default async function SitesPage({
 }: {
   searchParams: { page?: string };
 }) {
+  if (process.env.DEV_MODE_ENABLED === "true") {
+    // En modo dev, pasamos directamente los datos simulados al cliente.
+    return (
+      <SitesClient
+        initialSites={mockSites}
+        totalCount={mockSites.length}
+        page={1}
+        limit={SITES_PER_PAGE}
+      />
+    );
+  }
+
   const cookieStore = cookies();
   const supabase = createClient();
 
@@ -47,10 +56,13 @@ export default async function SitesPage({
 
   try {
     const page = Number(searchParams.page) || 1;
-    const { sites, totalCount } = await getSitesByWorkspaceId(workspaceId, {
-      page,
-      limit: SITES_PER_PAGE,
-    });
+    const { sites, totalCount } = await sitesData.getSitesByWorkspaceId(
+      workspaceId,
+      {
+        page,
+        limit: SITES_PER_PAGE,
+      }
+    );
 
     return (
       <SitesClient
@@ -79,7 +91,6 @@ export default async function SitesPage({
     );
   }
 }
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un componente de servidor cuya responsabilidad es preparar los

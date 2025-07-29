@@ -1,14 +1,13 @@
-// Ruta: middleware/handlers/index.ts
+// middleware/handlers/index.ts
 /**
  * @file index.ts
  * @description Barrel file para exportar todos los manejadores del middleware
- * desde una única ubicación para una importación limpia.
- *
- * @author Metashark
- * @version 1.0.0
+ *              de forma atómica y organizada.
+ * @author L.I.A Legacy
+ * @version 2.0.0
  */
-
-export * from "./auth.handler";
-export * from "./maintenance.handler";
-export * from "./multitenancy.handler";
-export * from "./redirects.handler";
+export * from "./auth";
+export * from "./i18n";
+export * from "./maintenance";
+export * from "./multitenancy";
+export * from "./redirects";

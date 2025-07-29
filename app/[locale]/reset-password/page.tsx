@@ -1,20 +1,7 @@
-// Ruta: app/[locale]/reset-password/page.tsx
-/**
- * @file page.tsx
- * @description Página para que los usuarios establezcan una nueva contraseña.
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1. Se actualiza la importación de la Server Action para utilizar el nuevo
- *    barrel file y el namespace `password`, mejorando la claridad y la
- *    consistencia del código (`passwordActions.updatePasswordAction`).
- * 2. Mantenidas las mejoras previas: migración a Server Action, medidor de
- *    fortaleza de contraseña y manejo de errores robusto.
- *
- * @author Metashark
- * @version 4.1.0 (Namespaced Action Import)
- */
+// app/[locale]/reset-password/page.tsx
 "use client";
 
-import { password as passwordActions } from "@/app/actions";
+import { password as passwordActions } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,8 +16,10 @@ import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
 /**
- * @description Botón de envío que se actualiza automáticamente según el estado del formulario.
- * @returns {JSX.Element}
+ * @file page.tsx
+ * @description Página para que los usuarios establezcan una nueva contraseña.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.0.0 (Architectural Alignment)
  */
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -43,19 +32,14 @@ function SubmitButton() {
   );
 }
 
-/**
- * @description Componente visual que muestra la fortaleza de la contraseña.
- * @param {{ score: number }} props - La puntuación de la contraseña (0-4).
- * @returns {JSX.Element}
- */
 const PasswordStrengthMeter = ({ score }: { score: number }) => {
   const t = useTranslations("ResetPasswordPage");
   const strengthLevels = [
-    { text: t("strength.veryWeak"), color: "bg-destructive" },
-    { text: t("strength.weak"), color: "bg-destructive" },
-    { text: t("strength.medium"), color: "bg-yellow-500" },
-    { text: t("strength.strong"), color: "bg-green-500" },
-    { text: t("strength.veryStrong"), color: "bg-green-500" },
+    { text: "Muito Fraca", color: "bg-destructive" },
+    { text: "Fraca", color: "bg-destructive" },
+    { text: "Média", color: "bg-yellow-500" },
+    { text: "Forte", color: "bg-green-500" },
+    { text: "Muito Forte", color: "bg-green-500" },
   ];
 
   return (
@@ -78,10 +62,6 @@ const PasswordStrengthMeter = ({ score }: { score: number }) => {
   );
 };
 
-/**
- * @description Página principal para restablecer la contraseña del usuario.
- * @returns {JSX.Element}
- */
 export default function ResetPasswordPage() {
   const t = useTranslations("ResetPasswordPage");
   const router = useRouter();
@@ -90,19 +70,14 @@ export default function ResetPasswordPage() {
 
   const [state, formAction] = useFormState(
     passwordActions.updatePasswordAction,
-    {
-      error: null,
-      success: false,
-    }
+    { error: null, success: false }
   );
 
   useEffect(() => {
-    if (state.error) {
-      toast.error(state.error);
-    }
+    if (state.error) toast.error(state.error);
     if (state.success) {
       toast.success(
-        "¡Contraseña actualizada con éxito! Serás redirigido al login."
+        "Senha atualizada com sucesso! Você será redirecionado para o login."
       );
       setTimeout(() => router.push("/login"), 3000);
     }

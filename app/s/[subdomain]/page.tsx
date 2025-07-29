@@ -1,17 +1,15 @@
 // app/s/[subdomain]/page.tsx
 /**
  * @file Public Site Page (Server Component)
- * @description Esta página se renderiza públicamente para cada sitio. Carga los datos
- * del sitio desde Supabase y muestra su página de bienvenida.
- *
- * @author Metashark
- * @version 2.1.0 (Site-centric refactor)
+ * @description Esta página se renderiza públicamente para cada sitio.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 3.0.0 (Corrected Data Fetching)
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getSiteDataBySubdomain } from "@/lib/data/sites";
+import { sites as sitesData } from "@/lib/data";
 import { protocol, rootDomain } from "@/lib/utils";
 
 export async function generateMetadata({
@@ -19,12 +17,10 @@ export async function generateMetadata({
 }: {
   params: { subdomain: string };
 }): Promise<Metadata> {
-  const siteData = await getSiteDataBySubdomain(params.subdomain);
+  const siteData = await sitesData.getSiteDataByHost(params.subdomain);
 
   if (!siteData || !siteData.subdomain) {
-    return {
-      title: `Site Not Found | ${rootDomain}`,
-    };
+    return { title: `Site Not Found | ${rootDomain}` };
   }
 
   return {
@@ -38,7 +34,7 @@ export default async function SubdomainPage({
 }: {
   params: { subdomain: string };
 }) {
-  const siteData = await getSiteDataBySubdomain(params.subdomain);
+  const siteData = await sitesData.getSiteDataByHost(params.subdomain);
 
   if (!siteData) {
     notFound();

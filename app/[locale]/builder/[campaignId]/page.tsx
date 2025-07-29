@@ -1,23 +1,17 @@
-// Ruta: app/[locale]/builder/[campaignId]/page.tsx
-import { hasWorkspacePermission } from "@/lib/auth/permissions"; // <-- REFACTORIZACIÓN
-import { CampaignConfig } from "@/lib/builder/types.d";
-import { logger } from "@/lib/logging";
-import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
-import { Canvas } from "../components/Canvas";
-import { useBuilderStore } from "../core/store";
-
+// app/[locale]/builder/[campaignId]/page.tsx
 /**
  * @file page.tsx
  * @description Página principal del constructor para una campaña específica.
- * REFACTORIZACIÓN DE SEGURIDAD Y ARQUITECTURA:
- * 1. La verificación de permisos ahora utiliza el helper centralizado
- *    `hasWorkspacePermission`, eliminando código duplicado y fortaleciendo
- *    la consistencia de la lógica de seguridad.
- *
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (Centralized Permissions Refactor)
+ * @version 4.0.0 (Architectural Alignment)
  */
+import { data as dataLayer } from "@/lib/data";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { notFound, redirect } from "next/navigation";
+import { Canvas } from "@/components/builder/Canvas";
+import { useBuilderStore } from "@/app/[locale]/builder/core/store";
+import type { CampaignConfig } from "@/lib/builder/types.d";
 
 export default async function BuilderPage({
   params,
@@ -25,7 +19,6 @@ export default async function BuilderPage({
   params: { campaignId: string };
 }) {
   const supabase = createClient();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -34,50 +27,16 @@ export default async function BuilderPage({
     return redirect(`/login?next=/builder/${params.campaignId}`);
   }
 
-  // Consulta actualizada para incluir el workspace_id a través de la tabla de sitios.
-  const { data: campaignData, error } = await supabase
-    .from("campaigns")
-    .select(
-      `
-      id,
-      name,
-      content,
-      site:sites ( workspace_id )
-    `
-    )
-    .eq("id", params.campaignId)
-    .single();
+  const campaignData = await dataLayer.campaigns.getCampaignContentById(
+    params.campaignId,
+    user.id
+  );
 
-  if (error || !campaignData) {
+  if (!campaignData) {
     logger.error(
-      `Error o campaña no encontrada ${params.campaignId} para el constructor`,
-      error
+      `Campaña no encontrada o acceso denegado para ${params.campaignId}`
     );
     return notFound();
-  }
-
-  // @ts-ignore - Supabase types can be tricky with nested selects. L.I.A. will monitor.
-  const workspaceId = campaignData.site?.workspace_id;
-
-  if (!workspaceId) {
-    logger.error(
-      `La campaña ${campaignData.id} no está asociada a ningún workspace.`
-    );
-    return notFound();
-  }
-
-  // REFACTORIZACIÓN: **VERIFICACIÓN DE PERMISOS CENTRALIZADA**
-  const isAuthorized = await hasWorkspacePermission(user.id, workspaceId, [
-    "owner",
-    "admin",
-    "member",
-  ]);
-
-  if (!isAuthorized) {
-    logger.warn(
-      `VIOLACIÓN DE SEGURIDAD: Acceso DENEGADO a la campaña ${params.campaignId} por el usuario ${user.id}.`
-    );
-    return redirect("/dashboard");
   }
 
   const campaignConfig: CampaignConfig =
@@ -96,34 +55,24 @@ export default async function BuilderPage({
           id: `hero-${Date.now()}`,
           type: "Hero1",
           props: {
-            title: "Título Impactante para tu Producto",
-            subtitle:
-              "Un subtítulo convincente que describe los beneficios clave.",
+            title: "Título Impactante",
+            subtitle: "Un subtítulo convincente.",
           },
           styles: {},
         },
       ],
     };
 
-  // Hidratación del store de Zustand en el servidor.
   useBuilderStore.setState({ campaignConfig });
 
   return (
     <div className="h-full w-full bg-background p-4 relative">
-      {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-      <div
-        data-lia-marker="true"
-        className="absolute top-1 left-1 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full z-10"
-      >
-        builder/[campaignId]/page.tsx
-      </div>
       <div className="h-full w-full overflow-hidden rounded-lg border bg-white shadow-inner">
         <Canvas />
       </div>
     </div>
   );
 }
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un componente de servidor que actúa como una capa de seguridad

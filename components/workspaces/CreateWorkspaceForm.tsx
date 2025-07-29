@@ -1,7 +1,8 @@
-// Ruta: components/workspaces/CreateWorkspaceForm.tsx
+// components/workspaces/CreateWorkspaceForm.tsx
 "use client";
 
-import { createWorkspaceAction } from "@/app/actions/workspaces.actions";
+import { workspaces as workspaceActions } from "@/lib/actions";
+import { WorkspaceSchema } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { WorkspaceSchema } from "@/app/actions/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -22,15 +22,8 @@ import type { z } from "zod";
 /**
  * @file CreateWorkspaceForm.tsx
  * @description Formulario para la creación de un nuevo workspace.
- * REFACTORIZACIÓN ARQUITECTÓNICA:
- * 1.  Se ha migrado la gestión del formulario a `react-hook-form` con `zodResolver`
- *     para alinearlo con el patrón estándar del proyecto, proporcionando validación
- *     en tiempo real y una estructura más robusta.
- * 2.  El manejo de estado y envío ha sido simplificado, eliminando la necesidad
- *     de `useFormState` y `useFormStatus`.
- *
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (Standardized Form Architecture)
+ * @version 3.1.0 (Architectural Alignment)
  */
 
 type FormData = z.infer<typeof WorkspaceSchema>;
@@ -57,7 +50,7 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
     formData.append("workspaceName", data.workspaceName);
     formData.append("icon", data.icon);
 
-    const result = await createWorkspaceAction(
+    const result = await workspaceActions.createWorkspaceAction(
       { error: null, success: false },
       formData
     );
@@ -73,14 +66,6 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 relative">
-      {/* DIRECTIVA: Marcador visual temporal para desarrollo */}
-      <div
-        data-lia-marker="true"
-        className="absolute -top-2 -left-2 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        CreateWorkspaceForm.tsx
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="workspaceName">Nombre del Workspace</Label>
         <Input
@@ -132,6 +117,10 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Plantillas de Workspace: Permitir al usuario crear un workspace a partir de una plantilla (ej. "Para Agencia"), que podría pre-configurar sitios o campañas iniciales.
+ * 2. Avatares de Workspace Personalizados: Permitir al usuario subir una imagen como ícono del workspace, integrando un componente de subida de archivos y Supabase Storage.
+ */
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato ha sido refactorizado para utilizar `react-hook-form`, el patrón

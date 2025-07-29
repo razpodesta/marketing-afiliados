@@ -1,35 +1,43 @@
-// tsconfig.json
+// Ruta: tsconfig.json
 {
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
+    // -- Type Checking --
+    "strict": true, // Habilita todas las opciones de verificación de tipos estrictas.
+    "noImplicitAny": true, // Lanza un error en expresiones y declaraciones con un tipo 'any' implícito.
+    "strictNullChecks": true, // Distingue entre 'null', 'undefined' y otros tipos.
+
+    // -- Modules --
+    "module": "esnext", // Especifica la generación de código de módulo.
+    "moduleResolution": "bundler", // Imita la resolución de módulos de un bundler moderno.
+    "resolveJsonModule": true, // Permite importar archivos .json.
+    "esModuleInterop": true, // Permite la interoperabilidad entre CommonJS y ES Modules.
+
+    // -- Language and Environment --
+    "target": "ES2017", // El código final se compilará para esta versión de ECMAScript.
+    "lib": ["dom", "dom.iterable", "esnext"], // Especifica las bibliotecas de tipos a incluir.
+    "jsx": "preserve", // Preserva el JSX para ser procesado por otro paso (Next.js).
+
+    // -- Project Options --
+    "allowJs": true, // Permite que se compilen archivos JavaScript.
+    "skipLibCheck": true, // Omite la verificación de tipos de los archivos de declaración (.d.ts).
+    "noEmit": true, // No emite archivos de salida; solo se usa para la verificación de tipos.
+    "incremental": true, // Habilita la compilación incremental para builds más rápidos.
+    "isolatedModules": true, // Asegura que cada archivo pueda ser transpilado sin depender de otras importaciones.
+
+    // -- Path Aliases --
+    "baseUrl": ".", // Define el directorio base para resolver rutas no absolutas.
+    "paths": {
+      // CORRECCIÓN CRÍTICA: Se ha cambiado de "./src/*" a "./*" para que coincida con la estructura del proyecto.
+      "@/*": ["./*"]
+    },
+
+    // -- Next.js Plugin --
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
+    ]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "next.config.mjs"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

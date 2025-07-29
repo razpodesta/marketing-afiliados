@@ -1,18 +1,8 @@
-// Ruta: app/[locale]/admin/admin-client.tsx
-/**
- * @file Componente Cliente del Dashboard de Administración
- * @description Interfaz para la administración de sitios, con paginación y
- *              estado de carga individual para una mejor experiencia de usuario.
- * REFACTORIZACIÓN ESTRUCTURAL: Renombrado de `dashboard.tsx` a `admin-client.tsx`
- * para una mayor claridad y para resolver errores de importación.
- *
- * @author Metashark
- * @version 7.2.0 (Structural Refactor)
- */
+// app/[locale]/admin/admin-client.tsx
 "use client";
 
-import { admin, session } from "@/app/actions";
-import { type ActionResult } from "@/app/actions/schemas";
+import { admin, session } from "@/lib/actions";
+import { type ActionResult } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,6 +36,12 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
+
+/**
+ * @file Componente Cliente del Dashboard de Administración
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 8.0.0 (Architectural Alignment)
+ */
 
 type TransformedSite = {
   subdomain: string;
@@ -198,11 +194,11 @@ export function AdminClient({
     setDeletingSiteId(subdomain);
 
     startTransition(async () => {
-      const result: ActionResult<{ message: string }> =
+      const result: ActionResult =
         await admin.deleteSiteAsAdminAction(formData);
-      if (result.success && result.data?.message) {
-        toast.success(result.data.message);
-      } else if (!result.success && result.error) {
+      if (result.success && result.data) {
+        toast.success((result.data as { message: string }).message);
+      } else if (result.error) {
         toast.error(result.error);
       }
       setDeletingSiteId(null);
@@ -259,7 +255,7 @@ export function AdminClient({
         ) : (
           <Card className="flex h-64 flex-col items-center justify-center p-8 text-center">
             <h3 className="text-xl font-semibold">{t("noSubdomains")}</h3>
-            <p className="mt-2 text-muted-foreground">
+            <p className="text-muted-foreground">
               Cuando los usuarios creen sitios, aparecerán aquí para su gestión.
             </p>
           </Card>
@@ -268,7 +264,6 @@ export function AdminClient({
     </div>
   );
 }
-
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Acciones de Suplantación (Impersonation): Integrar la acción `admin.impersonateUserAction` en la UI del `dev-console` para permitir a los desarrolladores iniciar sesión como otros usuarios para depuración.
  * 2. Indicador de Página Numérico: Mejorar el componente de paginación para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.

@@ -1,4 +1,4 @@
-// Ruta: components/ui/switch.tsx
+// components/ui/switch.tsx
 "use client";
 
 import * as React from "react";
@@ -7,12 +7,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * @file switch.tsx
- * @description Componente de interruptor (Switch) reutilizable, basado en Radix UI
- * y estilizado para coincidir con Shadcn/UI. Se utiliza para controlar
- * estados booleanos.
- *
- * @author L.I.A Legacy (generado)
- * @version 1.0.0 (Initial Creation)
+ * @description Componente de interruptor (Switch) reutilizable.
+ * @author L.I.A Legacy
+ * @version 1.0.0
  */
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
@@ -36,7 +33,6 @@ const Switch = React.forwardRef<
 Switch.displayName = SwitchPrimitives.Root.displayName;
 
 export { Switch };
-
 /*  L.I.A. LOGIC ANALYSIS
  *  ---------------------
  *  Este aparato es un componente de UI fundamental que encapsula la complejidad

@@ -1,22 +1,6 @@
-// Ruta: app/[locale]/dev-console/components/UserManagementTable.tsx
-/**
- * @file UserManagementTable.tsx
- * @description Componente de cliente para mostrar, buscar, filtrar y gestionar usuarios y sus roles.
- * REFACTORIZACIÓN 360: Se han corregido todos los errores de tipos. Se ha
- * implementado la funcionalidad de "Suplantación de Usuario", permitiendo a los
- * desarrolladores iniciar sesión como otro usuario a través de un modal seguro.
- * Se ha añadido la búsqueda y filtrado en tiempo real para una gestión eficiente.
- *
- * @author Metashark
- * @version 4.0.0 (User Impersonation & Full Stability)
- */
-
+// app/[locale]/dev-console/components/UserManagementTable.tsx
 "use client";
 
-import {
-  impersonateUserAction,
-  updateUserRoleAction,
-} from "@/app/actions/admin.actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -43,7 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type Database, type Tables } from "@/lib/types/database";
+import { admin as adminActions } from "@/lib/actions";
+import type { Database, Tables } from "@/lib/types/database";
 import {
   ChevronLeft,
   ChevronRight,
@@ -56,15 +41,20 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
 
 /**
+ * @file UserManagementTable.tsx
+ * @description Componente de cliente para mostrar, buscar, filtrar y gestionar usuarios y sus roles.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.1.0 (Architectural Alignment)
+ */
+
+/**
  * @typedef {object} ProfileRow
- * @description El tipo de datos para un usuario en la tabla. Ahora usa la vista.
+ * @description El tipo de datos para un usuario en la tabla. Utiliza la vista `user_profiles_with_email`.
  */
 type ProfileRow = Tables<"user_profiles_with_email">;
 
 /**
  * @description Modal para confirmar y ejecutar la suplantación de usuario.
- * @param {{ profile: ProfileRow }} props
- * @returns {JSX.Element}
  */
 const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
   const [isPending, startTransition] = useTransition();
@@ -73,8 +63,8 @@ const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
   const handleImpersonate = () => {
     if (!profile.id) return;
     startTransition(async () => {
-      const result = await impersonateUserAction(profile.id!);
-      if (result.success) {
+      const result = await adminActions.impersonateUserAction(profile.id!);
+      if (result.success && result.data) {
         toast.success(
           "Enlace de inicio de sesión generado. Abriendo en una nueva pestaña..."
         );
@@ -118,8 +108,6 @@ const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
 
 /**
  * @description Controles de paginación para la tabla de usuarios.
- * @param {{ page: number, totalCount: number, limit: number }} props
- * @returns {JSX.Element | null}
  */
 const PaginationControls = ({
   page,
@@ -161,8 +149,6 @@ const PaginationControls = ({
 
 /**
  * @description Barra de herramientas para la tabla, incluyendo el campo de búsqueda.
- * @param {{ searchQuery: string, setSearchQuery: (query: string) => void }} props
- * @returns {JSX.Element}
  */
 const TableToolbar = ({
   searchQuery,
@@ -216,7 +202,7 @@ export function UserManagementTable({
     newRole: Database["public"]["Enums"]["app_role"]
   ) => {
     startTransition(async () => {
-      const result = await updateUserRoleAction(userId, newRole);
+      const result = await adminActions.updateUserRoleAction(userId, newRole);
       if (result.success) {
         toast.success(`Rol actualizado para el usuario.`);
       } else {
@@ -290,6 +276,11 @@ export function UserManagementTable({
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
+ * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
+ * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
  * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.

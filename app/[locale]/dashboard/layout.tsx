@@ -1,21 +1,21 @@
+// app/[locale]/dashboard/layout.tsx
 /**
  * @file layout.tsx
- * @description Layout principal para toda la sección del dashboard.
- * @refactor
- * REFACTORIZACIÓN CRÍTICA DE CACHÉ Y TIPOS:
- * 1. Resuelto el error de ejecución al eliminar la escritura de cookies (`cookieStore.set`),
- *    cuya lógica ha sido movida al middleware.
- * 2. Corregido el error de tipo implícito 'any' en el mapeo de invitaciones.
- *
- * @author Metashark
- * @version 6.3.0 (Cookie Logic Removal & Type Fix)
+ * @description Layout principal del dashboard.
+ * @author L.I.A Legacy
+ * @version 9.2.1 (API Contract Fix)
  */
-import { CommandPalette } from "@/components/dashboard/CommandPalette";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { LiaChatWidget } from "@/components/dashboard/LiaChatWidget";
+import { CommandPalette } from "@/components/feedback/CommandPalette";
+import { LiaChatWidget } from "@/components/feedback/LiaChatWidget";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { DashboardProvider } from "@/lib/context/DashboardContext";
-import { getFeatureModulesForUser } from "@/lib/data/modules";
+import {
+  modules as modulesData,
+  sites as sitesData,
+  workspaces,
+} from "@/lib/data";
+import { getMockLayoutData } from "@/lib/dev/mock-session";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types/database";
@@ -30,8 +30,6 @@ type Invitation = {
   status: string;
   workspaces: { name: string; icon: string | null } | null;
 };
-
-// Tipo para los datos de invitación crudos de la DB para un tipado seguro
 type RawInvitationData = {
   id: string;
   status: string;
@@ -41,60 +39,68 @@ type RawInvitationData = {
     | null;
 };
 
-async function getLayoutData() {
+async function getProductionLayoutData() {
   const cookieStore = cookies();
   const supabase = createClient();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return redirect("/login");
 
   const getWorkspacesAndInvitations = cache(
-    async (
-      supabaseClient: ReturnType<typeof createClient>,
-      userId: string,
-      userEmail: string
-    ) => {
-      logger.info(
-        `[Cache] MISS: Cargando workspaces/invitaciones para ${userId}`
-      );
-      const [workspacesResult, invitationsResult] = await Promise.all([
-        supabaseClient.from("workspaces").select("*"),
-        supabaseClient
+    async () => {
+      const [ws, inv] = await Promise.all([
+        workspaces.getWorkspacesByUserId(user.id),
+        supabase
           .from("invitations")
           .select("id, status, workspaces (name, icon)")
-          .eq("invitee_email", userEmail)
+          .eq("invitee_email", user.email!)
           .eq("status", "pending"),
       ]);
-      return { workspacesResult, invitationsResult };
+      return { workspaces: ws, invitationsResult: inv };
     },
     [`ws-invites-data-${user.id}`],
     { tags: [`workspaces:${user.id}`, `invitations:${user.id}`] }
   );
 
-  const [{ workspacesResult, invitationsResult }, modules] = await Promise.all([
-    getWorkspacesAndInvitations(supabase, user.id, user.email!),
-    getFeatureModulesForUser(user),
-  ]);
+  const [{ workspaces: userWorkspaces, invitationsResult }, modules] =
+    await Promise.all([
+      getWorkspacesAndInvitations(),
+      modulesData.getFeatureModulesForUser(user),
+    ]);
 
-  if (workspacesResult.error) {
-    logger.error(
-      "Error cargando workspaces en el layout:",
-      workspacesResult.error
-    );
-    throw new Error("No se pudieron cargar los datos del workspace.");
-  }
   if (invitationsResult.error) {
-    logger.error(
-      "Error cargando invitaciones en el layout:",
-      invitationsResult.error
-    );
+    logger.error("Error cargando invitaciones:", invitationsResult.error);
     throw new Error("No se pudieron cargar las invitaciones.");
   }
+  if (userWorkspaces.length === 0) return redirect("/welcome");
 
-  const workspaces: Workspace[] = workspacesResult.data || [];
-  if (workspaces.length === 0) return redirect("/welcome");
+  let activeWorkspace: Workspace | null = null;
+  const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
+  if (
+    activeWorkspaceId &&
+    userWorkspaces.some((ws: Workspace) => ws.id === activeWorkspaceId)
+  ) {
+    activeWorkspace = userWorkspaces.find(
+      (ws: Workspace) => ws.id === activeWorkspaceId
+    )!;
+  } else if (userWorkspaces.length > 0) {
+    activeWorkspace = userWorkspaces[0];
+  }
+
+  // Si no hay un workspace activo después de la lógica, no podemos continuar.
+  if (!activeWorkspace) {
+    logger.warn(
+      `No se pudo determinar un workspace activo para el usuario ${user.id}. Redirigiendo a welcome.`
+    );
+    return redirect("/welcome");
+  }
+
+  // CORRECCIÓN: Se pasa el segundo argumento de opciones a la función.
+  const { sites, totalCount } = await sitesData.getSitesByWorkspaceId(
+    activeWorkspace.id,
+    {}
+  );
 
   const pendingInvitations: Invitation[] =
     (invitationsResult.data as RawInvitationData[])?.map(
@@ -107,20 +113,23 @@ async function getLayoutData() {
       })
     ) || [];
 
-  let activeWorkspace: Workspace | null = null;
-  const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
+  return {
+    user,
+    workspaces: userWorkspaces,
+    activeWorkspace,
+    pendingInvitations,
+    modules,
+    sites,
+    totalCount,
+  };
+}
 
-  if (
-    activeWorkspaceId &&
-    workspaces.some((ws) => ws.id === activeWorkspaceId)
-  ) {
-    activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId)!;
-  } else if (workspaces.length > 0) {
-    activeWorkspace = workspaces[0];
-    // CORRECCIÓN: La lógica de escritura de cookies se ha eliminado de aquí.
+async function getLayoutData() {
+  if (process.env.DEV_MODE_ENABLED === "true") {
+    logger.warn("[DEV MODE] Sesión y datos de dashboard simulados.");
+    return getMockLayoutData();
   }
-
-  return { user, workspaces, activeWorkspace, pendingInvitations, modules };
+  return await getProductionLayoutData();
 }
 
 export default async function DashboardLayout({
@@ -129,6 +138,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const layoutData = await getLayoutData();
+  if (!layoutData) return null;
 
   return (
     <DashboardProvider value={layoutData}>
@@ -146,7 +156,17 @@ export default async function DashboardLayout({
     </DashboardProvider>
   );
 }
-
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Error Boundary de React: Envolver `{children}` en un Error Boundary de React. Esto capturaría errores de renderizado en las páginas hijas y permitiría mostrar una UI de error amigable en lugar de un crash completo de la aplicación, mejorando la resiliencia.
+ */
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Higher-Order Function (HOC) para Datos de Layout: La lógica `if (DEV_MODE) return mock else return real` podría ser abstraída en una función de orden superior, como `withDevModeData(realDataFetcher, mockDataFetcher)`, para hacer el código en `getLayoutData` aún más limpio y declarativo.
+ * 2. Sincronización de Estado Simulada: El `mock-session.ts` podría exportar un objeto de estado simple (similar a un store de Zustand) que pueda ser modificado en tiempo de ejecución a través de la consola del navegador, permitiendo a los desarrolladores simular cambios de estado (como cambiar el workspace activo) sin recargar la página.
+ */
+/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
+ * 1. Higher-Order Function (HOC) para Datos de Layout: La lógica `if (DEV_MODE) return mock else return real` podría ser abstraída en una función de orden superior, como `withDevModeData(realDataFetcher, mockDataFetcher)`, para hacer el código en `getLayoutData` aún más limpio y declarativo.
+ * 2. Sincronización de Estado Simulada: El `mock-session.ts` podría exportar un objeto de estado simple (similar a un store de Zustand) que pueda ser modificado en tiempo de ejecución a través de la consola del navegador, permitiendo a los desarrolladores simular cambios de estado (como cambiar el workspace activo) sin recargar la página.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Invalidación de Caché por Tags: Las Server Actions que modifican datos (ej. `createWorkspaceAction`, `acceptInvitationAction`) deben llamar a `revalidateTag` para invalidar la caché. (IMPLEMENTADO EN ACTION)
  * 2. Error Boundary de React: Envolver la llamada a `getLayoutData` en un Error Boundary de React para capturar errores de base de datos y mostrar una página de error amigable en lugar de un crash de la aplicación.

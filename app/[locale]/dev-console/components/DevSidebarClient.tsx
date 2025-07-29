@@ -1,8 +1,7 @@
-/* Ruta: app/[locale]/dev-console/components/DevSidebarClient.tsx */
-
+// app/[locale]/dev-console/components/DevSidebarClient.tsx
 "use client";
 
-import { signOutAction } from "@/app/actions/auth.actions";
+import { session as sessionActions } from "@/lib/actions";
 import {
   Accordion,
   AccordionContent,
@@ -28,22 +27,15 @@ import React, { useEffect, useState } from "react";
 /**
  * @file DevSidebarClient.tsx
  * @description Componente de cliente para la barra lateral del `dev-console`.
- * Maneja la lógica interactiva como el resaltado de la ruta activa y la
- * carga y renderizado del manifiesto de rutas del proyecto.
- *
- * @author Metashark
- * @version 1.0.0
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.0.0 (Architectural Alignment)
  */
-
-// --- TIPOS ---
 interface RouteNode {
   name: string;
   path: string;
   isPage: boolean;
   children: RouteNode[];
 }
-
-// --- SUB-COMPONENTES ---
 
 const NavLink = ({
   href,
@@ -94,8 +86,6 @@ const RouteTree = ({ node }: { node: RouteNode }) => {
     </div>
   );
 };
-
-// --- COMPONENTE PRINCIPAL ---
 
 export function DevSidebarClient() {
   const [routes, setRoutes] = useState<RouteNode | null>(null);
@@ -155,7 +145,7 @@ export function DevSidebarClient() {
         </div>
       </nav>
       <div className="mt-auto border-t p-4">
-        <form action={signOutAction}>
+        <form action={sessionActions.signOutAction}>
           <Button variant="ghost" className="w-full justify-start">
             <LogOut className="mr-2 h-4 w-4" />
             Cerrar Sesión

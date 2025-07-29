@@ -1,4 +1,4 @@
-// Ruta: app/[locale]/dashboard/sites/sites-client.tsx
+// app/[locale]/dashboard/sites/sites-client.tsx
 "use client";
 
 import { PaginationControls, SitesGrid, SitesHeader } from "@/components/sites";
@@ -8,12 +8,9 @@ import { useSitesManagement } from "@/lib/hooks/useSitesManagement";
 /**
  * @file sites-client.tsx
  * @description Componente orquestador de cliente para la página de "Mis Sitios".
- * REFACTORIZACIÓN DE ESTABILIDAD:
- * 1.  Se ha corregido el contrato de props con `SitesHeader`, pasando
- *     `onSubmitCreate` y `isCreating` para alinear los componentes.
- *
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 6.0.0 (Full Hook Orchestration & Stability Patch)
+ *              Recibe los datos iniciales del servidor como props.
+ * @author L.I.A Legacy
+ * @version 8.0.0 (Props-Driven Restored)
  */
 interface SitesClientProps {
   initialSites: SiteWithCampaignsCount[];
@@ -43,14 +40,6 @@ export function SitesClient({
 
   return (
     <div className="space-y-6 relative">
-      <div
-        data-lia-marker="true"
-        className="absolute -top-4 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        sites-client.tsx
-      </div>
-
-      {/* CORRECCIÓN: Se pasan las props correctas al componente hijo. */}
       <SitesHeader
         isCreateDialogOpen={isCreateDialogOpen}
         setCreateDialogOpen={setCreateDialogOpen}
@@ -59,14 +48,12 @@ export function SitesClient({
         onSubmitCreate={handleCreate}
         isCreating={isCreating}
       />
-
       <SitesGrid
         sites={filteredSites}
         onDelete={handleDelete}
         isPending={isPending}
         deletingSiteId={deletingSiteId}
       />
-
       {!searchQuery && (
         <PaginationControls
           page={page}

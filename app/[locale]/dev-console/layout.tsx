@@ -1,39 +1,17 @@
-/* Ruta: app/[locale]/dev-console/layout.tsx */
-"use client";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import {
-  Users,
-  LayoutGrid,
-  FileText,
-  ShieldCheck,
-  Home,
-  LogOut,
-  ChevronRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { signOutAction } from "@/app/actions/auth.actions";
-import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import React, { Suspense } from "react";
-import { DevSidebarClient } from "./components/DevSidebarClient"; // Componente cliente para interactividad
-
+// app/[locale]/dev-console/layout.tsx
 /**
  * @file layout.tsx
  * @description Layout principal para el Dashboard de Desarrollador (`/dev-console`).
- * Este es un Componente de Servidor que actúa como una capa de seguridad crítica.
- * Verifica el rol 'developer' del usuario en el servidor antes de renderizar
- * cualquier contenido, proporcionando una defensa en profundidad.
- *
- * @author Metashark
- * @version 2.0.0 (Client Component Sidebar & Route Viewer)
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 3.0.0 (Architectural Alignment)
  */
+"use server"; // <-- Se convierte a Server Component para obtener la sesión
+
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import React from "react";
+import { DevSidebarClient } from "./components/DevSidebarClient";
+
 export default async function DevConsoleLayout({
   children,
 }: {
@@ -48,16 +26,14 @@ export default async function DevConsoleLayout({
     return redirect("/login?next=/dev-console");
   }
 
-  // Capa de seguridad #2: Verificación de rol en el servidor.
   const { data: profile } = await supabase
     .from("profiles")
     .select("app_role")
     .eq("id", user.id)
     .single();
 
-  // Si el perfil no existe o el rol no es 'developer', se redirige.
   if (!profile || profile.app_role !== "developer") {
-    return redirect("/dashboard"); // Redirigir a un lugar seguro.
+    return redirect("/dashboard");
   }
 
   return (

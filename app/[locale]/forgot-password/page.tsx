@@ -1,19 +1,8 @@
-/**
- * @file page.tsx
- * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
- * ANÁLISIS DE CALIDAD: Este componente ya está alineado con las mejores prácticas
- * de seguridad y UX. Utiliza `useFormState` y `useFormStatus` para una
- * interacción fluida con la Server Action y está diseñado para funcionar con el
- * flujo de redirección que previene la enumeración de usuarios. La refactorización
- * se centra en añadir documentación TSDoc exhaustiva.
- *
- * @author Metashark
- * @version 4.1.0 (Comprehensive TSDoc)
- */
+// app/[locale]/forgot-password/page.tsx
 "use client";
 
-import { requestPasswordResetAction } from "@/app/actions/auth.actions";
-import { type RequestPasswordResetState } from "@/app/actions/schemas";
+import { auth as authActions } from "@/lib/actions";
+import { type RequestPasswordResetState } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,10 +15,10 @@ import { useFormState, useFormStatus } from "react-dom";
 import toast from "react-hot-toast";
 
 /**
- * @description Componente interno que renderiza el botón de envío del formulario.
- *              Utiliza el hook `useFormStatus` para mostrar un estado de carga
- *              y deshabilitarse automáticamente mientras la Server Action está en curso.
- * @returns {JSX.Element} El botón de envío con estado.
+ * @file page.tsx
+ * @description Página para que los usuarios soliciten un enlace para restablecer su contraseña.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.1.0 (Architectural Alignment & Type Fix)
  */
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -43,24 +32,16 @@ function SubmitButton() {
   );
 }
 
-/**
- * @description Componente principal de la página de olvido de contraseña.
- *              Gestiona el estado del formulario y la interacción con la Server Action.
- * @returns {JSX.Element} La interfaz de usuario completa de la página.
- */
 export default function ForgotPasswordPage() {
   const t = useTranslations("ForgotPasswordPage");
 
   const initialState: RequestPasswordResetState = { error: undefined };
   const [state, formAction] = useFormState(
-    requestPasswordResetAction,
+    authActions.requestPasswordResetAction,
     initialState
   );
 
   useEffect(() => {
-    // La Server Action asociada siempre redirige para prevenir la enumeración de usuarios.
-    // Por lo tanto, este efecto solo se activará para errores de validación
-    // devueltos *antes* de la ejecución de la lógica principal (ej. email inválido).
     if (state?.error) {
       toast.error(state.error);
     }
@@ -113,6 +94,10 @@ export default function ForgotPasswordPage() {
   );
 }
 
+/* MEJORAS FUTURAS DETECTADAS
+ * 1. Rate Limiting (Server-Side): Implementar limitación de tasa en la `requestPasswordResetAction` para prevenir ataques de bombardeo de correos electrónicos.
+ * 2. Validación en Tiempo Real en Cliente: Migrar a `react-hook-form` con `zodResolver` para mostrar errores de validación instantáneamente mientras el usuario escribe.
+ */
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Rate Limiting (Server-Side): La mejora de seguridad más crítica para este flujo es implementar limitación de tasa en la `requestPasswordResetAction` del servidor. Esto previene ataques de bombardeo de correos electrónicos y es esencial para un sistema en producción.
  * 2. Integración con Servicio de Email Transaccional (Server-Side): Para mejorar la entregabilidad, el seguimiento y el branding de los correos, la `requestPasswordResetAction` debería integrarse con un servicio como Resend o Postmark en lugar de depender del servicio de email por defecto de Supabase.

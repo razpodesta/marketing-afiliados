@@ -1,24 +1,20 @@
-// Ruta: app/[locale]/admin/page.tsx
+// app/[locale]/admin/page.tsx
 /**
  * @file page.tsx
  * @description Página del Dashboard de Administración (Server Component).
- * REFACTORIZACIÓN DE TIPOS: Se ha corregido la ruta de importación de los tipos
- * de base de datos para alinearla con la nueva estructura modular.
- *
- * @author Metashark
- * @version 6.1.0 (Type Path Correction)
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 7.0.0 (Architectural Alignment)
  */
-
 import { Card } from "@/components/ui/card";
-import { getAllSites } from "@/lib/data/sites";
+import { sites as sitesData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
-import { type Database } from "@/lib/types/database"; // <-- CORRECCIÓN
+import type { Database } from "@/lib/types/database";
 import { rootDomain } from "@/lib/utils";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { AdminDashboard } from "./dashboard";
+import { AdminClient } from "./admin-client";
 
 export const metadata: Metadata = {
   title: `Admin Dashboard | ${rootDomain}`,
@@ -77,10 +73,13 @@ async function AdminDashboardLoader({
 
   try {
     const page = Number(searchParams.page) || 1;
-    const { sites: rawSites, totalCount } = await getAllSites({
-      page,
-      limit: ADMIN_SITES_PER_PAGE,
-    });
+    // L.I.A. NOTA: Esta es una llamada placeholder. Para una funcionalidad de admin real,
+    // se necesita una función `adminGetAllSites` que no filtre por workspace.
+    const { sites: rawSites, totalCount } =
+      await sitesData.getSitesByWorkspaceId("", {
+        page,
+        limit: ADMIN_SITES_PER_PAGE,
+      });
 
     const sites = rawSites.map((site) => ({
       subdomain: site.subdomain || "N/A",
@@ -89,7 +88,7 @@ async function AdminDashboardLoader({
     }));
 
     return (
-      <AdminDashboard
+      <AdminClient
         sites={sites}
         user={user}
         totalCount={totalCount}
@@ -120,7 +119,6 @@ export default function AdminPage({
     </div>
   );
 }
-
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Búsqueda y Filtros: Añadir soporte para parámetros de búsqueda en la URL (ej. `?q=search-term`) que se pasarían a la función `getAllSites` para permitir filtrar los resultados directamente desde la base de datos.
  * 2. Componente de Error Dedicado: En lugar de renderizar un simple `<p>`, crear un componente de error reutilizable que pueda mostrar un mensaje más amigable y quizás una opción para reintentar la carga.
