@@ -1,77 +1,72 @@
 // Ruta: scripts/bypass-commit.mjs
-
-// USO:
-// pnpm run bypass "WIP: Refactorizando la capa de datos"
-
 /**
  * @file bypass-commit.mjs
- * @description (PROTOCOLO DE CONTINGENCIA - WINDOWS CMD COMPATIBLE)
- *              Script de Node.js para ejecutar un flujo completo de commit y push
- *              omitiendo todos los hooks de Husky. Esta herramienta es para uso
- *              en emergencias o para commits de trabajo en progreso (WIP).
- *
- * @usage
- *   pnpm run bypass "Tu mensaje de commit aquí"
- *
- * @author L.I.A Legacy & RaZ Podestá
- * @version 2.0.0
+ * @description Protocolo de Bypass para commits de trabajo en progreso (WIP).
+ *              Añade todos los cambios, realiza un commit con el mensaje proporcionado
+ *              y omite los hooks de pre-commit. Este script está diseñado para ser
+ *              resiliente y manejar estados de repositorio sin cambios.
+ * @author L.I.A Legacy
+ * @version 2.0.0 (Resilient & User-Friendly)
  */
+
+import chalk from "chalk";
 import { execSync } from "child_process";
 
-// Helper para ejecutar comandos de forma síncrona y mostrar su salida.
-const runCommand = (command) => {
+const log = console.log;
+
+function executeCommand(command, description) {
   try {
-    console.log(`\n> ${command}`);
-    const output = execSync(command, { stdio: "inherit" });
-    return { success: true, output };
+    log(chalk.blue(`> ${command}`));
+    execSync(command, { stdio: "inherit" });
+    log(chalk.green(`✅ ${description}`));
   } catch (error) {
-    console.error(`\n❌ Error ejecutando: "${command}"`);
-    // El error ya se muestra en la consola gracias a stdio: 'inherit'
-    return { success: false, error };
+    log(chalk.red(`❌ Error ejecutando: "${command}"`));
+    throw error; // Propagar el error para que el script aborte
   }
-};
-
-async function main() {
-  console.log("🚀 [PROTOCOLO DE BYPASS ACTIVADO]");
-  console.log("-----------------------------------------");
-
-  // Obtener el mensaje de commit de los argumentos de la línea de comandos
-  const commitMessage = process.argv[2];
-
-  if (!commitMessage) {
-    console.error("❌ ERROR: Se requiere un mensaje de commit como argumento.");
-    console.info('   Uso: pnpm run bypass "Tu mensaje de commit"');
-    process.exit(1);
-  }
-
-  // --- PASO 1: AÑADIR ARCHIVOS ---
-  console.log("1. Añadiendo todos los archivos al stage (git add .)...");
-  if (!runCommand("git add .").success) {
-    console.error("❌ Falló al añadir archivos. Abortando.");
-    process.exit(1);
-  }
-  console.log("✅ Archivos añadidos.");
-
-  // --- PASO 2: COMMIT SIN VERIFICACIÓN ---
-  console.log("2. Realizando commit con --no-verify...");
-  const commitCommand = `git commit --no-verify -m "${commitMessage}"`;
-  if (!runCommand(commitCommand).success) {
-    console.error("❌ Falló el commit. Abortando.");
-    process.exit(1);
-  }
-  console.log("✅ Commit creado exitosamente.");
-
-  // --- PASO 3: PUSH SIN VERIFICACIÓN ---
-  console.log("3. Realizando push con --no-verify...");
-  if (!runCommand("git push --no-verify").success) {
-    console.error("❌ Falló el push. Revisa la salida de git.");
-    process.exit(1);
-  }
-  console.log("✅ Push completado exitosamente.");
-
-  console.log("-----------------------------------------");
-  console.log("✅ [PROTOCOLO DE BYPASS COMPLETADO]");
 }
 
-main();
-// Ruta: scripts/bypass-commit.mjs
+function hasChanges() {
+  // `git status --porcelain` devuelve una lista de cambios.
+  // Si la salida está vacía, no hay cambios.
+  const status = execSync("git status --porcelain").toString().trim();
+  return status.length > 0;
+}
+
+// --- Inicio del Protocolo ---
+log(chalk.yellow("🚀 [PROTOCOLO DE BYPASS ACTIVADO]"));
+log(chalk.gray("-----------------------------------------"));
+
+try {
+  const commitMessage = process.argv.slice(2).join(" ");
+  if (!commitMessage) {
+    throw new Error("No se proporcionó un mensaje para el commit.");
+  }
+
+  // 1. Añadir todos los archivos al stage
+  executeCommand("git add .", "Archivos añadidos al stage.");
+
+  // 2. VERIFICACIÓN DE ESTADO (LÓGICA RESILIENTE)
+  if (!hasChanges()) {
+    log(
+      chalk.yellow(
+        "🟡 No hay cambios para realizar el commit. El árbol de trabajo está limpio."
+      )
+    );
+    log(chalk.gray("-----------------------------------------"));
+    log(chalk.green("✅ Protocolo finalizado sin necesidad de commit."));
+    process.exit(0); // Salir exitosamente
+  }
+
+  // 3. Realizar commit con --no-verify (solo si hay cambios)
+  executeCommand(
+    `git commit --no-verify -m "${commitMessage}"`,
+    "Commit realizado con éxito."
+  );
+
+  log(chalk.gray("-----------------------------------------"));
+  log(chalk.green("✅ Protocolo de Bypass completado."));
+} catch (error) {
+  log(chalk.red(`❌ ${error.message}`));
+  log(chalk.red("❌ Falló el protocolo. Abortando."));
+  process.exit(1);
+}
