@@ -1,3 +1,4 @@
+// Ruta: components/sites/SiteCard.test.tsx (CORREGIDO)
 /**
  * @file components/sites/SiteCard.test.tsx
  * @description Pruebas unitarias para el componente `SiteCard`.
@@ -5,7 +6,7 @@
  *              críticamente, la construcción correcta de los enlaces de navegación
  *              internos y externos.
  * @author L.I.A Legacy
- * @version 2.1.0 (Corrected Mock Typing)
+ * @version 2.1.0 (Corrected Mock Typing & Intl Context Simulation)
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -14,11 +15,9 @@ import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 
 import { SiteCard } from "./SiteCard";
 
-// --- INICIO DE CORRECCIÓN: Tipado de Simulación (Mock Typing) ---
-// Se define un tipo para las props del Link simulado.
-// Es CRÍTICO usar Omit para eliminar la prop 'href' original de los atributos de <a>,
-// que es un 'string', antes de añadir nuestra propia definición de 'href' que
-// puede ser un objeto. Esto previene una colisión de tipos.
+// --- Simulación (Mocking) de Dependencias ---
+
+// Se define un tipo para las props del Link simulado que acepta un objeto `href`.
 type MockLinkProps = Omit<
   React.AnchorHTMLAttributes<HTMLAnchorElement>,
   "href"
@@ -26,22 +25,22 @@ type MockLinkProps = Omit<
   href: string | { pathname: string; params: Record<string, string> };
 };
 
-// Se simula el módulo de navegación para aislar el componente.
-vi.mock("@/navigation", () => ({
+// CORRECCIÓN CRÍTICA: Se simula el módulo de navegación para aislar el componente y
+// proveer una implementación funcional del componente `Link` que no requiere
+// del proveedor de contexto de `next-intl`, resolviendo el error "No intl context found".
+vi.mock("@/lib/navigation", () => ({
   Link: (props: MockLinkProps) => {
     let finalHref: string;
     if (typeof props.href === "string") {
       finalHref = props.href;
     } else {
-      // Si href es un objeto, construimos la URL dinámicamente.
+      // Si href es un objeto, construimos la URL dinámicamente para la aserción.
       let path = props.href.pathname;
       for (const key in props.href.params) {
         path = path.replace(`[${key}]`, props.href.params[key]);
       }
       finalHref = path;
     }
-    // Devolvemos una etiqueta <a> real con la URL construida.
-    // Omitimos el resto de las props que no son válidas para un <a>, como 'params'.
     const { href, ...anchorProps } = props;
     return (
       <a href={finalHref} {...anchorProps}>
@@ -50,7 +49,8 @@ vi.mock("@/navigation", () => ({
     );
   },
 }));
-// --- FIN DE CORRECCIÓN ---
+
+// --- Datos de Prueba (Test Data) ---
 
 const mockSite: SiteWithCampaignsCount = {
   id: "site-id-123",
@@ -110,15 +110,14 @@ describe("Componente: SiteCard", () => {
       />
     );
 
-    const externalLink = screen
-      .getByRole("link", {
-        name: "Abrir sitio en una nueva pestaña", // Asumiendo que se añade un aria-label para accesibilidad
-      })
-      .closest("a");
+    // Se busca por el aria-label para una selección única y accesible.
+    const externalLink = screen.getByLabelText(
+      "Abrir sitio en una nueva pestaña"
+    );
     expect(externalLink).toBeInTheDocument();
     expect(externalLink).toHaveAttribute(
       "href",
-      "http://mi-sitio-de-prueba.localhost:3000"
+      `http://${mockSite.subdomain}.localhost:3000`
     );
   });
 });

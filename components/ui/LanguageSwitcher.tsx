@@ -1,15 +1,17 @@
-// Ruta: components/ui/LanguageSwitcher.tsx
+// Ruta: components/ui/LanguageSwitcher.tsx (CORREGIDO)
 /**
  * @file LanguageSwitcher.tsx
  * @description Componente de cliente para cambiar el idioma de la aplicación.
+ *              Ahora establece una cookie de preferencia para persistir la elección del usuario.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.4.0 (Strictly Typed Navigation Contract)
+ * @version 3.0.0 (Persistent Language Preference)
  */
 "use client";
 
 import { Globe } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTransition } from "react";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +28,7 @@ import {
   useRouter,
 } from "@/lib/navigation";
 
+const COOKIE_NAME = "NEXT_LOCALE_CHOSEN";
 const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
   "en-US": { name: "English", flag: "🇺🇸" },
   "es-ES": { name: "Español", flag: "🇪🇸" },
@@ -34,8 +37,6 @@ const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
 
 export function LanguageSwitcher() {
   const router = useRouter();
-  // CORRECCIÓN (TS2322): `usePathname` ahora devuelve nuestro tipo `AppPathname`,
-  // que es exactamente lo que el `router` espera.
   const pathname: AppPathname = usePathname();
   const params = useParams();
   const [isPending, startTransition] = useTransition();
@@ -48,11 +49,10 @@ export function LanguageSwitcher() {
   );
 
   const handleLocaleChange = (newLocale: AppLocale) => {
+    // CORRECCIÓN: Persistir la elección del usuario en una cookie.
+    Cookies.set(COOKIE_NAME, newLocale, { expires: 365, path: "/" });
+
     startTransition(() => {
-      // Con `pathname` ahora correctamente tipado como `AppPathname`, el router de
-      // `next-intl` puede inferir correctamente qué `params` son necesarios para esa
-      // ruta específica. El `cast` a `any` es seguro aquí porque `useParams` nos
-      // dará los parámetros que la URL ya contiene.
       router.replace(
         {
           pathname,
@@ -108,6 +108,14 @@ export function LanguageSwitcher() {
   );
 }
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el selector de idioma.
+ *
+ * 1.  **Sincronización con Perfil de Usuario:** Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles`. Al iniciar sesión, la cookie `NEXT_LOCALE_CHOSEN` podría ser establecida desde el servidor basándose en esta preferencia, sincronizando la experiencia a través de diferentes dispositivos.
+ * 2.  **Traducciones en la Página de Selección:** La página `/choose-language` actualmente tiene texto estático en inglés. Podría ser refactorizada para usar `getTranslations` y mostrar el texto "Please select your language" en múltiples idiomas.
+ * 3.  **Animaciones de Transición:** Añadir animaciones sutiles con `framer-motion` a la página de selección de idioma para una experiencia de bienvenida más pulida y moderna.
+ */
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS

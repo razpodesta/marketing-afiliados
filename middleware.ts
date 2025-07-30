@@ -1,11 +1,13 @@
-// middleware.ts
+// Ruta: middleware.ts (CORREGIDO)
 /**
  * @file middleware.ts
  * @description Orquestador del pipeline de middleware. Define el orden de
- *              ejecución de manejadores atómicos y desacoplados.
- * @author L.I.A Legacy
- * @version 6.0.0 (Pure Chaining Pipeline)
+ *              ejecución de manejadores atómicos. Refactorizado para implementar
+ *              un flujo de selección de idioma intersticial para nuevos visitantes.
+ * @author L.I.A Legacy & RaZ Podestá
+ * @version 7.0.1 (Type Import Syntax Fix)
  */
+// CORRECCIÓN: Se importa `NextResponse` como valor y `NextRequest` como tipo.
 import { type NextRequest, NextResponse } from "next/server";
 
 import { logger } from "./lib/logging";
@@ -17,34 +19,57 @@ import {
   handleRedirects,
 } from "./middleware/handlers";
 
-export async function middleware(request: NextRequest) {
+const PUBLIC_ROUTES = ["/", "/choose-language"];
+
+/**
+ * @async
+ * @function middleware
+ * @description Punto de entrada principal para el middleware de la aplicación.
+ *              Ejecuta una serie de manejadores en un pipeline para procesar
+ *              cada petición entrante.
+ * @param {NextRequest} request - La petición entrante.
+ * @returns {Promise<NextResponse>} La respuesta final después de ser procesada por el pipeline.
+ */
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   logger.trace(
     { path: request.nextUrl.pathname, method: request.method },
     `[PIPELINE] >>> INICIO Petición entrante.`
   );
 
-  // --- Pipeline de Ejecución Secuencial ---
-
-  // 1. Manejadores síncronos que pueden terminar la cadena temprano.
+  // --- Manejadores de Nivel 1: Terminación Temprana ---
   const maintenanceResponse = handleMaintenance(request);
-  if (maintenanceResponse) {
-    logger.trace("[PIPELINE] <<< FIN: Interrumpido por handleMaintenance.");
-    return maintenanceResponse;
-  }
+  if (maintenanceResponse) return maintenanceResponse;
 
   const redirectResponse = handleRedirects(request);
-  if (redirectResponse) {
-    logger.trace("[PIPELINE] <<< FIN: Interrumpido por handleRedirects.");
-    return redirectResponse;
+  if (redirectResponse) return redirectResponse;
+
+  // --- Manejador de Nivel 2: Internacionalización (Fuente de Verdad del Locale) ---
+  let response = handleI18n(request);
+  const locale = response.headers.get("x-app-locale") || "pt-BR";
+  const pathnameWithoutLocale =
+    request.nextUrl.pathname.replace(`/${locale}`, "") || "/";
+
+  // --- Flujo de Selección de Idioma para Nuevos Visitantes ---
+  const hasLanguagePreference = request.cookies.has("NEXT_LOCALE_CHOSEN");
+  if (!hasLanguagePreference && pathnameWithoutLocale !== "/choose-language") {
+    logger.trace(
+      "[PIPELINE] Nuevo visitante sin preferencia de idioma. Redirigiendo a selector."
+    );
+    return NextResponse.redirect(
+      new URL(`/${locale}/choose-language`, request.url)
+    );
   }
 
-  // 2. Manejador de I18n: Crea la respuesta base y añade el contexto de locale.
-  let response = handleI18n(request);
+  // --- Manejador de Nivel 3: Rutas Públicas y Protegidas ---
+  if (PUBLIC_ROUTES.includes(pathnameWithoutLocale)) {
+    logger.trace(
+      `[PIPELINE] Ruta pública detectada (${pathnameWithoutLocale}). Saltando auth y multitenancy.`
+    );
+    return response;
+  }
 
-  // 3. Manejador de Multitenancy: Recibe la respuesta de i18n y puede modificarla.
+  // --- Pipeline de Nivel 4: Rutas Protegidas ---
   response = await handleMultitenancy(request, response);
-
-  // 4. Manejador de Autenticación: Recibe la respuesta y la modifica.
   response = await handleAuth(request, response);
 
   logger.trace(
@@ -56,10 +81,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|images|favicon.ico|maintenance.html).*)",
+    "/((?!api|_next/static|_next/image|images|icons|favicon.ico|maintenance.html|browserconfig.xml|manifest.json).*)",
   ],
 };
 
+//s Ruta: middleware.t
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Clase Orquestadora de Pipeline: Para una gestión aún más avanzada, la lógica de encadenamiento podría ser abstraída en una clase `MiddlewarePipeline` que permita registrar manejadores de forma programática (ej. `pipeline.use(handleI18n).run(request)`).
  */

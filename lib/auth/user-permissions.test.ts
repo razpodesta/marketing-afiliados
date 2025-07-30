@@ -1,174 +1,190 @@
-// Ruta: lib/auth/user-permissions.test.ts
+// Ruta: lib/auth/user-permissions.ts (CORREGIDO)
 /**
- * @file user-permissions.test.ts
- * @description Suite de pruebas de integración para el Guardián de Permisos.
- *              Esta es una red de seguridad crítica que valida la lógica de autorización
- *              en múltiples escenarios, incluyendo casos límite y fallos esperados.
+ * @file lib/auth/user-permissions.ts
+ * @description Este módulo es el "Guardián de Seguridad" de la aplicación. Centraliza todas
+ *              las operaciones de obtención y verificación de roles y permisos de usuarios.
+ *              Actúa como la única fuente de verdad para la autorización en todo el sistema.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.0.0 (Production-Grade Test Suite)
+ * @version 2.2.2 (Final Return Path Fix & Module Restoration)
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+"use server";
 
-import * as DataLayer from "@/lib/data";
-import * as SupabaseServer from "@/lib/supabase/server";
+import { type User } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-import {
-  clearCachedAuthData,
-  getAuthenticatedUserAuthData,
-  requireAppRole,
-  requireWorkspacePermission,
-} from "./user-permissions";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/server";
+import { type Database } from "@/lib/types/database";
 
-// --- Simulación (Mocking) de Módulos Dependientes ---
+// --- Tipos de Contrato de Datos ---
 
-vi.mock("@/lib/supabase/server");
-vi.mock("@/lib/data");
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(() => ({
-    get: vi.fn(),
-  })),
-}));
+type AppRole = Database["public"]["Enums"]["app_role"];
+type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];
 
-// --- Factoría de Mocks para Datos de Prueba ---
-
-const createMockUser = (role: "user" | "developer" = "user") => ({
-  id: `user-uuid-${role}`,
-  app_metadata: { app_role: role },
-  // ...otros campos de usuario necesarios...
-});
-
-const mockDbClient = (user: any, profile: any, workspaceMember: any = null) => {
-  const fromMock = vi.fn().mockImplementation((tableName) => {
-    if (tableName === "profiles") {
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: profile, error: null }),
-      };
-    }
-    if (tableName === "workspace_members") {
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi
-          .fn()
-          .mockResolvedValue({ data: workspaceMember, error: null }),
-      };
-    }
-    return {};
-  });
-
-  vi.mocked(SupabaseServer.createClient).mockReturnValue({
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user } }) },
-    from: fromMock,
-  } as any);
+export type UserAuthData = {
+  user: User;
+  appRole: AppRole;
+  activeWorkspaceRole: WorkspaceRole | null;
+  activeWorkspaceId: string | null;
 };
 
-// --- Suite de Pruebas Principal ---
+// --- Estrategia de Cache por Petición ---
 
-describe("Guardián de Permisos: user-permissions.ts", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    clearCachedAuthData(); // Esencial para aislar las pruebas de la caché
-  });
+let cachedUserAuthData: UserAuthData | null = null;
 
-  describe("Función: getAuthenticatedUserAuthData", () => {
-    it("debe devolver null si no hay usuario autenticado", async () => {
-      vi.mocked(SupabaseServer.createClient).mockReturnValue({
-        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
-      } as any);
-      const result = await getAuthenticatedUserAuthData();
-      expect(result).toBeNull();
-    });
+// --- Funciones Auxiliares Internas ---
 
-    it("debe devolver los datos del usuario y rol si está autenticado y tiene perfil", async () => {
-      const user = createMockUser("developer");
-      mockDbClient(user, { app_role: "developer" });
+async function hasWorkspacePermission(
+  userId: string,
+  workspaceId: string,
+  requiredRoles: WorkspaceRole[]
+): Promise<boolean> {
+  const supabase = createClient();
+  const { data: member, error } = await supabase
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .single();
 
-      const result = await getAuthenticatedUserAuthData();
-      expect(result?.user.id).toBe(user.id);
-      expect(result?.appRole).toBe("developer");
-    });
-
-    it("debe devolver null si un usuario autenticado no tiene perfil (inconsistencia de datos)", async () => {
-      const user = createMockUser();
-      // Simulamos que la consulta de perfil falla o no devuelve nada
-      mockDbClient(user, null);
-
-      const result = await getAuthenticatedUserAuthData();
-      expect(result).toBeNull();
-    });
-
-    it("debe utilizar la caché en la segunda llamada dentro de la misma petición", async () => {
-      const user = createMockUser();
-      mockDbClient(user, { app_role: "user" });
-
-      await getAuthenticatedUserAuthData(); // Primera llamada, llena la caché
-      await getAuthenticatedUserAuthData(); // Segunda llamada
-
-      // `getUser` solo debería haber sido llamado una vez.
-      expect(SupabaseServer.createClient().auth.getUser).toHaveBeenCalledTimes(
-        1
+  // CORRECCIÓN CRÍTICA DE SEGURIDAD:
+  // Si hay un error en la consulta O si no se encuentra un miembro (`member` es null),
+  // se debe denegar el permiso inmediatamente para prevenir fallos.
+  if (error || !member) {
+    if (error && error.code !== "PGRST116") {
+      // No registrar errores "Not Found"
+      logger.error(
+        `Error al verificar permisos para user ${userId} en workspace ${workspaceId}:`,
+        error
       );
-    });
-  });
+    }
+    return false;
+  }
 
-  describe("Función: requireAppRole", () => {
-    it("debe conceder acceso si el usuario tiene el rol requerido", async () => {
-      const user = createMockUser("developer");
-      mockDbClient(user, { app_role: "developer" });
+  return requiredRoles.includes(member.role);
+}
 
-      const result = await requireAppRole(["developer", "admin"]);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.appRole).toBe("developer");
-      }
-    });
+// --- Aparatos Públicos del Guardián ---
 
-    it("debe denegar el acceso si el usuario no tiene el rol requerido", async () => {
-      const user = createMockUser("user");
-      mockDbClient(user, { app_role: "user" });
+export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | null> {
+  if (cachedUserAuthData) {
+    logger.trace(
+      "[UserPermissions] Datos del usuario cargados desde el cache de la petición."
+    );
+    return cachedUserAuthData;
+  }
 
-      const result = await requireAppRole(["developer"]);
-      expect(result.success).toBe(false);
-      // CORRECCIÓN: Guarda de tipo para una aserción segura.
-      if (!result.success) {
-        expect(result.error).toBe("Permiso denegado.");
-      }
-    });
-  });
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return null;
+  }
 
-  describe("Función: requireWorkspacePermission", () => {
-    it("debe conceder acceso si el usuario tiene el permiso de workspace requerido", async () => {
-      const user = createMockUser();
-      // Simulamos un usuario con rol 'owner' en el workspace
-      mockDbClient(user, { app_role: "user" }, { role: "owner" });
-      // Mock de la capa de datos
-      vi.mocked(DataLayer.sites.getSiteById).mockResolvedValue({
-        workspace_id: "ws-123",
-      } as any);
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("app_role")
+    .eq("id", user.id)
+    .single();
 
-      const result = await requireWorkspacePermission("site-abc", ["owner"]);
-      expect(result.success).toBe(true);
-    });
+  if (profileError || !profile) {
+    logger.error(
+      `[UserPermissions] Error crítico: No se encontró perfil para el usuario ${user.id}:`,
+      profileError
+    );
+    return null;
+  }
 
-    it("debe denegar acceso si el usuario no es miembro del workspace", async () => {
-      const user = createMockUser();
-      // Simulamos que no se encuentra membresía en el workspace
-      mockDbClient(user, { app_role: "user" }, null);
-      vi.mocked(DataLayer.sites.getSiteById).mockResolvedValue({
-        workspace_id: "ws-123",
-      } as any);
+  const activeWorkspaceId = cookies().get("active_workspace_id")?.value || null;
+  let activeWorkspaceRole: WorkspaceRole | null = null;
 
-      const result = await requireWorkspacePermission("site-abc", ["member"]);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toContain("No tienes permiso");
-      }
-    });
-  });
-});
+  if (activeWorkspaceId) {
+    const { data: member } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("workspace_id", activeWorkspaceId)
+      .single();
+    if (member) {
+      activeWorkspaceRole = member.role;
+    }
+  }
 
+  const userData: UserAuthData = {
+    user,
+    appRole: profile.app_role,
+    activeWorkspaceId,
+    activeWorkspaceRole,
+  };
+  cachedUserAuthData = userData;
+  return userData;
+}
+
+export async function requireAppRole(
+  requiredRoles: AppRole[]
+): Promise<
+  { success: true; data: UserAuthData } | { success: false; error: string }
+> {
+  const authData = await getAuthenticatedUserAuthData();
+  if (!authData) {
+    return {
+      success: false,
+      error: "Acción no autorizada. Sesión no encontrada.",
+    };
+  }
+  if (!requiredRoles.includes(authData.appRole)) {
+    logger.warn(
+      `[SEGURIDAD] Violación de permiso: Usuario ${authData.user.id} con rol '${authData.appRole}' intentó acceder a una funcionalidad restringida para '${requiredRoles.join(", ")}'.`
+    );
+    return { success: false, error: "Permiso denegado." };
+  }
+  return { success: true, data: authData };
+}
+
+export async function requireWorkspacePermission(
+  workspaceId: string,
+  requiredRoles: WorkspaceRole[]
+): Promise<
+  { success: true; data: UserAuthData } | { success: false; error: string }
+> {
+  const authData = await getAuthenticatedUserAuthData();
+  if (!authData) {
+    return {
+      success: false,
+      error: "Acción no autorizada. Sesión no encontrada.",
+    };
+  }
+
+  const isAuthorized = await hasWorkspacePermission(
+    authData.user.id,
+    workspaceId,
+    requiredRoles
+  );
+  if (!isAuthorized) {
+    logger.warn(
+      `[SEGURIDAD] Violación de permiso de workspace: Usuario ${authData.user.id} intentó una acción que requiere '${requiredRoles.join(", ")}' en el workspace ${workspaceId}.`
+    );
+    return {
+      success: false,
+      error: "No tienes permiso para realizar esta acción en este workspace.",
+    };
+  }
+
+  return { success: true, data: authData };
+}
+
+export async function clearCachedAuthData() {
+  cachedUserAuthData = null;
+}
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el sistema de permisos.
+ *
+ * 1.  **Permisos Basados en Atributos (ABAC):** (Revalidado) Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC, permitiendo condiciones de permiso más complejas que solo roles estáticos.
+ * 2.  **Cache Distribuido (Redis/KV):** (Revalidado) Para un rendimiento a gran escala, los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis para reducir las lecturas de la base de datos en múltiples peticiones del mismo usuario.
+ * 3.  **Sincronización de Cache con Webhooks:** (Revalidado) Implementar un webhook de Supabase que, al actualizar la tabla `profiles` o `workspace_members`, invalide proactivamente la entrada de caché del usuario correspondiente, asegurando la consistencia de los datos de permisos.
+ */
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
  * @description Mejoras para evolucionar esta suite de pruebas.
