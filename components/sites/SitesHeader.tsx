@@ -3,15 +3,15 @@
  * @file SitesHeader.tsx
  * @description Encabezado para la página "Mis Sitios", que contiene el título, la
  *              barra de búsqueda y el disparador del modal de creación. Ha sido
- *              refactorizado para adherirse a un contrato de tipos estricto.
+ *              refactorizado para adherirse a un contrato de tipos estricto y cohesivo.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Strict Type Contract Alignment)
+ * @version 5.0.0 (Simplified Cohesive Design)
  */
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusCircle, Search, X } from "lucide-react";
-import type { z } from "zod";
+import { useRouter } from "@/lib/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,27 +22,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { type CreateSiteSchema } from "@/lib/validators";
 
 import { CreateSiteForm } from "./CreateSiteForm";
 
-// CORRECCIÓN CRÍTICA: Se importa el tipo de datos que el formulario va a producir
-// y que el hook `useSitesManagement` espera recibir.
-type FormOutput = z.output<typeof CreateSiteSchema>;
-
-/**
- * @interface SitesHeaderProps
- * @description Define el contrato de props para el encabezado. Actúa como un
- *              componente "controlado", recibiendo estado y callbacks de su padre.
- */
+// CORRECCIÓN: La interfaz de props se simplifica enormemente.
 interface SitesHeaderProps {
   isCreateDialogOpen: boolean;
   setCreateDialogOpen: (isOpen: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  // La firma de esta prop ahora coincide con la de `handleCreate` en el hook.
-  onSubmitCreate: (data: FormOutput) => Promise<void>;
-  isCreating: boolean;
   workspaceId: string;
 }
 
@@ -51,10 +39,15 @@ export function SitesHeader({
   setCreateDialogOpen,
   searchQuery,
   setSearchQuery,
-  onSubmitCreate,
-  isCreating,
   workspaceId,
 }: SitesHeaderProps) {
+  const router = useRouter();
+
+  const handleCreateSuccess = () => {
+    setCreateDialogOpen(false);
+    router.refresh(); // Notifica al router que revalide los datos de la página.
+  };
+
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
       <div>
@@ -107,9 +100,8 @@ export function SitesHeader({
               <DialogTitle>Crear un nuevo sitio</DialogTitle>
             </DialogHeader>
             <CreateSiteForm
-              onSubmit={onSubmitCreate}
-              isSubmitting={isCreating}
               workspaceId={workspaceId}
+              onSuccess={handleCreateSuccess}
             />
           </DialogContent>
         </Dialog>
@@ -118,36 +110,28 @@ export function SitesHeader({
   );
 }
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar este componente.
- *
- * 1.  **Abstracción a `<CollectionHeader />`:** Este patrón de "Título + Búsqueda + Botón de Acción" se repetirá en otras partes de la aplicación (ej. Campañas, Miembros). Se podría abstraer este aparato a un componente genérico `<CollectionHeader />` para promover la consistencia de la UI y el principio DRY.
- * 2.  **Controles de Ordenamiento y Filtrado Avanzado:** Para escalar a cientos de sitios, la búsqueda por sí sola es insuficiente. Se podría integrar un `<DropdownMenu>` junto a la barra de búsqueda que permita al usuario ordenar la lista (ej. por "Fecha de Creación", "Nombre A-Z").
- * 3.  **Atajo de Teclado para Búsqueda:** Mejorar la productividad de los usuarios avanzados implementando un atajo de teclado global (ej. `/` o `Ctrl+F`) que enfoque automáticamente el campo de búsqueda.
- */
-
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
  * =================================================================================================
- * @fileoverview El aparato `SitesHeader.tsx` es un componente de UI "controlado".
+ * @fileoverview El aparato `SitesHeader.tsx` es un componente de UI "controlado" y de presentación.
  *
  * @functionality
- * - No gestiona su propio estado, sino que lo recibe como props (`searchQuery`, `isCreateDialogOpen`)
- *   y notifica al componente padre de los cambios a través de callbacks (`setSearchQuery`, etc.).
- * - Orquesta la presentación de la barra de búsqueda y el `Dialog` que contiene el `CreateSiteForm`.
- * - **Corrección de Contrato:** La interfaz `SitesHeaderProps` ha sido actualizada. Su prop
- *   `onSubmitCreate` ahora espera una función que coincide exactamente con la firma de la
- *   función `handleCreate` del hook `useSitesManagement`, reparando este eslabón de la cadena de tipos.
+ * - **Presentación Pura:** Su única responsabilidad es renderizar la UI del encabezado. No
+ *   gestiona su propio estado de envío, sino que lo delega a sus hijos.
+ * - **Orquestación de Diálogo:** Controla el estado de apertura y cierre del `Dialog` que
+ *   contiene el `CreateSiteForm`.
+ * - **Corrección de Contrato:** La interfaz `SitesHeaderProps` ha sido actualizada para
+ *   eliminar las props `onSubmitCreate` y `isCreating`, que ya no son necesarias. Ahora
+ *   define una función `handleCreateSuccess` que pasa como callback `onSuccess` al formulario,
+ *   desacoplando completamente al header de la lógica de envío del formulario.
  *
  * @relationships
- * - Es un componente hijo de `SitesClient.tsx`, que es el orquestador de la página.
- * - Es el padre de `CreateSiteForm.tsx`, al cual le pasa la función de envío y el estado de carga.
+ * - Es un componente hijo de `SitesClient.tsx`.
+ * - Es el padre de `CreateSiteForm.tsx`, al cual le pasa la callback `onSuccess`.
  *
  * @expectations
- * - Se espera que este componente actúe como una capa de presentación pura, delegando toda la
- *   lógica de estado y las acciones a sus componentes padres. Su contrato de props ahora es
- *   robusto y seguro en tipos.
+ * - Se espera que este componente actúe como una capa de presentación pura. Su contrato de
+ *   props ahora es robusto, seguro en tipos y alineado con la arquitectura cohesiva.
  * =================================================================================================
  */

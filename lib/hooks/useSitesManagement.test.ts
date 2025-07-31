@@ -2,20 +2,18 @@
 /**
  * @file useSitesManagement.test.ts
  * @description Suite de pruebas de nivel de producción para el hook `useSitesManagement`.
- *              Cubre la inicialización de estado, la lógica de búsqueda con debounce,
- *              y valida exhaustivamente los flujos de actualización optimista para la
- *              creación y eliminación de sitios.
+ *              Ha sido refactorizada para alinearse con la nueva arquitectura de alta cohesión,
+ *              validando únicamente las responsabilidades del hook: gestión de la lista,
+ *              búsqueda con debounce y flujo de eliminación optimista.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.0.0 (Optimistic UI & Debounce Test Suite)
+ * @version 3.0.0 (Cohesive Hook Validation)
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import toast from "react-hot-toast";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type z } from "zod";
 
 import { sites as sitesActions } from "@/lib/actions";
-import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { type CreateSiteSchema } from "@/lib/validators";
+import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import { useSitesManagement } from "./useSitesManagement";
 
 // --- Simulación de Dependencias ---
@@ -29,7 +27,6 @@ vi.mock("@/lib/navigation", () => ({
 
 vi.mock("@/lib/actions", () => ({
   sites: {
-    createSiteAction: vi.fn(),
     deleteSiteAction: vi.fn(),
   },
 }));
@@ -67,14 +64,6 @@ const mockInitialSites: SiteWithCampaignsCount[] = [
   },
 ];
 
-const mockValidFormData: z.output<typeof CreateSiteSchema> = {
-  name: "Gamma Site",
-  subdomain: "gamma-site",
-  icon: "🌟",
-  workspaceId: "ws-1",
-  description: "A new site for testing",
-};
-
 describe("Hook: useSitesManagement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,10 +87,11 @@ describe("Hook: useSitesManagement", () => {
         result.current.setSearchQuery("beta");
       });
 
+      // El estado no cambia inmediatamente por el debounce
       expect(result.current.filteredSites).toHaveLength(2);
 
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(300); // Avanzar el tiempo para disparar el debounce
       });
 
       await waitFor(() => {
@@ -111,45 +101,9 @@ describe("Hook: useSitesManagement", () => {
     });
   });
 
-  describe("Flujo de Creación Optimista (handleCreate)", () => {
-    it("debe añadir un sitio temporal a la UI inmediatamente y con los datos correctos", async () => {
-      vi.mocked(sitesActions.createSiteAction).mockResolvedValue({
-        success: true,
-        data: { id: "new-site-id" },
-      });
-      const { result } = renderHook(() => useSitesManagement(mockInitialSites));
-
-      act(() => {
-        result.current.handleCreate(mockValidFormData);
-      });
-
-      expect(result.current.filteredSites).toHaveLength(3);
-      expect(result.current.filteredSites[0].subdomain).toBe("gamma-site");
-      expect(result.current.filteredSites[0].name).toBe("Gamma Site");
-      expect(result.current.filteredSites[0].id).toContain("temp-");
-    });
-
-    it("debe llamar a la Server Action y refrescar en caso de éxito", async () => {
-      vi.mocked(sitesActions.createSiteAction).mockResolvedValue({
-        success: true,
-        data: { id: "new-site-id" },
-      });
-      const { result } = renderHook(() => useSitesManagement(mockInitialSites));
-
-      await act(async () => {
-        await result.current.handleCreate(mockValidFormData);
-      });
-
-      expect(sitesActions.createSiteAction).toHaveBeenCalledTimes(1);
-      await waitFor(() => {
-        expect(toast.success).toHaveBeenCalledWith("¡Sitio creado con éxito!");
-        expect(mockRouterRefresh).toHaveBeenCalledTimes(1);
-      });
-    });
-  });
-
   describe("Flujo de Eliminación Optimista (handleDelete)", () => {
     it("debe revertir el estado si la eliminación en el servidor falla", async () => {
+      // Arrange
       vi.mocked(sitesActions.deleteSiteAction).mockResolvedValue({
         success: false,
         error: "No autorizado.",
@@ -158,13 +112,41 @@ describe("Hook: useSitesManagement", () => {
       const formData = new FormData();
       formData.append("siteId", "site-1");
 
+      // Act
       await act(async () => {
         result.current.handleDelete(formData);
       });
 
+      // Assert
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith("No autorizado.");
         expect(result.current.filteredSites).toEqual(mockInitialSites);
+      });
+    });
+
+    it("debe llamar a la Server Action y refrescar en caso de éxito", async () => {
+      // Arrange
+      vi.mocked(sitesActions.deleteSiteAction).mockResolvedValue({
+        success: true,
+        data: { message: "Eliminado" },
+      });
+      const { result } = renderHook(() => useSitesManagement(mockInitialSites));
+      const formData = new FormData();
+      formData.append("siteId", "site-1");
+
+      // Act
+      await act(async () => {
+        result.current.handleDelete(formData);
+      });
+
+      // Assert
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "Sitio eliminado con éxito."
+        );
+        expect(mockRouterRefresh).toHaveBeenCalledTimes(1);
+        // El estado final de `sites` será el que venga del servidor tras el refresh,
+        // pero la actualización optimista ya fue probada implícitamente en el test de fallo.
       });
     });
   });
@@ -174,40 +156,37 @@ describe("Hook: useSitesManagement", () => {
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
  * =================================================================================================
- * @fileoverview El aparato `useSitesManagement.ts` es un hook de estado especializado, diseñado
- *               para desacoplar toda la lógica de negocio de la UI de presentación en la
- *               página "Mis Sitios". Su suite de pruebas ha sido refactorizada para una
- *               máxima fiabilidad.
+ * @fileoverview La suite de pruebas `useSitesManagement.test.ts` ha sido refactorizada
+ *               para reflejar con precisión la nueva arquitectura cohesiva del hook.
  *
  * @functionality
- * - **Controlador de Estado Centralizado:** Abstrae toda la gestión de estado (lista de
- *   sitios, consulta de búsqueda, estado de modales, estados de carga) lejos de los
- *   componentes de UI.
- * - **Actualización Optimista Robusta:** Implementa un patrón de "actualización optimista"
- *   para crear y eliminar sitios, proporcionando una experiencia de usuario instantánea. La
- *   suite de pruebas ahora valida rigurosamente este flujo, incluyendo la reversión en
- *   caso de fallo.
- * - **Orquestación de Acciones:** Actúa como el intermediario entre la UI y las Server Actions.
- *   La prueba valida que el método `handleCreate` maneje correctamente el objeto de datos
- *   `FormOutput` y que `handleDelete` procese el `FormData`.
+ * - **Pruebas de Responsabilidad Única:** La suite ahora se enfoca exclusivamente en las
+ *   responsabilidades del hook: gestionar el estado de la lista de sitios, manejar el
+ *   filtrado con debounce y orquestar el flujo de eliminación optimista.
+ * - **Lógica de Creación Eliminada:** Se ha eliminado por completo la suite de pruebas para
+ *   `handleCreate`, ya que esa lógica ha sido correctamente movida al componente `CreateSiteForm`,
+ *   y será validada en la suite de pruebas de dicho componente.
+ * - **Manejo de Asincronía:** Las pruebas continúan utilizando `act`, `waitFor` y
+ *   `vi.useFakeTimers` para manejar de forma robusta la naturaleza asíncrona de las
+ *   actualizaciones de estado y el debounce.
  *
  * @relationships
- * - Es el "cerebro" del componente orquestador `SitesClient.tsx`.
- * - Invoca directamente las Server Actions definidas en `lib/actions/sites.actions.ts`.
+ * - Valida el aparato `lib/hooks/useSitesManagement.ts`.
+ * - Sus resultados impactan directamente en la fiabilidad del componente `SitesClient`, que es
+ *   el único consumidor de este hook.
  *
  * @expectations
- * - Se espera que este hook sea la única fuente de verdad para la lógica de la página de
- *   gestión de sitios. Con esta suite de pruebas corregida, podemos confiar en que la lógica
- *   de estado, la búsqueda con debounce y los flujos de UI optimista son robustos y
- *   funcionan como se espera.
+ * - Se espera que esta suite, ahora más magra y enfocada, garantice la fiabilidad de la
+ *   lógica de visualización y eliminación de sitios, actuando como una red de seguridad
+ *   precisa para su conjunto de responsabilidades definido.
  * =================================================================================================
  */
 
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar la lógica de estado de la UI.
+ * @description Mejoras para evolucionar esta suite de pruebas.
  *
- * 1.  **Abstracción a un Hook Genérico:** La lógica de "actualización optimista -> llamada al servidor -> reversión en fallo" es un patrón reutilizable. Se podría crear un hook genérico `useOptimisticResource(actions)` para ser utilizado en `sites`, `campaigns`, `members`, etc., reduciendo drásticamente el código duplicado.
- * 2.  **Manejo de Errores Más Granular:** En lugar de un toast genérico, se podrían manejar códigos de error específicos devueltos por la Server Action para mostrar mensajes más contextuales al usuario (ej. "El subdominio ya está en uso. Por favor, elige otro.").
- * 3.  **Cancelación de Acciones:** Para la lógica de búsqueda en el servidor (una mejora futura), se podría integrar un `AbortController` para cancelar peticiones de búsqueda previas si el usuario sigue escribiendo, optimizando el uso de recursos de red y servidor.
+ * 1.  **Pruebas de `useEffect` de Sincronización:** Añadir pruebas que validen que si la prop `initialSites` cambia (por ejemplo, después de un `router.refresh`), el estado interno del hook se sincroniza correctamente con los nuevos datos del servidor.
+ * 2.  **Factoría de Mocks Compartida:** Crear funciones factoría (`createMockSite()`) para generar datos de prueba consistentes y reducir la duplicación, haciendo las pruebas más legibles.
+ * 3.  **Pruebas de Interacción de Múltiples Acciones:** Diseñar pruebas que simulen al usuario realizando acciones rápidas y concurrentes (ej. eliminar un sitio mientras se filtra la lista) para verificar la robustez del manejo de estado.
  */

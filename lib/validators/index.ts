@@ -120,6 +120,8 @@ export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
 });
 
+// CORRECCIÓN: Se define explícitamente el tipo de estado para el formulario
+// de reseteo de contraseña para que coincida con el contrato de ActionResult.
 export type RequestPasswordResetState = { error: string | null };
 
 /*

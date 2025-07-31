@@ -9,10 +9,10 @@ import { useSitesManagement } from "@/lib/hooks/useSitesManagement";
 /**
  * @file sites-client.tsx
  * @description Componente orquestador de cliente para la página de "Mis Sitios".
- *              Ha sido refactorizado para consumir el contexto del dashboard y
- *              proveer el 'workspaceId' requerido a sus componentes hijos.
+ *              Ha sido refactorizado para alinearse con la nueva API simplificada
+ *              del hook `useSitesManagement`.
  * @author L.I.A Legacy
- * @version 8.1.0 (Context-Aware Prop Delegation)
+ * @version 9.0.0 (Hook API Alignment)
  */
 interface SitesClientProps {
   initialSites: SiteWithCampaignsCount[];
@@ -28,6 +28,9 @@ export function SitesClient({
   limit,
 }: SitesClientProps) {
   const { activeWorkspace } = useDashboard();
+
+  // CORRECCIÓN: Se eliminan `handleCreate` y `isCreating` de la deconstrucción
+  // ya que el hook ya no los proporciona.
   const {
     filteredSites,
     searchQuery,
@@ -35,27 +38,22 @@ export function SitesClient({
     isCreateDialogOpen,
     setCreateDialogOpen,
     handleDelete,
-    handleCreate,
     isPending,
-    isCreating,
     deletingSiteId,
   } = useSitesManagement(initialSites);
 
-  // Guarda defensiva en caso de que el contexto no esté listo,
-  // aunque el middleware debería prevenirlo.
   if (!activeWorkspace) {
-    return null; 
+    return null;
   }
 
   return (
     <div className="space-y-6 relative">
+      {/* CORRECCIÓN: Se eliminan las props `onSubmitCreate` y `isCreating` */}
       <SitesHeader
         isCreateDialogOpen={isCreateDialogOpen}
         setCreateDialogOpen={setCreateDialogOpen}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onSubmitCreate={handleCreate}
-        isCreating={isCreating}
         workspaceId={activeWorkspace.id}
       />
       <SitesGrid
@@ -83,16 +81,12 @@ export function SitesClient({
  * @fileoverview El aparato `SitesClient` es el orquestador principal de la página "Mis Sitios".
  *
  * @functionality
- * - **Orquestación de Estado y UI:** Utiliza el hook `useSitesManagement` para toda la lógica de estado
- *   (búsqueda, creación, eliminación) y pasa este estado y los manejadores de eventos a los
+ * - **Orquestación de Estado y UI:** Utiliza el hook `useSitesManagement` para toda la lógica de
+ *   estado (búsqueda, eliminación) y pasa este estado y los manejadores de eventos a los
  *   componentes de presentación puros (`SitesHeader`, `SitesGrid`).
- * - **Conciencia de Contexto (Refactorización Clave):** La causa del error de build era que
- *   `SitesHeader` necesitaba saber en qué `workspaceId` se iba a crear un nuevo sitio, pero
- *   `SitesClient` no se lo proporcionaba. La refactorización introduce el uso del hook
- *   `useDashboard` para obtener el `activeWorkspace` del contexto global de la aplicación.
- * - **Delegación de Props:** Ahora, `SitesClient` cumple su función de orquestador al tomar
- *   el `activeWorkspace.id` del contexto y pasarlo como la prop `workspaceId` a `SitesHeader`,
- *   reparando el contrato de tipos y resolviendo el error de compilación.
+ * - **Alineación de Contrato (Refactorización Clave):** La refactorización ha consistido en
+ *   actualizar la deconstrucción del hook `useSitesManagement` y las props pasadas a `SitesHeader`
+ *   para reflejar la nueva arquitectura cohesiva. Esto resuelve los errores de tipo `TS2339`.
  *
  * @relationships
  * - Es el componente hijo principal de `app/[locale]/dashboard/sites/page.tsx`.
@@ -100,9 +94,7 @@ export function SitesClient({
  * - Es el padre de `SitesHeader` y `SitesGrid`, actuando como su controlador.
  *
  * @expectations
- * - Se espera que este componente actúe como una capa de orquestación delgada y eficiente.
- *   Debe consumir datos del servidor (props) y del contexto global, y usarlos para
- *   configurar la lógica de estado (hooks) y los componentes de presentación (hijos),
- *   sin contener lógica de negocio compleja por sí mismo.
+ * - Se espera que este componente actúe como una capa de orquestación delgada y eficiente,
+ *   conectando la lógica de estado del hook con los componentes de presentación.
  * =================================================================================================
  */
