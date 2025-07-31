@@ -1,108 +1,110 @@
-// app/[locale]/dashboard/sites/sites-client.tsx
-"use client";
-
-import { PaginationControls, SitesGrid, SitesHeader } from "@/components/sites";
-import { useDashboard } from "@/lib/context/DashboardContext";
-import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { useSitesManagement } from "@/lib/hooks/useSitesManagement";
-
+// middleware/handlers/multitenancy/index.ts
 /**
- * @file sites-client.tsx
- * @description Componente orquestador de cliente para la página de "Mis Sitios".
- *              Ha sido refactorizado para consumir el contexto del dashboard y
- *              proveer el 'workspaceId' requerido a sus componentes hijos.
+ * @file middleware/handlers/multitenancy/index.ts
+ * @description Manejador de middleware para la lógica multi-tenant.
+ *              Ha sido refactorizado para ser autónomo y compatible con el Edge Runtime,
+ *              utilizando el cliente de Supabase para middleware y eliminando
+ *              dependencias a la capa de datos del servidor.
  * @author L.I.A Legacy
- * @version 8.1.0 (Context-Aware Prop Delegation)
+ * @version 4.1.0 (Edge Runtime Compatibility)
  */
-interface SitesClientProps {
-  initialSites: SiteWithCampaignsCount[];
-  totalCount: number;
-  page: number;
-  limit: number;
-}
+import { type NextRequest, NextResponse } from "next/server";
 
-export function SitesClient({
-  initialSites,
-  totalCount,
-  page,
-  limit,
-}: SitesClientProps) {
-  const { activeWorkspace } = useDashboard();
-  const {
-    filteredSites,
-    searchQuery,
-    setSearchQuery,
-    isCreateDialogOpen,
-    setCreateDialogOpen,
-    handleDelete,
-    handleCreate,
-    isPending,
-    isCreating,
-    deletingSiteId,
-  } = useSitesManagement(initialSites);
+import { logger } from "../../../../lib/logging";
+// Se importa el cliente de Supabase específico para el middleware.
+import { createClient } from "../../../../lib/supabase/middleware";
+import { rootDomain } from "../../../../lib/utils";
 
-  // Guarda defensiva en caso de que el contexto no esté listo,
-  // aunque el middleware debería prevenirlo.
-  if (!activeWorkspace) {
-    return null;
+export async function handleMultitenancy(
+  request: NextRequest,
+  response: NextResponse
+): Promise<NextResponse> {
+  const { host, pathname } = request.nextUrl;
+  const locale = response.headers.get("x-app-locale") || "pt-BR";
+
+  const rootDomainWithoutPort = rootDomain.split(":")[0];
+  const hostWithoutPort = host.split(":")[0];
+
+  const subdomain =
+    hostWithoutPort !== rootDomainWithoutPort &&
+    hostWithoutPort.endsWith(`.${rootDomainWithoutPort}`)
+      ? hostWithoutPort.replace(`.${rootDomainWithoutPort}`, "")
+      : null;
+
+  if (subdomain) {
+    logger.trace({ subdomain }, "[MULTITENANCY_HANDLER] Subdominio detectado.");
+
+    // Se utiliza el cliente de Supabase del middleware para la consulta.
+    const { supabase } = await createClient(request);
+    const { data: siteData, error } = await supabase
+      .from("sites")
+      .select("id")
+      .eq("subdomain", subdomain)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      logger.error(
+        `[MULTITENANCY_HANDLER] Error al buscar sitio ${subdomain}:`,
+        error
+      );
+    }
+
+    if (siteData) {
+      logger.trace(
+        { rewriteTo: `/${locale}/s/${subdomain}${pathname}` },
+        "[MULTITENANCY_HANDLER] Sitio válido. Reescribiendo URL."
+      );
+
+      const rewriteUrl = new URL(
+        `/${locale}/s/${subdomain}${pathname}`,
+        request.url
+      );
+
+      const rewriteResponse = NextResponse.rewrite(rewriteUrl);
+      request.headers.forEach((value, key) => {
+        rewriteResponse.headers.set(key, value);
+      });
+
+      return rewriteResponse;
+    }
   }
 
-  return (
-    <div className="space-y-6 relative">
-      <SitesHeader
-        isCreateDialogOpen={isCreateDialogOpen}
-        setCreateDialogOpen={setCreateDialogOpen}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSubmitCreate={handleCreate}
-        isCreating={isCreating}
-        workspaceId={activeWorkspace.id}
-      />
-      <SitesGrid
-        sites={filteredSites}
-        onDelete={handleDelete}
-        isPending={isPending}
-        deletingSiteId={deletingSiteId}
-      />
-      {!searchQuery && (
-        <PaginationControls
-          page={page}
-          totalCount={totalCount}
-          limit={limit}
-          basePath="/dashboard/sites"
-        />
-      )}
-    </div>
-  );
+  return response;
 }
 
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
  * =================================================================================================
- * @fileoverview El aparato `SitesClient` es el orquestador principal de la página "Mis Sitios".
+ * @fileoverview El aparato `handleMultitenancy` es el responsable de enrutar las peticiones
+ *               basadas en subdominios a la lógica de renderizado correcta dentro del Edge.
  *
  * @functionality
- * - **Orquestación de Estado y UI:** Utiliza el hook `useSitesManagement` para toda la lógica de estado
- *   (búsqueda, creación, eliminación) y pasa este estado y los manejadores de eventos a los
- *   componentes de presentación puros (`SitesHeader`, `SitesGrid`).
- * - **Conciencia de Contexto (Refactorización Clave):** La causa del error de build era que
- *   `SitesHeader` necesitaba saber en qué `workspaceId` se iba a crear un nuevo sitio, pero
- *   `SitesClient` no se lo proporcionaba. La refactorización introduce el uso del hook
- *   `useDashboard` para obtener el `activeWorkspace` del contexto global de la aplicación.
- * - **Delegación de Props:** Ahora, `SitesClient` cumple su función de orquestador al tomar
- *   el `activeWorkspace.id` del contexto y pasarlo como la prop `workspaceId` a `SitesHeader`,
- *   reparando el contrato de tipos y resolviendo el error de compilación.
+ * - **Detección de Subdominio:** Analiza el `host` de la petición para extraer un posible subdominio.
+ * - **Validación Edge-Compatible (Refactorización Clave):** La causa de las advertencias
+ *   críticas era la importación de una función de la capa de datos (`"use server"`) dentro
+ *   de un entorno Edge (`middleware`). La refactorización ha eliminado esta dependencia
+ *   y ha replicado la lógica de consulta directamente en el manejador, pero utilizando el
+ *   cliente de Supabase específico para middleware, que es compatible con el Edge Runtime.
+ *   Esto resuelve la violación arquitectónica y previene fallos en producción.
+ * - **Reescritura de URL:** Si el subdominio es válido, reescribe la URL internamente a la ruta
+ *   `app/s/[subdomain]/...`, preservando la ruta y las cabeceras originales.
  *
  * @relationships
- * - Es el componente hijo principal de `app/[locale]/dashboard/sites/page.tsx`.
- * - Consume el contexto `DashboardContext` a través del hook `useDashboard`.
- * - Es el padre de `SitesHeader` y `SitesGrid`, actuando como su controlador.
+ * - Es un manejador dentro del pipeline del `middleware.ts`.
+ * - Interactúa directamente con la base de datos a través del `lib/supabase/middleware.ts`.
+ * - Su correcto funcionamiento es vital para que las páginas públicas de los tenants se rendericen.
  *
  * @expectations
- * - Se espera que este componente actúe como una capa de orquestación delgada y eficiente.
- *   Debe consumir datos del servidor (props) y del contexto global, y usarlos para
- *   configurar la lógica de estado (hooks) y los componentes de presentación (hijos),
- *   sin contener lógica de negocio compleja por sí mismo.
+ * - Se espera que este manejador actúe como un enrutador inteligente y eficiente a nivel de
+ *   infraestructura, respetando los límites de los runtimes de Next.js. Con la refactorización,
+ *   ahora es robusto, arquitectónicamente correcto y funcional en el entorno de producción.
  * =================================================================================================
+ */
+
+/*
+ * f. [Mejoras Futuras Detectadas]
+ * 1. **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a una consulta similar para buscar una coincidencia en una columna `custom_domain`.
+ * 2. **Página de Subdominio Inválido Dedicada:** Si un subdominio no se encuentra en la base de datos, se podría reescribir la URL a una página `/404-subdomain` que muestre un mensaje de error más específico y útil que la página 404 genérica.
+ * 3. **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
  */
