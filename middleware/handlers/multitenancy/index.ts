@@ -2,16 +2,17 @@
 /**
  * @file middleware/handlers/multitenancy/index.ts
  * @description Manejador de middleware para la lógica multi-tenant.
- *              Ha sido refactorizado para ser explícito en la preservación de
- *              cabeceras, garantizando la testabilidad y eliminando la dependencia
- *              de atajos de API opacos.
+ *              Ha sido refactorizado para ser autónomo y compatible con el Edge Runtime,
+ *              utilizando el cliente de Supabase para middleware y eliminando
+ *              dependencias a la capa de datos del servidor.
  * @author L.I.A Legacy
- * @version 4.0.0 (Explicit Header Preservation)
+ * @version 4.1.0 (Edge Runtime Compatibility)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { getSiteDataByHost } from "../../../lib/data/sites";
 import { logger } from "../../../lib/logging";
+// Se importa el cliente de Supabase específico para el middleware.
+import { createClient } from "../../../lib/supabase/middleware";
 import { rootDomain } from "../../../lib/utils";
 
 export async function handleMultitenancy(
@@ -32,7 +33,22 @@ export async function handleMultitenancy(
 
   if (subdomain) {
     logger.trace({ subdomain }, "[MULTITENANCY_HANDLER] Subdominio detectado.");
-    const siteData = await getSiteDataByHost(subdomain);
+
+    // LÓGICA DE CONSULTA REIMPLEMENTADA PARA EL EDGE RUNTIME
+    const { supabase } = await createClient(request);
+    const { data: siteData, error } = await supabase
+      .from("sites")
+      .select("id")
+      .eq("subdomain", subdomain)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      logger.error(
+        `[MULTITENANCY_HANDLER] Error al buscar sitio ${subdomain}:`,
+        error
+      );
+    }
+
     if (siteData) {
       logger.trace(
         { rewriteTo: `/${locale}/s/${subdomain}${pathname}` },
@@ -44,9 +60,9 @@ export async function handleMultitenancy(
         request.url
       );
 
-      // REFACTORIZACIÓN CRÍTICA: Se evita el atajo `{ request }` que falla en las pruebas.
-      // Se crea la respuesta y se clonan las cabeceras explícitamente.
       const rewriteResponse = NextResponse.rewrite(rewriteUrl);
+
+      // Preservar las cabeceras de la petición original es crucial
       request.headers.forEach((value, key) => {
         rewriteResponse.headers.set(key, value);
       });
@@ -64,27 +80,34 @@ export async function handleMultitenancy(
  *                                   L.I.A. LOGIC ANALYSIS
  * =================================================================================================
  * @fileoverview El aparato `handleMultitenancy` es el responsable de enrutar las peticiones
- *               basadas en subdominios a la lógica de renderizado correcta.
+ *               basadas en subdominios a la lógica de renderizado correcta dentro del Edge.
  *
  * @functionality
  * - **Detección de Subdominio:** Analiza el `host` de la petición para extraer un posible subdominio.
- * - **Validación contra Capa de Datos:** Consulta la capa de datos (`getSiteDataByHost`) para verificar si el subdominio corresponde a un `site` válido.
- * - **Reescritura de URL:** Si el subdominio es válido, reescribe la URL internamente a la ruta `app/s/[subdomain]/...`, preservando la ruta y los parámetros originales.
- * - **Preservación de Cabeceras Explícita (Refactorización Clave):** La causa del fallo en las pruebas era el uso del atajo `NextResponse.rewrite(url, { request })`. Se ha refactorizado para que la preservación de las cabeceras de la petición original a la respuesta de reescritura sea explícita. Esto no altera la funcionalidad en producción pero hace que el comportamiento sea transparente y, crucialmente, testable con mocks de alta fidelidad.
+ * - **Validación Edge-Compatible (Refactorización Clave):** La causa de las advertencias
+ *   críticas era la importación de una función de la capa de datos (`"use server"`) dentro
+ *   de un entorno Edge (`middleware`). La refactorización ha eliminado esta dependencia
+ *   y ha replicado la lógica de consulta directamente en el manejador, pero utilizando el
+ *   cliente de Supabase específico para middleware, que es compatible con el Edge Runtime.
+ *   Esto resuelve la violación arquitectónica y previene fallos en producción.
+ * - **Reescritura de URL:** Si el subdominio es válido, reescribe la URL internamente a la ruta
+ *   `app/s/[subdomain]/...`, preservando la ruta y las cabeceras originales.
  *
  * @relationships
  * - Es un manejador dentro del pipeline del `middleware.ts`.
- * - Depende de la capa de datos `lib/data/sites.ts` para la validación.
+ * - Interactúa directamente con la base de datos a través del `lib/supabase/middleware.ts`.
  * - Su correcto funcionamiento es vital para que las páginas públicas de los tenants se rendericen.
  *
  * @expectations
- * - Se espera que este manejador actúe como un enrutador inteligente y eficiente a nivel de infraestructura. Con la refactorización, ahora es robusto, explícito en su intención y completamente validado por su suite de pruebas.
+ * - Se espera que este manejador actúe como un enrutador inteligente y eficiente a nivel de
+ *   infraestructura, respetando los límites de los runtimes de Next.js. Con la refactorización,
+ *   ahora es robusto, arquitectónicamente correcto y funcional en el entorno de producción.
  * =================================================================================================
  */
 
 /*
  * f. [Mejoras Futuras Detectadas]
- * 1. **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a `getSiteDataByHost(host)` para buscar una coincidencia en una columna `custom_domain`.
+ * 1. **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a una consulta similar para buscar una coincidencia en una columna `custom_domain`.
  * 2. **Página de Subdominio Inválido Dedicada:** Si un subdominio no se encuentra en la base de datos, se podría reescribir la URL a una página `/404-subdomain` que muestre un mensaje de error más específico y útil que la página 404 genérica.
- * 3. **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la llamada a `getSiteDataByHost` dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
+ * 3. **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
  */
