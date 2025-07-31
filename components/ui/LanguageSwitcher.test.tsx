@@ -14,7 +14,7 @@ import { useParams } from "next/navigation";
 import { useTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// CORRECCIÓN: Se importa el componente bajo prueba desde su ruta canónica con alias.
+// Se importa el componente bajo prueba desde su ruta canónica con alias.
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { type AppPathname, usePathname, useRouter } from "@/lib/navigation";
 
@@ -104,23 +104,32 @@ describe("Componente: LanguageSwitcher", () => {
  *                                   L.I.A. LOGIC ANALYSIS
  * =================================================================================================
  * @fileoverview Esta suite de pruebas actúa como un "contrato de comportamiento" para el
- *               `LanguageSwitcher`.
+ *               `LanguageSwitcher`, garantizando la integridad de la navegación
+ *               internacionalizada.
  *
  * @functionality
- * - **Aislamiento a través de Mocking:** Se utiliza `vi.mock` para reemplazar todas las
- *   dependencias externas.
- * - **Prueba del Contrato de Tipos:** La prueba más crítica ahora simula que `usePathname`
- *   devuelve un `AppPathname` válido, replicando el entorno de tipos estricto y
- *   verificando que la llamada a `router.replace` cumple con el contrato.
- * - **Corrección de Importación:** El error de "módulo no encontrado" se resuelve
- *   importando `LanguageSwitcher` desde su ruta canónica con alias.
+ * - **Aislamiento a través de Mocking de Alta Fidelidad:** Se utiliza `vi.mock` para reemplazar
+ *   todas las dependencias externas de hooks (`useRouter`, `usePathname`, `useParams`). Esto
+ *   aísla completamente al componente, permitiendo probar su lógica interna de forma
+ *   determinista.
+ * - **Prueba del Contrato de Tipos (Crítica):** La prueba más importante simula que el usuario
+ *   se encuentra en una ruta dinámica y cambia el idioma. Luego, se afirma que la función
+ *   `router.replace` es llamada con la estructura de objeto exacta que `next-intl` requiere.
+ *   Esto valida que nuestro componente cumple con el contrato de tipos de la librería de
+ *   navegación, previniendo errores en tiempo de ejecución.
+ * - **Validación de Renderizado:** La primera prueba asegura que el componente se renderiza
+ *   correctamente y muestra el idioma activo basado en los parámetros de la URL simulados.
  *
  * @relationships
  * - Valida el componente `components/ui/LanguageSwitcher.tsx`.
+ * - Depende de la correcta configuración de mocks para los hooks de `next/navigation` y
+ *   `lib/navigation.ts`.
  *
  * @expectations
  * - Se espera que esta suite falle si se introduce cualquier cambio en `LanguageSwitcher.tsx`
- *   que altere su renderizado o la forma en que invoca la API de enrutamiento.
+ *   que altere su renderizado, su lógica de estado o, más críticamente, la forma en que
+ *   invoca la API de enrutamiento de `next-intl`. Actúa como un guardián automatizado
+ *   para una de las funcionalidades de UX más importantes.
  * =================================================================================================
  */
 
@@ -128,7 +137,7 @@ describe("Componente: LanguageSwitcher", () => {
  * @section MEJORAS FUTURAS A IMPLEMENTAR
  * @description Mejoras para evolucionar esta suite de pruebas.
  *
- * 1.  **Pruebas de Accesibilidad (A11y):** Integrar `jest-axe` para ejecutar una auditoría de accesibilidad.
- * 2.  **Prueba de Fallback de Locale:** Simular un `locale` inválido y verificar que el componente se renderice en un estado de fallback predecible.
+ * 1.  **Pruebas de Accesibilidad (a11y):** Integrar `jest-axe` para ejecutar una auditoría de accesibilidad en el componente renderizado, verificando que los atributos ARIA (`aria-label`, `role`, etc.) se utilicen correctamente.
+ * 2.  **Prueba de Fallback de Locale:** Simular un `locale` inválido o ausente en los parámetros de la URL y verificar que el componente se renderice en un estado de fallback predecible (ej. mostrando "Select Language").
+ * 3.  **Prueba del Estado `isPending`:** Simular que el hook `useTransition` devuelve `isPending: true` y verificar que el botón principal y los ítems del menú estén deshabilitados para prevenir interacciones duplicadas.
  */
-// Ruta: components/ui/LanguageSwitcher.test.tsx

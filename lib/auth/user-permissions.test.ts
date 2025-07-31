@@ -246,8 +246,10 @@ describe("Guardián de Seguridad: user-permissions.ts", () => {
  * =================================================================================================
  */
 
-/*
- * f. [Mejoras Futuras Detectadas]
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar esta suite de pruebas del Guardián de Seguridad.
+ *
  * 1.  **Factoría de Mocks Compartida:** Mover las funciones `createMockUser` y el patrón de mock unificado a un archivo de utilidad de pruebas compartido (ej. `lib/test/utils.ts`) para reutilizarlas en otras suites.
  * 2.  **Pruebas Basadas en Escenarios:** Evolucionar las factorías para aceptar escenarios predefinidos (ej. `createMockAuthData({ scenario: 'no-workspace-cookie' })`) para probar casos límite sin una configuración verbosa.
  * 3.  **Pruebas de la Lógica de Cache:** Añadir una prueba que llame a `getAuthenticatedUserAuthData` dos veces y verifique (usando `vi.spyOn`) que la base de datos solo es consultada una vez, validando la eficacia de la caché por petición.

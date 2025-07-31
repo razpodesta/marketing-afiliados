@@ -6,7 +6,7 @@
  *              para una máxima modularidad y reutilización a través de esquemas base,
  *              y endurecido con lógica de saneamiento y transformación de datos.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.1.0 (Schema Cohesion & Type Inference Fix)
+ * @version 3.2.0 (Robust Nullable Error Contract)
  */
 import { z } from "zod";
 
@@ -19,9 +19,12 @@ import { z } from "zod";
  *              o un estado de fallo con un error, pero nunca ambos.
  * @template T - El tipo de los datos retornados en caso de éxito.
  */
+// CORRECCIÓN CRÍTICA: Se cambia `error: string` a `error: string | null` para permitir
+// un estado inicial explícito de "sin error" y mejorar la consistencia con otros
+// hooks como `useFormState` que pueden inicializarse con `null`.
 export type ActionResult<T = unknown> =
   | { success: true; data: T }
-  | { success: false; error: string };
+  | { success: false; error: string | null };
 
 // --- ESQUEMAS BASE REUTILIZABLES ---
 
@@ -61,9 +64,6 @@ export const InvitationSchema = z.object({
   workspaceId: UuidSchema.describe("ID del workspace de la invitación."),
 });
 
-// CORRECCIÓN ARQUITECTÓNICA: Se refina el esquema para que la lógica de transformación
-// sea más clara y la inferencia de tipos para react-hook-form sea más fiable.
-// Define la forma de los datos ANTES de la transformación.
 export const CreateSiteSchema = z
   .object({
     subdomain: SubdomainSchema,
@@ -72,7 +72,7 @@ export const CreateSiteSchema = z
       .trim()
       .min(3, "El nombre del sitio debe tener al menos 3 caracteres.")
       .optional()
-      .or(z.literal("")), // Permite un string vacío como entrada opcional
+      .or(z.literal("")),
     description: z.string().optional(),
     icon: IconSchema,
     workspaceId: UuidSchema.describe(
@@ -81,8 +81,6 @@ export const CreateSiteSchema = z
   })
   .transform((data) => ({
     ...data,
-    // La transformación asegura que el 'name' nunca sea una cadena vacía en la salida,
-    // usando el subdominio como fallback. Esto crea un contrato de salida donde `name` es siempre `string`.
     name: data.name || data.subdomain,
   }));
 
@@ -122,7 +120,39 @@ export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
 });
 
-export type RequestPasswordResetState = ActionResult<void>;
+export type RequestPasswordResetState = { error: string | null };
+
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `validators/index.ts` es el manifiesto central de todos los
+ *               contratos de datos de la aplicación.
+ *
+ * @functionality
+ * - **Contrato Unificado:** Define el tipo `ActionResult` que estandariza la forma de las
+ *   respuestas de todas las Server Actions, garantizando un manejo de errores predecible.
+ * - **Corrección de Contrato (Clave):** La refactorización de `error: string` a `error: string | null`
+ *   resuelve una inconsistencia arquitectónica. Permite que los hooks de React como `useFormState`
+ *   se inicialicen de forma segura con un valor nulo, representando explícitamente un estado
+ *   "sin error", lo cual corrige el error de compilación.
+ * - **Esquemas Reutilizables:** Define esquemas base (ej. `UuidSchema`, `NameSchema`) que se
+ *   componen para construir validadores de dominio más complejos, adhiriéndose al principio DRY.
+ * - **Transformación y Saneamiento:** Utiliza `.transform()` de Zod para sanear datos
+ *   (ej. convertir a minúsculas) y aplicar lógica de negocio (ej. generar un `slug` o un `name`
+ *   de fallback), asegurando que los datos que llegan a la capa de acciones ya están limpios y completos.
+ *
+ * @relationships
+ * - Es la dependencia fundamental de todas las Server Actions en `/lib/actions`, que lo utilizan
+ *   para validar los datos de entrada.
+ * - Es utilizado por los componentes de formulario del lado del cliente a través de `@hookform/resolvers`
+ *   para proporcionar validación en tiempo real.
+ *
+ * @expectations
+ * - Se espera que este archivo sea la única fuente de verdad para la validación y la forma de los
+ *   datos en toda la aplicación. Su robustez es crítica para la integridad y seguridad de los datos.
+ * =================================================================================================
+ */
 
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
