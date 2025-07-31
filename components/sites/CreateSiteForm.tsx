@@ -1,146 +1,128 @@
+// Ruta: components/sites/CreateSiteForm.tsx
 /**
- * @file components/sites/CreateSiteForm.tsx
- * @description Formulario de cliente inteligente para la creación de nuevos sitios,
- *              con validación de subdominio síncrona y asíncrona.
+ * @file CreateSiteForm.tsx
+ * @description Formulario de cliente para la creación de sitios. Ha sido
+ *              refactorizado para una máxima cohesión y seguridad de tipos,
+ *              utilizando tipos de entrada y salida explícitos inferidos del
+ *              esquema de Zod para un contrato de datos irrompible.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.2.0 (Accessibility & Hook Fixes)
+ * @version 6.0.0 (Type-Safe Input/Output Contracts)
  */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Loader2, X } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Loader2 } from "lucide-react";
+import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import type { z } from "zod";
 
+import { Button } from "@/components/ui/button";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { sites as sitesActions } from "@/lib/actions";
-import { debounce, rootDomain } from "@/lib/utils";
-import { SiteSchema } from "@/lib/validators";
+import { Textarea } from "@/components/ui/textarea";
+import { CreateSiteSchema } from "@/lib/validators";
 
-import { Button } from "../ui/button";
-import { EmojiPicker } from "../ui/emoji-picker";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
+import { SubdomainInput } from "./SubdomainInput";
 
-type FormData = z.infer<typeof SiteSchema>;
-type AvailabilityStatus = "idle" | "checking" | "available" | "unavailable";
+// Se definen tipos explícitos para la entrada (lo que el usuario escribe,
+// donde 'name' puede ser opcional) y la salida (los datos después de la validación
+// y transformación de Zod, donde 'name' es siempre un string).
+type FormInput = z.input<typeof CreateSiteSchema>;
+type FormOutput = z.output<typeof CreateSiteSchema>;
 
+/**
+ * @interface CreateSiteFormProps
+ * @description Define el contrato de props para el formulario.
+ */
 interface CreateSiteFormProps {
-  onSubmit: (formData: FormData) => Promise<void>;
+  /**
+   * @description La función a ejecutar en un envío exitoso.
+   *              Recibe los datos validados y transformados por Zod (`FormOutput`).
+   */
+  onSubmit: SubmitHandler<FormOutput>;
+  /**
+   * @description Indica si el proceso de envío está en curso en el componente padre.
+   */
   isSubmitting: boolean;
+  /**
+   * @description El ID del workspace al que se asociará el nuevo sitio.
+   */
+  workspaceId: string;
 }
 
 export function CreateSiteForm({
   onSubmit,
   isSubmitting,
+  workspaceId,
 }: CreateSiteFormProps) {
-  const t = useTranslations("SubdomainForm");
-  const [availability, setAvailability] = useState<AvailabilityStatus>("idle");
+  // El hook `useForm` está tipado con `FormInput`, que es el estado que gestiona
+  // internamente antes de la validación y transformación.
+  const form = useForm<FormInput>({
+    resolver: zodResolver(CreateSiteSchema),
+    defaultValues: {
+      workspaceId,
+      icon: "🚀",
+      name: "",
+      subdomain: "",
+      description: "",
+    },
+    mode: "onBlur", // Validación al salir del campo para una mejor UX
+  });
 
   const {
     register,
     handleSubmit,
-    formState: { errors, dirtyFields },
-    watch,
     control,
-  } = useForm<FormData>({
-    resolver: zodResolver(SiteSchema),
-    mode: "onChange",
-  });
-
-  const subdomainValue = watch("subdomain");
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedCheck = useCallback(
-    debounce(async (subdomain: string) => {
-      if (subdomain.length < 3) {
-        setAvailability("idle");
-        return;
-      }
-      setAvailability("checking");
-      const { isAvailable } =
-        await sitesActions.checkSubdomainAvailabilityAction(subdomain);
-      setAvailability(isAvailable ? "available" : "unavailable");
-    }, 500),
-    []
-  );
-
-  useEffect(() => {
-    if (dirtyFields.subdomain && !errors.subdomain) {
-      debouncedCheck(subdomainValue);
-    } else {
-      setAvailability("idle");
-    }
-  }, [subdomainValue, dirtyFields.subdomain, errors.subdomain, debouncedCheck]);
-
-  const handleFormSubmit = async (data: FormData) => {
-    await onSubmit(data);
-  };
-
-  const renderAvailabilityIcon = () => {
-    if (availability === "checking")
-      return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-    if (availability === "available")
-      return <Check className="h-4 w-4 text-green-500" />;
-    if (availability === "unavailable")
-      return <X className="h-4 w-4 text-destructive" />;
-    return null;
-  };
+    formState: { errors, isValid },
+  } = form;
 
   return (
-    <form
-      onSubmit={handleSubmit(handleFormSubmit)}
-      className="space-y-6 relative"
-    >
+    // La función `handleSubmit` de react-hook-form invoca al `zodResolver`.
+    // Procesa los datos de `FormInput`, los transforma a `FormOutput` y luego
+    // llama a nuestra prop `onSubmit` con esos datos, cumpliendo así el contrato.
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 relative">
+      <input type="hidden" {...register("workspaceId")} />
+
       <div className="space-y-2">
-        <Label htmlFor="subdomain">{t("subdomainLabel")}</Label>
-        <div className="flex items-center">
-          <div className="relative w-full">
-            <Input
-              id="subdomain"
-              placeholder={t("subdomainPlaceholder")}
-              className="w-full rounded-r-none focus:z-10 bg-input"
-              {...register("subdomain")}
-            />
-            <div className="absolute inset-y-0 right-3 flex items-center">
-              {renderAvailabilityIcon()}
-            </div>
-          </div>
-          <span className="flex h-10 items-center rounded-r-md border border-l-0 border-input bg-muted px-3 text-muted-foreground">
-            .{rootDomain}
-          </span>
-        </div>
-        {errors.subdomain && (
-          <p className="text-sm text-destructive">{errors.subdomain.message}</p>
-        )}
-        {availability === "unavailable" && (
-          <p className="text-sm text-destructive">
-            Este subdominio ya está en uso.
+        <Label htmlFor="name">Nombre del Sitio</Label>
+        <Input
+          id="name"
+          placeholder="Mi Blog de Afiliados"
+          aria-invalid={errors.name ? "true" : "false"}
+          {...register("name")}
+        />
+        {errors.name && (
+          <p className="text-sm text-destructive" role="alert">
+            {errors.name.message}
           </p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label>{t("iconLabel")}</Label>
+        <Label htmlFor="subdomain">Subdominio</Label>
+        <SubdomainInput form={form} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Ícono</Label>
         <Controller
           name="icon"
           control={control}
-          defaultValue="🚀"
           render={({ field }) => (
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className="w-full justify-start font-normal bg-input"
+                  type="button"
                 >
                   <span className="mr-4 text-2xl">{field.value}</span>
-                  <span>{t("selectEmoji")}</span>
+                  <span>Seleccionar un ícono</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 border-0">
@@ -151,43 +133,64 @@ export function CreateSiteForm({
             </Popover>
           )}
         />
-        {errors.icon && (
-          <p className="text-sm text-destructive">{errors.icon.message}</p>
-        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Descripción (Opcional)</Label>
+        <Textarea
+          id="description"
+          placeholder="Una breve descripción de tu sitio."
+          {...register("description")}
+        />
       </div>
 
       <Button
         type="submit"
         className="w-full"
-        disabled={isSubmitting || availability !== "available"}
+        disabled={isSubmitting || !isValid}
       >
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {isSubmitting ? t("creatingButton") : t("createButton")}
+        {isSubmitting ? "Creando Sitio..." : "Crear Sitio"}
       </Button>
     </form>
   );
 }
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar el formulario de creación de sitios.
+
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `CreateSiteForm.tsx` es un componente de cliente que implementa el
+ *               patrón de formulario canónico y robusto de la aplicación.
  *
- * 1.  **Sugerencias de Subdominios:** Si el subdominio elegido no está disponible (`availability === "unavailable"`), se podría invocar una Server Action `suggestAvailableSubdomains(subdomain)` que use lógica simple o una IA para sugerir alternativas (ej. "tu-subdominio-123", "tu-subdominio-pro"). Estas sugerencias se mostrarían como botones clicables debajo del campo de entrada.
- * 2.  **Previsualización en Vivo:** Añadir una pequeña sección de previsualización dentro del modal que muestre cómo se verá la URL completa del subdominio (`https://...`) y el ícono seleccionado. Esta previsualización se actualizaría en tiempo real a medida que el usuario escribe, reforzando la conexión entre la entrada de datos y el resultado final.
- * 3.  **Selector de Plantillas Iniciales:** Expandir el formulario para incluir un selector visual de plantillas de sitio. Esto permitiría al usuario empezar con una estructura de sitio predefinida (ej. "Landing de Producto", "Página de Captura de Leads") en lugar de un lienzo en blanco, acelerando drásticamente su flujo de trabajo inicial.
- */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato funciona como un formulario de cliente inteligente para crear sitios.
- *  Su lógica se basa en el hook `useForm` de `react-hook-form` para gestionar el estado y la validación.
- *  1.  **Validación Síncrona:** Al cambiar un campo, Zod valida instantáneamente el formato (ej. longitud mínima del subdominio).
- *  2.  **Validación Asíncrona:** El hook `useEffect` observa cambios en el campo 'subdomain'. Si es válido, llama a una versión "debounced" de `checkSubdomainAvailabilityAction`. Esto previene llamadas a la API en cada pulsación de tecla, mejorando el rendimiento.
- *  3.  **Gestión de Estado de UI:** El estado `availability` se actualiza para mostrar un icono de carga, éxito o error junto al input, proporcionando feedback claro al usuario.
- *  4.  **Envío Seguro:** El botón de envío se deshabilita si la validación asíncrona no es exitosa (`availability !== "available"`) o si el formulario ya se está enviando (`isSubmitting`), garantizando la integridad de los datos.
- *  5.  **Comunicación Externa:** Al tener éxito, invoca la callback `onSuccess`, permitiendo al componente padre (el modal) cerrarse a sí mismo, desacoplando así su lógica interna.
+ * @functionality
+ * - **Gestión de Estado con `react-hook-form`:** `useForm` gestiona el estado de los
+ *   campos, la validación y los errores, proveyendo un rendimiento optimizado.
+ * - **Validación Instantánea con Zod:** El `zodResolver` conecta el `CreateSiteSchema`
+ *   con el estado del formulario, proporcionando feedback de validación en tiempo real al
+ *   usuario, lo que mejora significativamente la experiencia de usuario.
+ * - **Contrato de Tipos Explícito:** La distinción entre `FormInput` (`z.input`) y
+ *   `FormOutput` (`z.output`) resuelve la ambigüedad de tipos y crea un contrato de datos
+ *   claro y seguro entre el formulario, su lógica de validación y los componentes padre.
+ *
+ * @relationships
+ * - Es un componente hijo de `components/sites/SitesHeader.tsx`.
+ * - Consume el componente especializado `SubdomainInput.tsx` para la validación asíncrona.
+ * - Su lógica de envío es manejada por el hook `useSitesManagement.ts`, al que notifica a
+ *   través de la prop `onSubmit`.
+ * - Su validez depende directamente del esquema definido en `lib/validators/index.ts`.
+ *
+ * @expectations
+ * - Se espera que este formulario sea robusto, seguro en tipos y proporcione una experiencia
+ *   de usuario sin fricciones. Debe prevenir envíos inválidos con feedback instantáneo y
+ *   delegar la lógica de mutación de datos al componente padre, adhiriéndose al principio
+ *   de responsabilidad única.
+ * =================================================================================================
  */
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Sugerencias de Subdominios: Si el subdominio elegido no está disponible, se podría invocar una Server Action que use lógica simple o una IA para sugerir alternativas disponibles (ej. "tu-subdominio-123", "tu-subdominio-pro"). Esto mejora la experiencia de usuario al evitarle la frustración de tener que adivinar un nombre válido.
- * 2. Previsualización en Vivo: Añadir una pequeña sección de previsualización dentro del modal que muestre cómo se verá la URL del subdominio y el ícono seleccionado. Esta previsualización se actualizaría en tiempo real a medida que el usuario escribe, reforzando la conexión entre la entrada de datos y el resultado final.
- * 3. Selector de Plantillas Iniciales: Expandir el formulario para incluir un selector visual de plantillas. Esto permitiría al usuario empezar con una estructura de sitio predefinida (ej. "Landing de Producto", "Página de Captura de Leads") en lugar de un lienzo en blanco, acelerando drásticamente su flujo de trabajo inicial.
+/*
+ * f. [Mejoras Futuras Detectadas]
+ * 1.  **Estado de Foco Mejorado:** Utilizar `focus-within` en los contenedores de los campos para resaltar visualmente el `Label` y el borde del `Input` cuando el usuario está interactuando con un campo específico, mejorando la guía visual.
+ * 2.  **Generación de Nombre Sugerido:** A medida que el usuario escribe el subdominio, se podría sugerir un "Nombre del Sitio" capitalizado y con espacios (ej. "mi-sitio" -> "Mi Sitio") para agilizar el llenado del formulario, siempre que el campo de nombre esté vacío.
+ * 3.  **Integración Directa con Server Actions:** Para alinear el formulario con las últimas características de React, se podría migrar de un `onSubmit` prop a usar directamente el hook `useFormState` con la `createSiteAction`. Esto simplificaría el paso de props y centralizaría aún más el estado del formulario.
  */

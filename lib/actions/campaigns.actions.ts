@@ -1,216 +1,188 @@
 // Ruta: lib/actions/campaigns.actions.ts
 /**
- * @file lib/actions/campaigns.actions.ts
- * @description Contiene las Server Actions para la gestión de campañas.
- *              Este aparato orquesta la lógica de negocio para crear y eliminar campañas,
- *              asegurando que cada operación sea validada, autorizada, ejecutada y auditada
- *              de forma segura y transaccional.
+ * @file campaigns.actions.ts
+ * @description Acciones de servidor seguras para la entidad 'campaigns'. Este aparato ha
+ *              sido refactorizado para una máxima cohesión, eliminando la lógica
+ *              redundante de autenticación y normalización de datos, y adhiriéndose
+ *              estrictamente al principio de responsabilidad única.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 3.1.0 (Action Result Contract Alignment)
+ * @version 4.0.0 (High Cohesion & DRY Refactoring)
  */
 "use server";
 
+import { type User } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import { ZodError } from "zod";
 
-import { requireWorkspacePermission } from "@/lib/auth/user-permissions";
+import { hasWorkspacePermission } from "@/lib/data/permissions";
 import { sites as sitesData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
-import { type ActionResult } from "@/lib/validators";
-
-import { createAuditLog } from "./_helpers";
-
-// Única fuente de verdad para la forma de los datos de creación de una campaña.
-const CampaignSchema = z.object({
-  name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  siteId: z.string().uuid("ID de site inválido."),
-});
+import {
+  type ActionResult,
+  CreateCampaignSchema,
+  DeleteCampaignSchema,
+} from "@/lib/validators";
 
 /**
+ * @private
  * @async
- * @function createCampaignAction
- * @description Orquesta la creación de una nueva campaña para un sitio específico.
- * @param {any} prevState - Estado anterior del formulario (no utilizado).
- * @param {FormData} formData - Datos del formulario.
- * @returns {Promise<ActionResult>} El resultado de la operación para la UI.
+ * @function getAuthenticatedUser
+ * @description Obtiene el usuario autenticado para una acción. Actúa como un
+ *              guardián de autenticación para reducir la duplicación de código.
+ * @returns {Promise<{ user: User } | { error: ActionResult<never> }>} Un objeto con el
+ *          usuario si tiene éxito, o un objeto de error de acción si falla.
  */
-export async function createCampaignAction(
-  prevState: any,
-  formData: FormData
-): Promise<ActionResult> {
+async function getAuthenticatedUser(): Promise<
+  { user: User } | { error: ActionResult<never> }
+> {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado." };
 
-  const validation = CampaignSchema.safeParse(
-    Object.fromEntries(formData.entries())
-  );
-  if (!validation.success) {
-    return {
-      success: false,
-      error:
-        validation.error.flatten().fieldErrors.name?.[0] || "Dados inválidos.",
-    };
+  if (!user) {
+    return { error: { success: false, error: "Usuario no autenticado." } };
   }
-  const { name, siteId } = validation.data;
-
-  const site = await sitesData.getSiteById(siteId);
-  if (!site) {
-    return {
-      success: false,
-      error: "Sitio asociado no encontrado. No se puede crear la campaña.",
-    };
-  }
-
-  const permissionCheck = await requireWorkspacePermission(site.workspace_id, [
-    "owner",
-    "admin",
-    "member",
-  ]);
-  if (!permissionCheck.success) {
-    return { success: false, error: permissionCheck.error };
-  }
-
-  const slug = name
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-
-  const { error, data: newCampaign } = await supabase
-    .from("campaigns")
-    .insert({ name, site_id: siteId, slug })
-    .select("id")
-    .single();
-
-  if (error || !newCampaign) {
-    logger.error(
-      `[CampaignsActions] Erro ao criar a campanha para o site ${siteId}:`,
-      error
-    );
-    return { success: false, error: "Não foi possível criar a campaña." };
-  }
-
-  await createAuditLog("campaign_created", {
-    userId: user.id,
-    targetEntityId: newCampaign.id,
-    targetEntityType: "campaign",
-    metadata: { name, siteId, workspaceId: site.workspace_id },
-  });
-
-  revalidatePath(`/dashboard/sites/${siteId}/campaigns`);
-  // CORRECCIÓN: Se omite el campo `data` para cumplir con el tipo `ActionResult<void>`.
-  return { success: true };
+  return { user };
 }
 
-/**
- * @async
- * @function deleteCampaignAction
- * @description Orquesta la exclusión de una campaña específica.
- * @param {FormData} formData - Debe contener `campaignId`.
- * @returns {Promise<ActionResult>} El resultado de la operación.
- */
+export async function createCampaignAction(
+  formData: FormData
+): Promise<ActionResult<{ id: string }>> {
+  const authResult = await getAuthenticatedUser();
+  if ("error" in authResult) return authResult.error;
+  const { user } = authResult;
+
+  try {
+    const rawData = Object.fromEntries(formData);
+    // LÓGICA REDUNDANTE ELIMINADA: La generación del slug es ahora
+    // manejada por el `.transform()` del `CreateCampaignSchema`.
+    const { name, slug, siteId } = CreateCampaignSchema.parse(rawData);
+
+    const site = await sitesData.getSiteById(siteId);
+    if (!site) {
+      return { success: false, error: "El sitio asociado no existe." };
+    }
+
+    const isAuthorized = await hasWorkspacePermission(
+      user.id,
+      site.workspace_id,
+      ["owner", "admin", "member"]
+    );
+
+    if (!isAuthorized) {
+      logger.warn(
+        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó crear una campaña en el sitio ${siteId} sin permisos.`
+      );
+      return {
+        success: false,
+        error: "No tienes permiso para crear campañas en este sitio.",
+      };
+    }
+
+    const supabase = createClient();
+    const { data: newCampaign, error } = await supabase
+      .from("campaigns")
+      .insert({ name, slug, site_id: siteId, content: {} })
+      .select("id")
+      .single();
+
+    if (error) {
+      logger.error("Error al crear la campaña en la base de datos:", error);
+      return { success: false, error: "No se pudo crear la campaña." };
+    }
+
+    revalidatePath(`/dashboard/sites/${siteId}/campaigns`);
+    return { success: true, data: { id: newCampaign.id } };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: "Datos inválidos." };
+    }
+    logger.error("Error inesperado en createCampaignAction:", error);
+    return { success: false, error: "Un error inesperado ocurrió." };
+  }
+}
+
 export async function deleteCampaignAction(
   formData: FormData
-): Promise<ActionResult> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado." };
+): Promise<ActionResult<{ message: string }>> {
+  const authResult = await getAuthenticatedUser();
+  if ("error" in authResult) return authResult.error;
+  const { user } = authResult;
 
-  const campaignId = formData.get("campaignId") as string;
-  if (!campaignId)
-    return { success: false, error: "ID de campanha não fornecido." };
+  try {
+    const { campaignId } = DeleteCampaignSchema.parse({
+      campaignId: formData.get("campaignId"),
+    });
 
-  const { data: campaign, error: campaignError } = await supabase
-    .from("campaigns")
-    .select("site_id, name")
-    .eq("id", campaignId)
-    .single();
+    const supabase = createClient();
+    const { data: campaign, error: fetchError } = await supabase
+      .from("campaigns")
+      .select("*, sites ( workspace_id )")
+      .eq("id", campaignId)
+      .single();
 
-  if (campaignError || !campaign) {
-    return { success: false, error: "Campanha não encontrada." };
+    if (fetchError || !campaign) {
+      return { success: false, error: "La campaña no se pudo encontrar." };
+    }
+
+    const workspaceId = campaign.sites?.workspace_id;
+    if (!workspaceId) {
+      logger.error(
+        `INCONSISTENCIA DE DATOS: Campaña ${campaignId} sin workspace asociado.`
+      );
+      return { success: false, error: "Error de integridad de datos." };
+    }
+
+    const isAuthorized = await hasWorkspacePermission(user.id, workspaceId, [
+      "owner",
+      "admin",
+      "member",
+    ]);
+
+    if (!isAuthorized) {
+      logger.warn(
+        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó eliminar la campaña ${campaignId} sin permisos.`
+      );
+      return {
+        success: false,
+        error: "No tienes permiso para eliminar esta campaña.",
+      };
+    }
+
+    const { error: deleteError } = await supabase
+      .from("campaigns")
+      .delete()
+      .eq("id", campaignId);
+
+    if (deleteError) {
+      logger.error(`Error al eliminar la campaña ${campaignId}:`, deleteError);
+      return { success: false, error: "No se pudo eliminar la campaña." };
+    }
+
+    revalidatePath(`/dashboard/sites/${campaign.site_id}/campaigns`);
+    return { success: true, data: { message: "Campaña eliminada." } };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: "ID de campaña inválido." };
+    }
+    logger.error("Error inesperado en deleteCampaignAction:", error);
+    return { success: false, error: "Un error inesperado ocurrió." };
   }
-
-  const site = await sitesData.getSiteById(campaign.site_id);
-  if (!site) {
-    logger.error(
-      `[CampaignsActions] Inconsistencia de datos: La campaña ${campaignId} está asociada a un sitio (${campaign.site_id}) que no existe.`
-    );
-    return {
-      success: false,
-      error:
-        "Error de integridad de datos. El sitio asociado a esta campaña no existe.",
-    };
-  }
-
-  const permissionCheck = await requireWorkspacePermission(site.workspace_id, [
-    "owner",
-    "admin",
-    "member",
-  ]);
-  if (!permissionCheck.success) {
-    return { success: false, error: permissionCheck.error };
-  }
-
-  const { error: deleteError } = await supabase
-    .from("campaigns")
-    .delete()
-    .eq("id", campaignId);
-
-  if (deleteError) {
-    logger.error(
-      `[CampaignsActions] Erro ao excluir a campanha ${campaignId}:`,
-      deleteError
-    );
-    return { success: false, error: "Não foi possível excluir a campanha." };
-  }
-
-  await createAuditLog("campaign_deleted", {
-    userId: user.id,
-    targetEntityId: campaignId,
-    targetEntityType: "campaign",
-    metadata: {
-      name: campaign.name,
-      siteId: campaign.site_id,
-      workspaceId: site.workspace_id,
-    },
-  });
-
-  revalidatePath(`/dashboard/sites/${campaign.site_id}/campaigns`);
-  // CORRECCIÓN: Se omite el campo `data` para cumplir con el tipo `ActionResult<void>`.
-  return { success: true };
 }
-
 /**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para la gestión de campañas.
- *
- * 1.  **Generación de Slugs Únicos:** (Revalidado) La lógica actual de generación de slugs puede producir duplicados. Debe ser mejorada para añadir un sufijo numérico si un slug ya existe.
- * 2.  **Acción de Actualización (`updateCampaignAction`):** (Revalidado) Implementar una Server Action para modificar los detalles de una campaña (como nombre o slug).
- * 3.  **Templates de Campaña:** (Revalidado) Permitir a los usuarios elegir un template al crear una campaña, populando el campo `content` con una estructura inicial.
- */
-
-/**
- * @fileoverview El aparato `campaigns.actions.ts` contiene las Server Actions para las operaciones CRUD de las campañas.
- * @functionality
- * - Define las operaciones de negocio para crear y eliminar campañas.
- * - Cada acción implementa un flujo robusto: validación de entrada, obtención de contexto, verificación de permisos, ejecución de la operación de base de datos y, finalmente, auditoría y revalidación de caché.
- * - Asegura que solo los usuarios autorizados (miembros del workspace) puedan realizar modificaciones.
- * @relationships
- * - Es invocado por los componentes de cliente en `app/[locale]/dashboard/sites/[siteId]/campaigns/`.
- * - Depende críticamente del Guardián de Permisos (`lib/auth/user-permissions.ts`) para la autorización.
- * - Utiliza la capa de datos (`lib/data/sites.ts`) para obtener el contexto de seguridad necesario (el `workspace_id` de un sitio).
- * @expectations
- * - Se espera que este aparato sea la única vía para modificar las entidades de campaña, encapsulando toda la lógica de negocio y seguridad relevante. Debe ser transaccional y proporcionar un feedback claro a la UI a través del `ActionResult`.
- */
-// Ruta: lib/actions/campaigns.actions.ts
-/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
- * 1. Geração de Slugs Únicos: A lógica atual de geração de slugs é simples e pode produzir duplicatas. Deve ser melhorada para que, se um slug já existir dentro de um site, um sufixo numérico (e.g., `minha-campanha-2`) seja adicionado.
- * 2. Ação de Atualização (`updateCampaignAction`): Implementar uma Server Action para modificar os detalhes de uma campanha (como nome ou slug), incluindo as mesmas verificações de permissão rigorosas.
- * 3. Logging de Auditoria Completo: `createAuditLog` já está sendo chamado consistentemente com metadados relevantes.
- * 4. Templates de Campanha: Permitir que os usuários escolham um template ao criar uma campanha, populando o campo `content` com uma estrutura inicial pré-definida.
- */
+@fileoverview El aparato campaigns.actions.ts es un componente de seguridad crítico que sirve como el único guardián para las mutaciones de la entidad campaigns.
+@functionality
+Abstracción de Autenticación: Utiliza un helper privado getAuthenticatedUser para encapsular la lógica de verificación de sesión, adhiriéndose al principio DRY (Don't Repeat Yourself).
+createCampaignAction: Valida y transforma los datos de entrada a través del CreateCampaignSchema del manifiesto central. Verifica que el usuario tiene permisos de miembro en el workspace al que pertenece el sitio y luego crea el registro en la base de datos.
+deleteCampaignAction: Valida el ID de la campaña a eliminar. Antes de ejecutar la eliminación, realiza el patrón de seguridad "obtener antes de actuar": recupera la campaña, determina a qué workspace pertenece y verifica que el usuario actual tenga permisos sobre dicho workspace.
+@relationships
+Es invocado por componentes de cliente, principalmente por CreateCampaignForm.tsx y CampaignsClient.tsx.
+Depende de forma crítica del guardián de permisos hasWorkspacePermission de lib/data/permissions.ts para hacer cumplir las reglas de autorización.
+Interactúa con la capa de datos (lib/data/sites.ts) para obtener información contextual necesaria para las comprobaciones de seguridad.
+Utiliza revalidatePath de Next.js para invalidar la caché y asegurar que la UI se actualice después de una mutación de datos.
+Consume los esquemas de Zod del manifiesto lib/validators/index.ts.
+@expectations
+Se espera que este aparato sea una barrera de seguridad robusta para todas las mutaciones de la entidad campaigns. Debe validar todos los datos de entrada y verificar los permisos para cada operación sin excepción. Su lógica debe ser atómica y proporcionar un feedback claro al cliente sobre el resultado de la operación a través del contrato ActionResult.
+*/

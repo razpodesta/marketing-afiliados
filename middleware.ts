@@ -1,16 +1,16 @@
-// Ruta: middleware.ts (CORREGIDO)
+// Ruta: middleware.ts
 /**
  * @file middleware.ts
- * @description Orquestador del pipeline de middleware. Define el orden de
- *              ejecución de manejadores atómicos. Refactorizado para implementar
- *              un flujo de selección de idioma intersticial para nuevos visitantes.
+ * @description Orquestador del pipeline de middleware. Refactorizado para utilizar un
+ *              patrón de diseño de Pipeline declarativo, estableciendo un estándar de
+ *              ingeniería superior para el control de flujo de peticiones.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 7.0.1 (Type Import Syntax Fix)
+ * @version 9.0.0 (Declarative Pipeline Pattern)
  */
-// CORRECCIÓN: Se importa `NextResponse` como valor y `NextRequest` como tipo.
 import { type NextRequest, NextResponse } from "next/server";
 
 import { logger } from "./lib/logging";
+import { ROUTE_DEFINITIONS } from "./lib/routing-manifest";
 import {
   handleAuth,
   handleI18n,
@@ -19,64 +19,120 @@ import {
   handleRedirects,
 } from "./middleware/handlers";
 
-const PUBLIC_ROUTES = ["/", "/choose-language"];
+type MiddlewareHandler = (
+  request: NextRequest,
+  response: NextResponse
+) => Promise<NextResponse> | NextResponse;
+
+/**
+ * @class MiddlewarePipeline
+ * @description Una clase que implementa el patrón de diseño de Pipeline para
+ *              encadenar y ejecutar manejadores de middleware de forma secuencial.
+ */
+class MiddlewarePipeline {
+  private readonly handlers: MiddlewareHandler[] = [];
+  private request: NextRequest;
+  private response: NextResponse;
+
+  constructor(request: NextRequest, initialResponse: NextResponse) {
+    this.request = request;
+    this.response = initialResponse;
+  }
+
+  /**
+   * @description Registra un manejador en el pipeline.
+   * @param {MiddlewareHandler} handler - La función manejadora.
+   * @returns {this} La instancia del pipeline para permitir el encadenamiento.
+   */
+  public use(handler: MiddlewareHandler): this {
+    this.handlers.push(handler);
+    return this;
+  }
+
+  /**
+   * @description Ejecuta el pipeline. Itera sobre los manejadores registrados,
+   *              pasando la respuesta del anterior al siguiente.
+   * @returns {Promise<NextResponse>} La respuesta final después de que todos los manejadores se hayan ejecutado.
+   */
+  public async run(): Promise<NextResponse> {
+    for (const handler of this.handlers) {
+      this.response = await handler(this.request, this.response);
+    }
+    return this.response;
+  }
+}
+
+/**
+ * @function getPathnameWithoutLocale
+ * @description Extrae de forma segura el pathname sin el prefijo del locale.
+ * @param {NextRequest} request - La petición entrante.
+ * @param {string} locale - El locale detectado.
+ * @returns {string} El pathname limpio.
+ */
+function getPathnameWithoutLocale(
+  request: NextRequest,
+  locale: string
+): string {
+  const { pathname } = request.nextUrl;
+  return pathname.replace(new RegExp(`^/${locale}`), "") || "/";
+}
 
 /**
  * @async
  * @function middleware
  * @description Punto de entrada principal para el middleware de la aplicación.
- *              Ejecuta una serie de manejadores en un pipeline para procesar
- *              cada petición entrante.
  * @param {NextRequest} request - La petición entrante.
- * @returns {Promise<NextResponse>} La respuesta final después de ser procesada por el pipeline.
+ * @returns {Promise<NextResponse>} La respuesta final.
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   logger.trace(
     { path: request.nextUrl.pathname, method: request.method },
-    `[PIPELINE] >>> INICIO Petición entrante.`
+    "[PIPELINE] >>> INICIO Petición entrante."
   );
 
-  // --- Manejadores de Nivel 1: Terminación Temprana ---
-  const maintenanceResponse = handleMaintenance(request);
-  if (maintenanceResponse) return maintenanceResponse;
+  // --- Nivel 1: Terminación Temprana (Manejadores que pueden detener el pipeline) ---
+  const earlyExitResponse =
+    handleMaintenance(request) || handleRedirects(request);
+  if (earlyExitResponse) return earlyExitResponse;
 
-  const redirectResponse = handleRedirects(request);
-  if (redirectResponse) return redirectResponse;
+  // --- Nivel 2: Internacionalización (Establece el Contexto del Locale) ---
+  const i18nResponse = handleI18n(request);
+  const locale = i18nResponse.headers.get("x-app-locale") || "pt-BR";
+  const pathname = getPathnameWithoutLocale(request, locale);
 
-  // --- Manejador de Nivel 2: Internacionalización (Fuente de Verdad del Locale) ---
-  let response = handleI18n(request);
-  const locale = response.headers.get("x-app-locale") || "pt-BR";
-  const pathnameWithoutLocale =
-    request.nextUrl.pathname.replace(`/${locale}`, "") || "/";
-
-  // --- Flujo de Selección de Idioma para Nuevos Visitantes ---
-  const hasLanguagePreference = request.cookies.has("NEXT_LOCALE_CHOSEN");
-  if (!hasLanguagePreference && pathnameWithoutLocale !== "/choose-language") {
-    logger.trace(
-      "[PIPELINE] Nuevo visitante sin preferencia de idioma. Redirigiendo a selector."
-    );
+  // --- Nivel 3: Flujo de Selección de Idioma (Visitantes Nuevos) ---
+  if (
+    !request.cookies.has("NEXT_LOCALE_CHOSEN") &&
+    pathname !== "/choose-language"
+  ) {
     return NextResponse.redirect(
       new URL(`/${locale}/choose-language`, request.url)
     );
   }
 
-  // --- Manejador de Nivel 3: Rutas Públicas y Protegidas ---
-  if (PUBLIC_ROUTES.includes(pathnameWithoutLocale)) {
+  // --- Nivel 4: Construcción y Ejecución del Pipeline Dinámico ---
+  const pipeline = new MiddlewarePipeline(request, i18nResponse);
+
+  const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
+    pathname.startsWith(r)
+  );
+
+  if (isProtectedRoute) {
+    logger.trace("[PIPELINE] Ruta protegida. Usando pipeline completo.");
+    pipeline.use(handleMultitenancy).use(handleAuth);
+  } else {
     logger.trace(
-      `[PIPELINE] Ruta pública detectada (${pathnameWithoutLocale}). Saltando auth y multitenancy.`
+      "[PIPELINE] Ruta pública/auth. Usando pipeline de autenticación."
     );
-    return response;
+    pipeline.use(handleAuth);
   }
 
-  // --- Pipeline de Nivel 4: Rutas Protegidas ---
-  response = await handleMultitenancy(request, response);
-  response = await handleAuth(request, response);
-
+  const finalResponse = await pipeline.run();
   logger.trace(
-    { status: response.status },
-    `[PIPELINE] <<< FIN: Devolviendo respuesta final.`
+    { status: finalResponse.status },
+    "[PIPELINE] <<< FIN: Devolviendo respuesta final."
   );
-  return response;
+  return finalResponse;
 }
 
 export const config = {
@@ -85,6 +141,50 @@ export const config = {
   ],
 };
 
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el orquestador del middleware.
+ *
+ * 1.  **Registro Condicional de Manejadores:** Expandir la clase `MiddlewarePipeline` con un método `useWhen(condition, handler)`. Esto permitiría una sintaxis aún más declarativa para registrar manejadores que solo deben ejecutarse si se cumple una condición, simplificando aún más la lógica en la función `middleware` principal.
+ * 2.  **Manejador de Errores del Pipeline:** Implementar un manejador de errores global para el pipeline. Se podría añadir un método `.onError(errorHandler)` a la clase `MiddlewarePipeline` que se invocaría dentro de un bloque `try/catch` en el método `run`, centralizando la gestión de fallos inesperados en los manejadores.
+ * 3.  **Contexto de Petición Enriquecido:** La clase `MiddlewarePipeline` podría gestionar un objeto de contexto (`this.context`). Cada manejador podría leer y escribir en este contexto, permitiendo pasar datos enriquecidos (como la sesión del usuario o los datos del sitio) entre manejadores de forma eficiente sin tener que recalcularlos.
+ */
+
+/**
+ * @fileoverview El aparato `middleware.ts` es el orquestador central del comportamiento de la aplicación en cada petición.
+ * @functionality
+ * - **Patrón de Pipeline Declarativo:** Implementa una clase `MiddlewarePipeline` que permite registrar manejadores de forma encadenada (`use(handler)`). Esto transforma la lógica de control de flujo de un conjunto de sentencias `if/else` a una declaración explícita del orden de ejecución, mejorando la legibilidad y la mantenibilidad.
+ * - **Centralización de Rutas:** Consume el manifiesto `ROUTE_DEFINITIONS` de `lib/routing-manifest.ts` como la única fuente de verdad para la clasificación de rutas.
+ * - **Ejecución Dinámica:** Basándose en la clasificación de la ruta (pública o protegida), construye dinámicamente el pipeline de manejadores apropiado para cada petición, asegurando que solo se ejecute la lógica necesaria.
+ * @relationships
+ * - Es el punto de entrada para todas las peticiones que coinciden con el `matcher`.
+ * - Orquesta la ejecución de todos los manejadores definidos en `middleware/handlers/`.
+ * - Depende del manifiesto `lib/routing-manifest.ts` para su lógica de decisión.
+ * @expectations
+ * - Se espera que este aparato sea una pieza de orquestación de lógica altamente fiable, declarativa y fácil de entender. Su estructura ahora facilita la adición, eliminación o reordenación de manejadores en el futuro con un riesgo mínimo de introducir regresiones.
+ */
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar el orquestador del middleware.
+ *
+ * 1.  **Clase Orquestadora de Pipeline:** Para una gestión aún más avanzada y declarativa, la lógica de encadenamiento en este archivo podría ser abstraída en una clase `MiddlewarePipeline`. Esto permitiría registrar manejadores de forma programática (ej. `pipeline.use(handleI18n).use(handleAuth).run(request)`), haciendo el orden de ejecución aún más explícito y fácil de modificar.
+ * 2.  **Contexto de Petición Enriquecido:** Se podría crear un objeto de contexto (`RequestContext`) al principio del pipeline. Cada manejador podría leerlo y añadirle información (ej. sesión de usuario, datos del sitio). Esto evitaría que manejadores posteriores tengan que recalcular datos ya obtenidos, optimizando el rendimiento.
+ * 3.  **Manifiesto de Rutas desde un Archivo:** Para proyectos muy grandes, el objeto `ROUTE_DEFINITIONS` podría ser extraído a su propio archivo (ej. `lib/routing-manifest.ts`) e importado aquí para mantener este archivo de orquestación lo más limpio posible.
+ */
+
+/**
+ * @fileoverview El aparato `middleware.ts` es el orquestador central del comportamiento de la aplicación en cada petición.
+ * @functionality
+ * - **Centralización de Rutas:** Define un único manifiesto (`ROUTE_DEFINITIONS`) que es la fuente de verdad para clasificar todas las rutas de la aplicación, eliminando la duplicación y el riesgo de inconsistencia.
+ * - **Pipeline Declarativo:** La lógica de ejecución es ahora más clara y declarativa. Se ejecutan secuencialmente los manejadores de terminación temprana, luego el de i18n, y finalmente, basado en una clasificación de ruta explícita, se decide qué pipeline de manejadores (protegido o público) ejecutar.
+ * - **Robustez:** La función `getPathnameWithoutLocale` ha sido refinada para manejar de forma más segura la extracción del `pathname` sin el prefijo del idioma.
+ * @relationships
+ * - Es el punto de entrada para todas las peticiones que coinciden con el `matcher`.
+ * - Orquesta la ejecución de todos los manejadores definidos en `middleware/handlers/`.
+ * - (Implícitamente) Ahora dicta que el manejador `auth` ya no necesita su propia lógica de clasificación de rutas, simplificando su implementación.
+ * @expectations
+ * - Se espera que este aparato sea una pieza de lógica de orquestación altamente fiable y fácil de entender. Su estructura clara reduce la probabilidad de introducir bugs al modificar el flujo de peticiones. Actúa como el "controlador de tráfico aéreo" de la aplicación.
+ */
 //s Ruta: middleware.t
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Clase Orquestadora de Pipeline: Para una gestión aún más avanzada, la lógica de encadenamiento podría ser abstraída en una clase `MiddlewarePipeline` que permita registrar manejadores de forma programática (ej. `pipeline.use(handleI18n).run(request)`).

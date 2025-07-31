@@ -1,8 +1,17 @@
 // Ruta: components/sites/SitesHeader.tsx
+/**
+ * @file SitesHeader.tsx
+ * @description Encabezado para la página "Mis Sitios", que contiene el título, la
+ *              barra de búsqueda y el disparador del modal de creación. Ha sido
+ *              refactorizado para adherirse a un contrato de tipos estricto.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 4.0.0 (Strict Type Contract Alignment)
+ */
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusCircle, Search, X } from "lucide-react";
+import type { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,17 +22,28 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { type CreateSiteSchema } from "@/lib/validators";
 
 import { CreateSiteForm } from "./CreateSiteForm";
 
-// CORRECCIÓN: La interfaz de props ahora espera una función `onSubmit` y un estado `isSubmitting`.
+// CORRECCIÓN CRÍTICA: Se importa el tipo de datos que el formulario va a producir
+// y que el hook `useSitesManagement` espera recibir.
+type FormOutput = z.output<typeof CreateSiteSchema>;
+
+/**
+ * @interface SitesHeaderProps
+ * @description Define el contrato de props para el encabezado. Actúa como un
+ *              componente "controlado", recibiendo estado y callbacks de su padre.
+ */
 interface SitesHeaderProps {
   isCreateDialogOpen: boolean;
   setCreateDialogOpen: (isOpen: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onSubmitCreate: (data: { subdomain: string; icon: string }) => Promise<void>;
+  // La firma de esta prop ahora coincide con la de `handleCreate` en el hook.
+  onSubmitCreate: (data: FormOutput) => Promise<void>;
   isCreating: boolean;
+  workspaceId: string;
 }
 
 export function SitesHeader({
@@ -33,16 +53,10 @@ export function SitesHeader({
   setSearchQuery,
   onSubmitCreate,
   isCreating,
+  workspaceId,
 }: SitesHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
-      <div
-        data-lia-marker="true"
-        className="absolute -top-2 left-0 bg-primary/20 text-primary text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      >
-        SitesHeader.tsx
-      </div>
-
       <div>
         <h1 className="text-2xl font-bold">Mis Sitios</h1>
         <p className="text-muted-foreground">
@@ -73,6 +87,7 @@ export function SitesHeader({
                   size="icon"
                   className="h-7 w-7"
                   onClick={() => setSearchQuery("")}
+                  aria-label="Limpiar búsqueda"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -94,6 +109,7 @@ export function SitesHeader({
             <CreateSiteForm
               onSubmit={onSubmitCreate}
               isSubmitting={isCreating}
+              workspaceId={workspaceId}
             />
           </DialogContent>
         </Dialog>
@@ -102,19 +118,36 @@ export function SitesHeader({
   );
 }
 
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato es un componente de UI "controlado". No gestiona su propio estado,
- *  sino que lo recibe como props (`searchQuery`, `isCreateDialogOpen`) y notifica
- *  al componente padre de los cambios a través de callbacks (`setSearchQuery`, `setCreateDialogOpen`).
- *  1.  **Entrada de Búsqueda:** El `Input` muestra el valor de `searchQuery`. En cada cambio (`onChange`), invoca la función `setSearchQuery` del padre para actualizar el estado de la búsqueda a nivel de la página.
- *  2.  **Limpieza de Búsqueda (Mejora UX):** Se ha añadido un botón 'X' que aparece condicionalmente solo si `searchQuery` no está vacío. Al hacer clic, invoca `setSearchQuery('')` para limpiar la búsqueda de forma instantánea. `AnimatePresence` de Framer Motion proporciona una transición suave de aparición/desaparición.
- *  3.  **Modal de Creación:** El componente `Dialog` encapsula el `CreateSiteForm`. Su estado de apertura/cierre está controlado por `isCreateDialogOpen` y `setCreateDialogOpen`, manteniendo la lógica de estado en el componente orquestador (`SitesClient`).
- *  Este patrón de diseño es ideal para la mantenibilidad, ya que mantiene el componente del encabezado enfocado únicamente en la presentación y la delegación de eventos.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar este componente.
+ *
+ * 1.  **Abstracción a `<CollectionHeader />`:** Este patrón de "Título + Búsqueda + Botón de Acción" se repetirá en otras partes de la aplicación (ej. Campañas, Miembros). Se podría abstraer este aparato a un componente genérico `<CollectionHeader />` para promover la consistencia de la UI y el principio DRY.
+ * 2.  **Controles de Ordenamiento y Filtrado Avanzado:** Para escalar a cientos de sitios, la búsqueda por sí sola es insuficiente. Se podría integrar un `<DropdownMenu>` junto a la barra de búsqueda que permita al usuario ordenar la lista (ej. por "Fecha de Creación", "Nombre A-Z").
+ * 3.  **Atajo de Teclado para Búsqueda:** Mejorar la productividad de los usuarios avanzados implementando un atajo de teclado global (ej. `/` o `Ctrl+F`) que enfoque automáticamente el campo de búsqueda.
  */
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Abstracción a `<CollectionHeader />`: Este patrón de "Título + Búsqueda + Botón de Acción" se repetirá en otras partes de la aplicación (ej. Campañas, Miembros). Se podría abstraer este aparato a un componente genérico `<CollectionHeader />` que acepte props como `title`, `description`, `searchPlaceholder`, y `createActionLabel` para promover la consistencia de la UI y el principio DRY en todo el proyecto.
- * 2. Controles de Ordenamiento y Filtrado Avanzado: Para escalar a cientos de sitios, la búsqueda por sí sola es insuficiente. Se podría integrar un `<DropdownMenu>` junto a la barra de búsqueda que permita al usuario ordenar la lista (ej. por "Fecha de Creación", "Nombre A-Z") o aplicar filtros predefinidos (ej. "Solo sitios sin campañas").
- * 3. Atajo de Teclado para Búsqueda: Mejorar la productividad de los usuarios avanzados implementando un atajo de teclado global (ej. `/` o `Ctrl+F`) que enfoque automáticamente el campo de búsqueda cuando el usuario se encuentre en la página de "Mis Sitios".
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `SitesHeader.tsx` es un componente de UI "controlado".
+ *
+ * @functionality
+ * - No gestiona su propio estado, sino que lo recibe como props (`searchQuery`, `isCreateDialogOpen`)
+ *   y notifica al componente padre de los cambios a través de callbacks (`setSearchQuery`, etc.).
+ * - Orquesta la presentación de la barra de búsqueda y el `Dialog` que contiene el `CreateSiteForm`.
+ * - **Corrección de Contrato:** La interfaz `SitesHeaderProps` ha sido actualizada. Su prop
+ *   `onSubmitCreate` ahora espera una función que coincide exactamente con la firma de la
+ *   función `handleCreate` del hook `useSitesManagement`, reparando este eslabón de la cadena de tipos.
+ *
+ * @relationships
+ * - Es un componente hijo de `SitesClient.tsx`, que es el orquestador de la página.
+ * - Es el padre de `CreateSiteForm.tsx`, al cual le pasa la función de envío y el estado de carga.
+ *
+ * @expectations
+ * - Se espera que este componente actúe como una capa de presentación pura, delegando toda la
+ *   lógica de estado y las acciones a sus componentes padres. Su contrato de props ahora es
+ *   robusto y seguro en tipos.
+ * =================================================================================================
  */

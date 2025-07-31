@@ -1,9 +1,18 @@
-// components/workspaces/CreateWorkspaceForm.tsx
+// Ruta: components/workspaces/CreateWorkspaceForm.tsx
+/**
+ * @file CreateWorkspaceForm.tsx
+ * @description Formulario de cliente para la creación de nuevos workspaces.
+ *              Implementa el patrón arquitectónico canónico con `react-hook-form`
+ *              y `zodResolver` para una validación instantánea del lado del cliente
+ *              y una experiencia de usuario superior.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 5.0.0 (Canonical Form Pattern)
+ */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import type { z } from "zod";
@@ -18,64 +27,55 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { workspaces as workspaceActions } from "@/lib/actions";
-import { WorkspaceSchema } from "@/lib/validators";
+import { CreateWorkspaceSchema } from "@/lib/validators";
 
-/**
- * @file CreateWorkspaceForm.tsx
- * @description Formulario para la creación de un nuevo workspace.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.1.0 (Architectural Alignment)
- */
-
-type FormData = z.infer<typeof WorkspaceSchema>;
+type FormData = z.infer<typeof CreateWorkspaceSchema>;
 
 export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(WorkspaceSchema),
+    resolver: zodResolver(CreateWorkspaceSchema),
     defaultValues: {
       workspaceName: "",
       icon: "🚀",
     },
   });
 
-  const onSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
-    const formData = new FormData();
-    formData.append("workspaceName", data.workspaceName);
-    formData.append("icon", data.icon);
+  const processSubmit = (data: FormData) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("workspaceName", data.workspaceName);
+      formData.append("icon", data.icon);
 
-    const result = await workspaceActions.createWorkspaceAction(
-      { error: null, success: false },
-      formData
-    );
+      const result = await workspaceActions.createWorkspaceAction(formData);
 
-    if (result.success) {
-      toast.success("¡Workspace creado con éxito!");
-      onSuccess();
-    } else if (result.error) {
-      toast.error(result.error);
-    }
-    setIsSubmitting(false);
+      if (result.success) {
+        toast.success("¡Workspace creado con éxito!");
+        onSuccess();
+      } else {
+        toast.error(result.error);
+      }
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 relative">
+    <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 relative">
       <div className="space-y-2">
         <Label htmlFor="workspaceName">Nombre del Workspace</Label>
         <Input
           id="workspaceName"
           placeholder="Mi Nuevo Proyecto"
+          aria-invalid={errors.workspaceName ? "true" : "false"}
           {...register("workspaceName")}
         />
         {errors.workspaceName && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-destructive" role="alert">
             {errors.workspaceName.message}
           </p>
         )}
@@ -92,6 +92,7 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
                 <Button
                   variant="outline"
                   className="w-full justify-start font-normal bg-input"
+                  type="button"
                 >
                   <span className="mr-4 text-2xl">{field.value}</span>
                   <span>Seleccionar un ícono</span>
@@ -106,57 +107,46 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
           )}
         />
         {errors.icon && (
-          <p className="text-sm text-destructive">{errors.icon.message}</p>
+          <p className="text-sm text-destructive" role="alert">
+            {errors.icon.message}
+          </p>
         )}
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {isSubmitting ? "Creando..." : "Crear Workspace"}
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isSubmitting || isPending}
+      >
+        {(isSubmitting || isPending) && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
+        {isSubmitting || isPending ? "Creando..." : "Crear Workspace"}
       </Button>
     </form>
   );
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Plantillas de Workspace: Permitir al usuario crear un workspace a partir de una plantilla (ej. "Para Agencia"), que podría pre-configurar sitios o campañas iniciales.
- * 2. Avatares de Workspace Personalizados: Permitir al usuario subir una imagen como ícono del workspace, integrando un componente de subida de archivos y Supabase Storage.
- */
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato ha sido refactorizado para utilizar `react-hook-form`, el patrón
- *  estándar de la aplicación para formularios.
- *  1.  **Inicialización del Formulario:** `useForm` se inicializa con un `zodResolver`
- *      que utiliza el `WorkspaceSchema`. Esto conecta la validación de Zod con el
- *      estado del formulario, permitiendo mostrar errores en tiempo real.
- *  2.  **Registro de Inputs:** Los campos de formulario, como el `Input` para el nombre,
- *      se "registran" con el hook usando la función `register`. Esto permite a
- *      `react-hook-form` rastrear su valor y estado de validación.
- *  3.  **Control de Componentes Externos:** El `EmojiPicker` no es un input nativo.
- *      Por lo tanto, se envuelve en el componente `<Controller>`, que actúa como un
- *      puente. El `Controller` le pasa al `EmojiPicker` el valor actual (`field.value`)
- *      y una función `onChange` para notificar a `react-hook-form` de los cambios.
- *  4.  **Manejo del Envío:** El `handleSubmit` de `react-hook-form` envuelve la función
- *      `onSubmit`. `handleSubmit` solo invocará `onSubmit` si la validación de Zod
- *      es exitosa. Dentro de `onSubmit`, se gestiona el estado de carga (`isSubmitting`),
- *      se llama a la Server Action y se maneja la respuesta (mostrando `toast` y
- *      llamando a `onSuccess`).
- *  Este patrón crea formularios robustos, consistentes y con una excelente experiencia
- *  de usuario gracias a la validación instantánea.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras incrementales para evolucionar el formulario de creación de workspaces.
+ *
+ * 1.  **Verificación de Nombre en Tiempo Real:** Implementar una validación asíncrona "debounced" que verifique la disponibilidad del nombre del workspace en tiempo real a medida que el usuario escribe, similar a la validación de subdominios, para prevenir envíos fallidos.
+ * 2.  **Plantillas de Workspace:** Permitir al usuario crear un workspace a partir de una plantilla (ej. "Para Agencia", "Para Afiliado Individual"). Esto requeriría una nueva UI en este formulario para seleccionar la plantilla y una lógica expandida en la `createWorkspaceAction` para poblar el nuevo workspace con sitios o campañas de ejemplo.
+ * 3.  **Avatares de Workspace Personalizados:** Permitir al usuario subir una imagen como ícono del workspace, además de los emojis. Esto implicaría integrar un componente de subida de archivos, configurar un bucket en Supabase Storage y modificar la Server Action para manejar la subida del archivo y guardar la URL resultante.
  */
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Plantillas de Workspace: La mejora de onboarding más significativa sería permitir al usuario crear un workspace a partir de una plantilla (ej. "Para Agencia", "Para Afiliado Individual"). Esto requeriría una nueva UI en este formulario para seleccionar la plantilla y una lógica expandida en la `createWorkspaceAction` para poblar el nuevo workspace con sitios o campañas de ejemplo.
- * 2. Avatares de Workspace Personalizados: Permitir al usuario subir una imagen como ícono del workspace, además de los emojis. Esto implicaría integrar un componente de subida de archivos, configurar un bucket en Supabase Storage y modificar la Server Action para manejar la subida del archivo y guardar la URL resultante.
- * 3. Asignación de Propietario (Contexto de Organización): En un futuro sistema multi-organización, este formulario podría incluir un selector para que un administrador asigne un "propietario" diferente al nuevo workspace, en lugar de asignarlo siempre al usuario que lo crea.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Validación del Lado del Cliente con Zod: Migrar la validación a `react-hook-form` con `zodResolver` para un feedback instantáneo, en lugar de depender únicamente de la validación del servidor.
- * 2. Plantillas de Workspace: Permitir al usuario crear un workspace a partir de una plantilla, lo que podría pre-configurar sitios o campañas iniciales, mejorando el proceso de onboarding.
- * 3. Avatares Personalizados: Además de emojis, permitir la subida de una imagen personalizada como avatar del workspace, guardándola en Supabase Storage.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Validación del Lado del Cliente: Antes de enviar el formulario, se podría usar el schema de Zod correspondiente (importado desde `app/actions/schemas.ts`) para validar la entrada en el cliente, proporcionando feedback instantáneo al usuario.
- * 2. Sugerencias de Nombres: Implementar una lógica que verifique si el nombre del workspace ya existe dentro de la organización del usuario (si aplica) y sugiera alternativas.
- * 3. Plantillas de Workspace: Permitir al usuario crear un workspace a partir de una plantilla, lo que podría pre-configurar sitios o campañas iniciales, mejorando el proceso de onboarding.
+/**
+ * @fileoverview El aparato `CreateWorkspaceForm.tsx` ha sido refactorizado para implementar el patrón de formulario canónico y robusto de la aplicación.
+ * @functionality
+ * - **Gestión de Estado con `react-hook-form`:** `useForm` gestiona el estado de los campos, la validación y los errores.
+ * - **Validación Instantánea con Zod:** El `zodResolver` conecta el `CreateWorkspaceSchema` con el estado del formulario, proporcionando feedback de validación en tiempo real al usuario mientras escribe, lo que mejora significativamente la experiencia de usuario.
+ * - **Control de Componentes Complejos:** El `EmojiPicker` es gestionado a través del componente `<Controller>` de `react-hook-form`, que integra su estado directamente en el formulario sin necesidad de estados locales intermedios, resultando en un código más limpio y una única fuente de verdad.
+ * - **Comunicación con Server Action:** La función `handleSubmit` de `react-hook-form` envuelve la lógica de envío, asegurando que la Server Action solo sea invocada si la validación del lado del cliente es exitosa. `useTransition` se utiliza para gestionar el estado de carga de la operación asíncrona.
+ * @relationships
+ * - Es un componente hijo de `app/[locale]/welcome/page.tsx` y de `components/workspaces/WorkspaceSwitcher.tsx`.
+ * - Invoca la Server Action `workspaces.createWorkspaceAction` de `lib/actions/workspaces.actions.ts`.
+ * - Utiliza el esquema `CreateWorkspaceSchema` del manifiesto de validadores `lib/validators/index.ts`.
+ * @expectations
+ * - Se espera que este formulario sea robusto y proporcione una experiencia de usuario clara y sin fricciones. Debe prevenir envíos inválidos con feedback instantáneo y dar una indicación clara del resultado de la operación.
  */

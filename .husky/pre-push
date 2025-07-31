@@ -1,1 +1,2 @@
-pnpm run build
+#!/bin/sh
+pnpm ci:check

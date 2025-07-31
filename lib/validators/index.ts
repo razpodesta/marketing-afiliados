@@ -1,130 +1,134 @@
 // Ruta: lib/validators/index.ts
 /**
- * @file validators.ts
- * @description Centraliza todos los esquemas de validación de Zod y tipos de estado de formulario.
- *              Este aparato es la única fuente de verdad para la forma de los datos
- *              de entrada y salida de las Server Actions y formularios.
+ * @file validators/index.ts
+ * @description Manifiesto de Validadores y Única Fuente de Verdad. Este aparato
+ *              centraliza todos los esquemas de validación de Zod, refactorizado
+ *              para una máxima modularidad y reutilización a través de esquemas base,
+ *              y endurecido con lógica de saneamiento y transformación de datos.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 1.4.0 (Action Result Type Refinement)
+ * @version 3.1.0 (Schema Cohesion & Type Inference Fix)
  */
 import { z } from "zod";
 
-// --- TIPOS DE ESTADO DE FORMULARIO ---
+// --- CONTRATO DE RESULTADO DE ACCIÓN ---
+
 /**
  * @typedef {object} ActionResult
- * @description Tipo genérico para el resultado de una operación (especialmente Server Actions).
- * @template T - El tipo de los datos retornados en caso de éxito. Por defecto, `void` si no se esperan datos.
- * @property {boolean} success - Indica si la operación fue exitosa.
- * @property {T} [data] - Datos opcionales retornados en caso de éxito.
- * @property {string} [error] - Mensaje de error en caso de fallo.
- * @property {string} [message] - Mensaje informativo de la operación (éxito o fallo).
+ * @description Contrato de tipo de unión discriminada para el resultado de una Server Action.
+ *              Garantiza que una operación solo puede tener un estado de éxito con datos,
+ *              o un estado de fallo con un error, pero nunca ambos.
+ * @template T - El tipo de los datos retornados en caso de éxito.
  */
-export type ActionResult<T = void> = {
-  // CORRECCIÓN CRÍTICA: Se cambia el tipo por defecto de `T` de `null` a `void`.
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-};
+export type ActionResult<T = unknown> =
+  | { success: true; data: T }
+  | { success: false; error: string };
 
-export type RequestPasswordResetState = {
-  error?: string;
-};
+// --- ESQUEMAS BASE REUTILIZABLES ---
 
-export type CreateSiteFormState = {
-  error?: string;
-  success?: boolean;
-};
+const UuidSchema = z.string().uuid("ID inválido.");
+const NameSchema = z
+  .string()
+  .trim()
+  .min(3, "El nombre debe tener al menos 3 caracteres.");
+const IconSchema = z.string().trim().min(1, "El ícono es requerido.");
+const SubdomainSchema = z
+  .string()
+  .trim()
+  .min(3, "El subdominio debe tener al menos 3 caracteres.")
+  .regex(
+    /^[a-z0-9-]+$/,
+    "Solo se permiten letras minúsculas, números y guiones."
+  )
+  .transform((subdomain) => subdomain.toLowerCase());
 
-export type CreateWorkspaceFormState = {
-  error: string | null;
-  success: boolean;
-};
-
-export type InviteMemberFormState = {
-  error?: string;
-  success?: boolean;
-  message?: string;
-};
-
-// --- ESQUEMAS DE VALIDACIÓN ---
-
-export const SiteSchema = z.object({
-  subdomain: z
-    .string()
-    .min(3, "El subdominio debe tener al menos 3 caracteres.")
-    .regex(
-      /^[a-z0-9-]+$/,
-      "Solo se permiten letras minúsculas, números y guiones."
-    ),
-  icon: z.string().min(1, "El ícono es requerido."),
-});
-
-export const WorkspaceSchema = z.object({
-  workspaceName: z
-    .string()
-    .min(3, "El nombre debe tener al menos 3 caracteres."),
-  icon: z.string().min(1, "El ícono es requerido."),
-});
+// --- ESQUEMAS DE VALIDACIÓN DE DOMINIO (COMPUESTOS) ---
 
 export const EmailSchema = z
   .string()
+  .trim()
   .email("Por favor, introduce un email válido.");
+
+export const CreateWorkspaceSchema = z.object({
+  workspaceName: NameSchema,
+  icon: IconSchema,
+});
 
 export const InvitationSchema = z.object({
   email: EmailSchema,
   role: z.enum(["admin", "member", "editor", "viewer"], {
     errorMap: () => ({ message: "Por favor, selecciona un rol válido." }),
   }),
-  workspaceId: z.string().uuid("ID de workspace inválido."),
+  workspaceId: UuidSchema.describe("ID del workspace de la invitación."),
 });
+
+// CORRECCIÓN ARQUITECTÓNICA: Se refina el esquema para que la lógica de transformación
+// sea más clara y la inferencia de tipos para react-hook-form sea más fiable.
+// Define la forma de los datos ANTES de la transformación.
+export const CreateSiteSchema = z
+  .object({
+    subdomain: SubdomainSchema,
+    name: z
+      .string()
+      .trim()
+      .min(3, "El nombre del sitio debe tener al menos 3 caracteres.")
+      .optional()
+      .or(z.literal("")), // Permite un string vacío como entrada opcional
+    description: z.string().optional(),
+    icon: IconSchema,
+    workspaceId: UuidSchema.describe(
+      "ID del workspace al que pertenece el sitio."
+    ),
+  })
+  .transform((data) => ({
+    ...data,
+    // La transformación asegura que el 'name' nunca sea una cadena vacía en la salida,
+    // usando el subdominio como fallback. Esto crea un contrato de salida donde `name` es siempre `string`.
+    name: data.name || data.subdomain,
+  }));
+
+export const UpdateSiteSchema = z.object({
+  siteId: UuidSchema.describe("ID del sitio a actualizar."),
+  name: NameSchema.optional(),
+  subdomain: SubdomainSchema.optional(),
+  description: z.string().optional(),
+});
+
+export const DeleteSiteSchema = z.object({
+  siteId: UuidSchema.describe("ID del sitio a eliminar."),
+});
+
+export const CreateCampaignSchema = z
+  .object({
+    name: NameSchema,
+    slug: z
+      .string()
+      .trim()
+      .min(3, "El slug debe tener al menos 3 caracteres.")
+      .regex(/^[a-z0-9-]+$/, "Solo se permiten minúsculas, números y guiones.")
+      .optional(),
+    siteId: UuidSchema.describe("ID del sitio al que pertenece la campaña."),
+  })
+  .transform((data) => ({
+    ...data,
+    slug:
+      data.slug ||
+      data.name
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, ""),
+  }));
+
+export const DeleteCampaignSchema = z.object({
+  campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
+});
+
+export type RequestPasswordResetState = ActionResult<void>;
 
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para robustecer la validación y los contratos de datos.
+ * @description Mejoras para evolucionar la capa de validación.
  *
- * 1.  **Internacionalización de Errores de Zod:** (Revalidado) Integrar una librería como `zod-i18n` para que los mensajes de error de validación se puedan traducir automáticamente según el `locale` del usuario.
- * 2.  **Esquemas Completos para el Constructor:** (Revalidado) Crear esquemas de Zod detallados para la estructura `CampaignConfig` y sus bloques (`PageBlock`) para validar el contenido completo de una campaña antes de guardarla.
- * 3.  **Validación de Variables de Entorno:** (Revalidado) Utilizar Zod para validar las variables de entorno al iniciar la aplicación, asegurando que todas las claves de API y configuraciones necesarias estén presentes y tengan el formato correcto.
- */
-
-/**
- * @fileoverview El aparato `validators/index.ts` es la "carta de ley" del proyecto.
- * @functionality
- * - Define todos los esquemas de validación para los datos de entrada de los formularios (`SiteSchema`, `WorkspaceSchema`, `InvitationSchema`).
- * - Define los tipos de datos que se utilizan para representar el estado de los formularios y los resultados de las operaciones (`ActionResult`, `CreateSiteFormState`, etc.).
- * - Centraliza las reglas de negocio básicas para la validación de datos, asegurando que tanto el cliente como el servidor operen bajo el mismo conjunto de reglas.
- * @relationships
- * - Es consumido por los componentes de formulario de cliente (ej. `CreateSiteForm.tsx`, `InviteMemberForm.tsx`) a través de `zodResolver` para la validación en tiempo real.
- * - Es importado por todas las Server Actions en `lib/actions/` para validar los datos recibidos de las peticiones HTTP.
- * @expectations
- * - Se espera que este aparato sea la única fuente de verdad para la validación de datos. Cualquier cambio en la estructura de un formulario o en los requisitos de datos debe reflejarse primero aquí para mantener la consistencia y la seguridad de tipos en todo el sistema.
- */
-// Ruta: lib/validators/index.ts
-/*  L.I.A. LOGIC ANALYSIS
- *  ---------------------
- *  Este aparato es la única fuente de verdad para la validación de la forma de
- *  los datos de entrada en la aplicación. Utiliza la librería Zod para definir
- *  esquemas declarativos que pueden ser utilizados tanto en el servidor (dentro de
- *  las Server Actions) como en el cliente (a través de `zodResolver` con `react-hook-form`).
- *  1.  **Centralización:** Agrupar todos los esquemas aquí previene la duplicación de
- *      la lógica de validación y asegura que el cliente y el servidor siempre
- *      operen bajo las mismas reglas de datos.
- *  2.  **Tipado Inferido:** Zod permite inferir tipos de TypeScript directamente
- *      desde los esquemas (ej. `type FormData = z.infer<typeof InvitationSchema>`).
- *      Esto garantiza que los tipos de los datos de los formularios estén siempre
- *      sincronizados con sus reglas de validación.
- *  3.  **Mensajes de Error:** Los esquemas definen los mensajes de error que se
- *      mostrarán al usuario, permitiendo la personalización y futura internacionalización.
- */
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Internacionalización de Errores de Zod: Integrar una librería como `zod-i18n` para que los mensajes de error de validación (ej. "El nombre debe tener al menos 3 caracteres") se puedan traducir automáticamente según el idioma (`locale`) del usuario, creando una experiencia de validación completamente localizada.
- * 2. Esquemas Complejos para el Constructor: Crear esquemas de Zod detallados para la estructura de `CampaignConfig` y sus bloques (`PageBlock`). Esto permitiría validar el contenido completo de una campaña antes de guardarla en la base de datos, previniendo la corrupción de datos si la estructura del JSON es incorrecta.
- * 3. Validación de Variables de Entorno: Utilizar Zod para validar las variables de entorno (`process.env`) al iniciar la aplicación. Esto asegura que todas las claves de API y configuraciones necesarias estén presentes y tengan el formato correcto, previniendo fallos en tiempo de ejecución debido a una mala configuración.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Internacionalización de Errores: Integrar `zod-i18n` para que los mensajes de error de validación se puedan traducir automáticamente según el locale del usuario.
- * 2. Esquemas Complejos para el Builder: Crear esquemas de Zod detallados para la estructura `CampaignConfig` (`lib/builder/types.d.ts`) para validar el contenido de las campañas antes de guardarlas.
- * 3. Variables de Entorno: Usar Zod para validar las variables de entorno al iniciar la aplicación, asegurando que todas las claves necesarias estén presentes y tengan el formato correcto.
+ * 1.  **Mensajes de Error Internacionalizados (i18n):** Integrar una librería como `zod-i18n` para que los mensajes de error de validación se traduzcan automáticamente según el idioma del usuario, proporcionando una experiencia de usuario globalmente consistente.
+ * 2.  **Validadores Asíncronos Refinados:** Para esquemas como `CreateSiteSchema`, se podría añadir un paso de `.refine()` asíncrono que verifique la disponibilidad del subdominio directamente en la base de datos, centralizando la lógica de validación que actualmente reside en el componente `SubdomainInput`.
+ * 3.  **Esquemas Discriminados por Rol:** Para escenarios de autorización complejos, se podrían crear uniones discriminadas (`z.discriminatedUnion`) que apliquen diferentes reglas de validación basadas en el rol del usuario que realiza la acción.
  */

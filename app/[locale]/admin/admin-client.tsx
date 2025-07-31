@@ -1,18 +1,16 @@
 // Ruta: app/[locale]/admin/admin-client.tsx
 /**
  * @file admin-client.tsx
- * @description Componente de cliente para el Dashboard de Administración. Proporciona
- *              la interfaz interactiva para supervisar y gestionar todos los sitios
- *              de la plataforma.
+ * @description Componente de cliente para el Dashboard de Administración. Ha sido
+ *              refactorizado para manejar de forma segura el contrato de tipo de
+ *              unión discriminada de `ActionResult`.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 8.2.0 (React Transition Fix)
+ * @version 9.1.0 (Type-Safe Action Result Handling)
  */
 "use client";
 
 import type { User } from "@supabase/supabase-js";
 import {
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Loader2,
   LogOut,
@@ -24,6 +22,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 
+import { PaginationControls } from "@/components/sites/PaginationControls";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -133,46 +132,6 @@ const DeleteSiteDialog = ({
   );
 };
 
-const PaginationControls = ({
-  page,
-  totalCount,
-  limit,
-}: {
-  page: number;
-  totalCount: number;
-  limit: number;
-}) => {
-  const totalPages = Math.ceil(totalCount / limit);
-  const hasPreviousPage = page > 1;
-  const hasNextPage = page < totalPages;
-  const startItem = (page - 1) * limit + 1;
-  const endItem = Math.min(page * limit, totalCount);
-
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className="flex items-center justify-between mt-8">
-      <p className="text-sm text-muted-foreground">
-        Mostrando {startItem}-{endItem} de {totalCount} sitios
-      </p>
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" disabled={!hasPreviousPage}>
-          <Link href={`/admin?page=${page - 1}`}>
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Anterior
-          </Link>
-        </Button>
-        <Button asChild variant="outline" disabled={!hasNextPage}>
-          <Link href={`/admin?page=${page + 1}`}>
-            Siguiente
-            <ChevronRight className="h-4 w-4 ml-2" />
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 export function AdminClient({
   sites,
   user,
@@ -197,15 +156,16 @@ export function AdminClient({
 
     setDeletingSiteId(subdomain);
 
-    // CORRECCIÓN CRÍTICA: `startTransition` debe envolver una función síncrona.
-    // La lógica asíncrona se ejecuta dentro de la función que se pasa.
     startTransition(() => {
       admin
         .deleteSiteAsAdminAction(formData)
         .then((result: ActionResult<{ message: string }>) => {
-          if (result.success && result.data) {
+          // CORRECCIÓN DE TIPO (TS2339): Se implementa el estrechamiento de tipo
+          // (type narrowing) para manejar la unión discriminada de forma segura.
+          if (result.success) {
             toast.success(result.data.message);
-          } else if (result.error) {
+          } else {
+            // Dentro de este bloque, TypeScript sabe que `result.error` existe.
             toast.error(result.error);
           }
           setDeletingSiteId(null);
@@ -258,6 +218,7 @@ export function AdminClient({
               page={page}
               totalCount={totalCount}
               limit={limit}
+              basePath="/admin"
             />
           </>
         ) : (
@@ -275,11 +236,11 @@ export function AdminClient({
 
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para el dashboard de administración.
+ * @description Mejoras incrementales para evolucionar el dashboard de administración.
  *
- * 1.  **Estado de Carga por Tarjeta Individual:** (Revalidado) En lugar de un `isPending` global, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
- * 2.  **Indicador de Página Numérico Avanzado:** (Revalidado) Mejorar el componente `PaginationControls` para que utilice la lógica avanzada de `usePaginationRange` (como en `components/sites/PaginationControls.tsx`) para mostrar números de página y elipsis.
- * 3.  **Búsqueda y Filtros del Lado del Servidor:** (Revalidado) Añadir un campo de búsqueda en el `DashboardHeader` que pase un parámetro en la URL para que la función `getAllSites` en `admin/page.tsx` filtre los resultados en la base de datos.
+ * 1.  **Búsqueda y Filtros en el Servidor:** La mejora de mayor impacto ahora es añadir un campo de búsqueda en el `DashboardHeader`. Este campo debería pasar un parámetro de búsqueda en la URL (ej. `/admin?q=mi-sitio`) para que la función `getAllSites` en `admin/page.tsx` pueda filtrar los resultados de manera eficiente directamente en la base de datos.
+ * 2.  **Estado de Carga por Tarjeta Individual:** Para una UX más refinada, en lugar de un `isPending` global para la eliminación, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
+ * 3.  **Acciones Administrativas Adicionales:** Expandir el `DeleteSiteDialog` o añadir nuevos controles para realizar otras acciones administrativas, como "Suspender Sitio" (que lo pondría en un estado inactivo sin eliminarlo) o "Ver Detalles del Propietario".
  */
 
 /**
@@ -287,17 +248,17 @@ export function AdminClient({
  * @functionality
  * - Muestra un encabezado personalizado para el administrador con opciones de sesión.
  * - Presenta una lista paginada de todos los sitios de la plataforma en formato de tarjetas.
+ * - Proporciona un control de paginación avanzado y reutilizable para una navegación eficiente.
  * - Permite al administrador visitar cada subdominio público.
  * - Habilita la eliminación de sitios de forma irreversible a través de un diálogo de confirmación, utilizando una Server Action.
  * - Muestra un feedback visual de carga durante las operaciones de eliminación, utilizando `useTransition` para mantener la UI interactiva.
  * @relationships
  * - Es el componente hijo principal de `app/[locale]/admin/page.tsx`, del cual recibe los datos iniciales y el contexto de usuario.
  * - Invoca directamente las Server Actions del namespace `admin` (`admin.deleteSiteAsAdminAction`).
- * - Utiliza componentes de UI genéricos (`Card`, `Button`, `Dialog`, `PaginationControls`).
+ * - Utiliza componentes de UI genéricos y reutilizables, incluyendo el `PaginationControls` canónico de `@/components/sites/PaginationControls`.
  * @expectations
- * - Se espera que este aparato sea robusto en el manejo de operaciones sensibles. Debe proporcionar una experiencia de usuario clara y segura, con feedback apropiado para las acciones críticas.
+ * - Se espera que este aparato sea robusto en el manejo de operaciones sensibles. Debe proporcionar una experiencia de usuario clara y segura, con feedback apropiado para las acciones críticas y una navegación consistente con el resto de la aplicación.
  */
-// Ruta: app/[locale]/admin/admin-client.tsx
 /* MEJORAS FUTURAS DETECTADAS
  * 1. Acciones de Suplantación (Impersonation): Integrar la acción `admin.impersonateUserAction` en la UI del `dev-console` para permitir a los desarrolladores iniciar sesión como otros usuarios para depuración.
  * 2. Indicador de Página Numérico: Mejorar el componente de paginación para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.

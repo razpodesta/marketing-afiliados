@@ -1,205 +1,270 @@
 // Ruta: lib/actions/sites.actions.ts
 /**
- * @file lib/actions/sites.actions.ts
- * @description Contiene las Server Actions para la gestión de sitios (subdominios).
- *              Este aparato orquesta la lógica de negocio, delegando la validación de
- *              permisos y el acceso a datos a los aparatos de seguridad y datos
- *              correspondientes para una máxima cohesión y bajo acoplamiento.
+ * @file sites.actions.ts
+ * @description Acciones de servidor seguras para la entidad 'sites'. Este aparato ha
+ *              sido refactorizado para una máxima cohesión, separando la lógica
+ *              de verificación de la de creación, y adhiriéndose al principio de
+ *              responsabilidad única.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 7.2.0 (Action Result Contract Alignment)
+ * @version 5.0.0 (Separation of Concerns & Real-time Validation)
  */
 "use server";
 
+import { type User } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { ZodError } from "zod";
 
-import { requireWorkspacePermission } from "@/lib/auth/user-permissions";
+import { hasWorkspacePermission } from "@/lib/data/permissions";
 import { sites as sitesData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import {
   type ActionResult,
-  type CreateSiteFormState,
-  SiteSchema,
+  CreateSiteSchema,
+  DeleteSiteSchema,
+  UpdateSiteSchema,
 } from "@/lib/validators";
 
 import { createAuditLog } from "./_helpers";
 
 /**
+ * @private
+ * @async
+ * @function getAuthenticatedUser
+ * @description Obtiene el usuario autenticado para una acción. Actúa como un
+ *              guardián de autenticación para reducir la duplicación de código.
+ * @returns {Promise<{ user: User } | { error: ActionResult<never> }>} Un objeto con el
+ *          usuario si tiene éxito, o un objeto de error de acción si falla.
+ */
+async function getAuthenticatedUser(): Promise<
+  { user: User } | { error: ActionResult<never> }
+> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: { success: false, error: "Usuario no autenticado." } };
+  }
+  return { user };
+}
+
+/**
  * @async
  * @function checkSubdomainAvailabilityAction
- * @description Verifica si un subdominio ya existe en la base de datos.
- *              Delega la consulta a la capa de datos.
- * @param {string} subdomain - El subdominio a ser verificado.
- * @returns {Promise<{ isAvailable: boolean }>} Un objeto indicando la disponibilidad.
+ * @description Verifica si un subdominio ya está en uso en la plataforma.
+ *              Esta acción está optimizada para ser llamada en tiempo real desde el cliente.
+ * @param {string} subdomain - El subdominio a verificar.
+ * @returns {Promise<ActionResult<{ isAvailable: boolean }>>} El resultado de la verificación.
  */
 export async function checkSubdomainAvailabilityAction(
   subdomain: string
-): Promise<{ isAvailable: boolean }> {
+): Promise<ActionResult<{ isAvailable: boolean }>> {
   if (!subdomain || subdomain.length < 3) {
-    return { isAvailable: false };
+    return { success: false, error: "Subdominio inválido." };
   }
+
   try {
     const existingSite = await sitesData.getSiteDataByHost(subdomain);
-    return { isAvailable: !existingSite };
+    return { success: true, data: { isAvailable: !existingSite } };
   } catch (error) {
-    logger.error(
-      `[SitesActions] Error al verificar disponibilidad de ${subdomain}:`,
-      error
-    );
-    return { isAvailable: false };
+    logger.error(`Error al verificar el subdominio ${subdomain}:`, error);
+    return { success: false, error: "Error del servidor al verificar." };
   }
 }
 
-/**
- * @async
- * @function createSiteAction
- * @description Orquesta la creación de un nuevo sitio (subdominio) asociado al workspace activo.
- * @param {CreateSiteFormState} prevState - El estado anterior del formulario (no utilizado aquí).
- * @param {FormData} formData - Los datos del formulario.
- * @returns {Promise<CreateSiteFormState>} El nuevo estado del formulario para la UI.
- */
 export async function createSiteAction(
-  prevState: CreateSiteFormState,
   formData: FormData
-): Promise<CreateSiteFormState> {
-  const workspaceId = cookies().get("active_workspace_id")?.value;
-  if (!workspaceId) {
-    return { error: "No hay un workspace activo seleccionado." };
+): Promise<ActionResult<{ id: string }>> {
+  const authResult = await getAuthenticatedUser();
+  if ("error" in authResult) return authResult.error;
+  const { user } = authResult;
+
+  try {
+    const parsedData = CreateSiteSchema.parse(Object.fromEntries(formData));
+    const { name, subdomain, description, workspaceId, icon } = parsedData;
+
+    const isAuthorized = await hasWorkspacePermission(user.id, workspaceId, [
+      "owner",
+      "admin",
+    ]);
+
+    if (!isAuthorized) {
+      logger.warn(
+        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó crear un sitio en el workspace ${workspaceId} sin permisos.`
+      );
+      return {
+        success: false,
+        error: "No tienes permiso para crear sitios en este workspace.",
+      };
+    }
+
+    const supabase = createClient();
+    const { data: newSite, error } = await supabase
+      .from("sites")
+      .insert({
+        name,
+        subdomain,
+        description,
+        workspace_id: workspaceId,
+        owner_id: user.id,
+        icon,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        // Violación de unicidad
+        return { success: false, error: "Este subdominio ya está en uso." };
+      }
+      logger.error("Error al crear el sitio en la base de datos:", error);
+      return { success: false, error: "No se pudo crear el sitio." };
+    }
+
+    await createAuditLog("site.created", {
+      userId: user.id,
+      targetEntityId: newSite.id,
+      targetEntityType: "site",
+      metadata: { subdomain, name, workspaceId },
+    });
+
+    revalidatePath("/dashboard/sites");
+    return { success: true, data: { id: newSite.id } };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: "Datos de formulario inválidos." };
+    }
+    logger.error("Error inesperado en createSiteAction:", error);
+    return { success: false, error: "Un error inesperado ocurrió." };
   }
-
-  const permissionCheck = await requireWorkspacePermission(workspaceId, [
-    "owner",
-    "admin",
-    "member",
-  ]);
-  if (!permissionCheck.success) {
-    return { error: permissionCheck.error };
-  }
-  const { user } = permissionCheck.data;
-
-  const validation = SiteSchema.safeParse(
-    Object.fromEntries(formData.entries())
-  );
-  if (!validation.success) {
-    return {
-      error:
-        validation.error.flatten().fieldErrors.subdomain?.[0] ||
-        "Datos inválidos.",
-    };
-  }
-
-  const { subdomain, icon } = validation.data;
-  const existingSite = await sitesData.getSiteDataByHost(subdomain);
-  if (existingSite) {
-    return { error: "Este subdominio ya está en uso." };
-  }
-
-  const supabase = createClient();
-  const { data: newSite, error } = await supabase
-    .from("sites")
-    .insert({ subdomain, icon, workspace_id: workspaceId, owner_id: user.id })
-    .select("id")
-    .single();
-
-  if (error || !newSite) {
-    logger.error("[SitesActions] Error al crear el sitio:", error);
-    return { error: "No fue posible crear el sitio. Intente nuevamente." };
-  }
-
-  await createAuditLog("site_created", {
-    userId: user.id,
-    targetEntityId: newSite.id,
-    targetEntityType: "site",
-    metadata: { subdomain, workspaceId },
-  });
-
-  revalidatePath("/dashboard/sites");
-  return { success: true };
 }
 
-/**
- * @async
- * @function deleteSiteAction
- * @description Orquesta la exclusión de un sitio, verificando primero los permisos del usuario.
- * @param {FormData} formData - Debe contener el `siteId` a ser excluido.
- * @returns {Promise<ActionResult>} El resultado de la operación.
- */
+export async function updateSiteAction(
+  formData: FormData
+): Promise<ActionResult<{ message: string }>> {
+  const authResult = await getAuthenticatedUser();
+  if ("error" in authResult) return authResult.error;
+  const { user } = authResult;
+
+  try {
+    const { siteId, ...updateData } = UpdateSiteSchema.parse(
+      Object.fromEntries(formData)
+    );
+
+    const site = await sitesData.getSiteById(siteId);
+    if (!site) {
+      return { success: false, error: "El sitio no fue encontrado." };
+    }
+
+    const isAuthorized = await hasWorkspacePermission(
+      user.id,
+      site.workspace_id,
+      ["owner", "admin"]
+    );
+
+    if (!isAuthorized) {
+      logger.warn(
+        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó actualizar el sitio ${siteId} sin permisos.`
+      );
+      return {
+        success: false,
+        error: "No tienes permiso para modificar este sitio.",
+      };
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("sites")
+      .update(updateData)
+      .eq("id", siteId);
+
+    if (error) {
+      logger.error(`Error al actualizar el sitio ${siteId}:`, error);
+      return { success: false, error: "No se pudo actualizar el sitio." };
+    }
+
+    await createAuditLog("site.updated", {
+      userId: user.id,
+      targetEntityId: siteId,
+      targetEntityType: "site",
+      metadata: { changes: updateData },
+    });
+
+    revalidatePath(`/dashboard/sites/${siteId}/settings`);
+    revalidatePath("/dashboard/sites");
+    return {
+      success: true,
+      data: { message: "Sitio actualizado correctamente." },
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: "Datos de formulario inválidos." };
+    }
+    logger.error("Error inesperado en updateSiteAction:", error);
+    return { success: false, error: "Un error inesperado ocurrió." };
+  }
+}
+
 export async function deleteSiteAction(
   formData: FormData
-): Promise<ActionResult> {
-  const siteId = formData.get("siteId") as string;
-  if (!siteId) {
-    return { success: false, error: "ID de sitio no proporcionado." };
-  }
+): Promise<ActionResult<{ message: string }>> {
+  const authResult = await getAuthenticatedUser();
+  if ("error" in authResult) return authResult.error;
+  const { user } = authResult;
 
-  const site = await sitesData.getSiteById(siteId);
-  if (!site) {
-    return { success: false, error: "Sitio no encontrado." };
-  }
+  try {
+    const { siteId } = DeleteSiteSchema.parse({
+      siteId: formData.get("siteId"),
+    });
 
-  const permissionCheck = await requireWorkspacePermission(site.workspace_id, [
-    "owner",
-    "admin",
-  ]);
-  if (!permissionCheck.success) {
-    return { success: false, error: permissionCheck.error };
-  }
-  const { user: performingUser } = permissionCheck.data;
+    const site = await sitesData.getSiteById(siteId);
+    if (!site) {
+      return { success: false, error: "El sitio no fue encontrado." };
+    }
 
-  const supabase = createClient();
-  const { error: deleteError } = await supabase
-    .from("sites")
-    .delete()
-    .eq("id", siteId);
-
-  if (deleteError) {
-    logger.error(
-      `[SitesActions] Error al excluir el sitio ${siteId} por el usuario ${performingUser.id}:`,
-      deleteError
+    const isAuthorized = await hasWorkspacePermission(
+      user.id,
+      site.workspace_id,
+      ["owner", "admin"]
     );
-    return { success: false, error: "No fue posible excluir el sitio." };
+
+    if (!isAuthorized) {
+      logger.warn(
+        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó eliminar el sitio ${siteId} sin permisos.`
+      );
+      return {
+        success: false,
+        error: "No tienes permiso para eliminar este sitio.",
+      };
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase.from("sites").delete().eq("id", siteId);
+
+    if (error) {
+      logger.error(`Error al eliminar el sitio ${siteId}:`, error);
+      return { success: false, error: "No se pudo eliminar el sitio." };
+    }
+
+    await createAuditLog("site.deleted", {
+      userId: user.id,
+      targetEntityId: siteId,
+      targetEntityType: "site",
+      metadata: { subdomain: site.subdomain },
+    });
+
+    revalidatePath("/dashboard/sites");
+    return {
+      success: true,
+      data: { message: "Sitio eliminado correctamente." },
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { success: false, error: "ID de sitio inválido." };
+    }
+    logger.error("Error inesperado en deleteSiteAction:", error);
+    return { success: false, error: "Un error inesperado ocurrió." };
   }
-
-  await createAuditLog("site_deleted", {
-    userId: performingUser.id,
-    targetEntityId: siteId,
-    targetEntityType: "site",
-    metadata: { subdomain: site.subdomain, workspaceId: site.workspace_id },
-  });
-
-  revalidatePath("/dashboard/sites", "layout");
-  // CORRECCIÓN: Se omite el campo `data` para cumplir con el tipo `ActionResult<void>`.
-  return { success: true };
 }
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para robustecer la gestión de sitios.
- *
- * 1.  **Soft Deletes (Exclusión Lógica):** (Revalidado) Implementar un sistema de exclusión lógica añadiendo un campo `deleted_at` a la tabla `sites`.
- * 2.  **Acción de Actualización (`updateSiteAction`):** (Revalidado) Crear una nueva Server Action para modificar detalles de un sitio (ej. cambiar el ícono, dominio personalizado).
- * 3.  **Garantizar Integridad de Datos con Cascade Deletes:** (Revalidado) A nivel de base de datos, es crucial establecer una política `ON DELETE CASCADE` en la clave foránea `campaigns.site_id`.
- */
-
-/**
- * @fileoverview El aparato `sites.actions.ts` contiene las Server Actions para las operaciones CRUD de los sitios.
- * @functionality
- * - Proporciona una función pública (`checkSubdomainAvailabilityAction`) para la validación asíncrona de subdominios en la UI.
- * - Define las operaciones de negocio para crear y eliminar sitios.
- * - Cada acción implementa un flujo robusto de validación, autorización, ejecución y auditoría.
- * @relationships
- * - Es invocado por los componentes de cliente en `app/[locale]/dashboard/sites/`.
- * - Depende del Guardián de Permisos (`lib/auth/user-permissions.ts`) y de la capa de datos (`lib/data/sites.ts`).
- * @expectations
- * - Se espera que este aparato sea la única vía para modificar las entidades de sitio, encapsulando toda la lógica de negocio y seguridad relevante.
- */
-// Ruta: lib/actions/sites.actions.ts
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para robustecer la gestión de sitios.
- *
- * 1.  **Soft Deletes (Exclusión Lógica):** Implementar un sistema de exclusión lógica añadiendo un campo `deleted_at` a la tabla `sites`. La `deleteSiteAction` actualizaría este campo en lugar de una exclusión permanente, permitiendo la recuperación de datos. Todas las consultas de sitios deberían entonces filtrar por `deleted_at IS NULL`.
- * 2.  **Acción de Actualización (`updateSiteAction`):** Crear una nueva Server Action para modificar detalles de un sitio (ej. cambiar el ícono, dominio personalizado). Esa acción debe reutilizar el helper `requireWorkspacePermission` para validación.
- * 3.  **Garantizar Integridad de Datos con Cascade Deletes:** A nivel de base de datos, es crucial establecer una política `ON DELETE CASCADE` en la clave foránea `campaigns.site_id`. Esto garantiza que, al excluir un sitio, todas sus campañas y datos asociados sean automáticamente excluidos, previniendo datos huérfanos.
- */

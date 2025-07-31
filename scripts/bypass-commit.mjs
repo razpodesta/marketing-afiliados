@@ -70,3 +70,4 @@ try {
   log(chalk.red("❌ Falló el protocolo. Abortando."));
   process.exit(1);
 }
+

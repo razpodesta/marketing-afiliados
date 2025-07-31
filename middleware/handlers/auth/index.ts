@@ -1,11 +1,11 @@
-// Ruta: middleware/handlers/auth/index.ts (APARATO FINAL CORREGIDO Y BLINDADO)
+// Ruta: middleware/handlers/auth/index.ts
 /**
  * @file middleware/handlers/auth/index.ts
  * @description Manejador de middleware para autenticación y protección de rutas.
- *              Orquesta el acceso a rutas basándose en el estado de autenticación
- *              y roles del usuario, con un flujo lógico de "seguridad primero".
+ *              Refactorizado para ser un manejador de estado puro que consume el
+ *              manifiesto de enrutamiento centralizado.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 8.4.0 (Resilience Hardening)
+ * @version 9.0.0 (Pure State Handler & Architectural Alignment)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -15,18 +15,10 @@ import {
 } from "@/lib/auth/user-permissions";
 import { getFirstWorkspaceForUser } from "@/lib/data/workspaces";
 import { logger } from "@/lib/logging";
+import { ROUTE_DEFINITIONS } from "@/lib/routing-manifest"; // <-- CONSUMO DEL MANIFIESTO
 import { createClient } from "@/lib/supabase/middleware";
 
-const PROTECTED_ROUTES = [
-  "/dashboard",
-  "/admin",
-  "/dev-console",
-  "/welcome",
-  "/lia-chat",
-];
-const ADMIN_DEV_ROUTES = ["/admin", "/dev-console"];
-const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password"];
-const PUBLIC_ROOT = "/";
+// --- DEFINICIONES DE RUTA LOCALES ELIMINADAS ---
 
 /**
  * @async
@@ -42,7 +34,9 @@ export async function handleAuth(
 ): Promise<NextResponse> {
   const locale = response.headers.get("x-app-locale") || "pt-BR";
   const { pathname, origin } = request.nextUrl;
-  const pathnameWithoutLocale = pathname.replace(`/${locale}`, "") || "/";
+  const pathnameWithoutLocale = pathname.startsWith(`/${locale}`)
+    ? pathname.slice(`/${locale}`.length) || "/"
+    : pathname;
 
   if (process.env.DEV_MODE_ENABLED === "true") {
     return response;
@@ -61,8 +55,8 @@ export async function handleAuth(
     authData = null;
   }
 
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-    pathnameWithoutLocale.startsWith(route)
+  const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
+    pathnameWithoutLocale.startsWith(r)
   );
 
   if (!authData) {
@@ -74,13 +68,15 @@ export async function handleAuth(
     return supabaseResponse;
   }
 
-  const isAuthRoute = AUTH_ROUTES.some((route) =>
-    pathnameWithoutLocale.startsWith(route)
+  const isAuthRoute = ROUTE_DEFINITIONS.auth.some((r) =>
+    pathnameWithoutLocale.startsWith(r)
   );
-  if (isAuthRoute || pathnameWithoutLocale === PUBLIC_ROOT) {
+  if (isAuthRoute || pathnameWithoutLocale === "/") {
     return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
   }
 
+  // (El resto de la lógica de onboarding y RBAC se mantiene igual)
+  // ...
   if (pathnameWithoutLocale === "/welcome") {
     const userHasWorkspace =
       authData.activeWorkspaceId ||
@@ -91,9 +87,12 @@ export async function handleAuth(
     return supabaseResponse;
   }
 
-  const isAdminDevRoute = ADMIN_DEV_ROUTES.some((route) =>
-    pathnameWithoutLocale.startsWith(route)
+  const isAdminDevRoute = [...ROUTE_DEFINITIONS.protected].some(
+    (route) =>
+      pathnameWithoutLocale.startsWith(route) &&
+      (route === "/admin" || route === "/dev-console")
   );
+
   if (isAdminDevRoute) {
     const isDeveloper = authData.appRole === "developer";
     if (pathnameWithoutLocale.startsWith("/dev-console") && !isDeveloper) {
@@ -112,7 +111,6 @@ export async function handleAuth(
     return supabaseResponse;
   }
 
-  // Flujo de Onboarding final, ahora blindado con try/catch.
   try {
     const firstWorkspace = await getFirstWorkspaceForUser(authData.user.id);
     if (firstWorkspace) {
@@ -132,7 +130,6 @@ export async function handleAuth(
       "[AUTH_HANDLER] Fallo en la capa de datos durante el onboarding:",
       error
     );
-    // En caso de fallo, se permite el paso para que la página de destino pueda mostrar un error.
     return supabaseResponse;
   }
 }
