@@ -195,15 +195,6 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
   });
 });
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar esta suite de pruebas de acciones.
- *
- * 1.  **Factoría de Mocks Compartida:** Mover la lógica de creación de mocks (como `mockUser` o la inicialización del `mockSupabaseClient`) a un archivo de utilidad de pruebas compartido (`lib/test/utils.ts`) para reutilizarla en otras suites de pruebas de acciones.
- * 2.  **Pruebas de Concurrencia:** Diseñar pruebas que simulen acciones rápidas y concurrentes (ej. eliminar una campaña justo después de crearla) para verificar la robustez del manejo de estado y la invalidación de caché.
- * 3.  **Validación de Contratos con Zod en Pruebas:** Importar los esquemas de Zod de las acciones y usarlos para validar la forma de los `FormData` de prueba y los objetos de resultado, asegurando que las pruebas se mantengan alineadas con los contratos de datos.
- */
-
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
@@ -216,7 +207,7 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
  *   reemplazar dependencias externas clave. La corrección crítica fue reconstruir el
  *   `mockSupabaseClient` antes de cada prueba, asegurando que la simulación del
  *   encadenamiento de métodos (`.from().select()...`) sea precisa y esté correctamente
- *   tipada, eliminando así todos los errores de compilación.
+ *   tipada, eliminando así todos los errores de compilación y timeouts.
  * - **Validación de Caminos Felices:** Verifica que las acciones se completen exitosamente
  *   bajo condiciones ideales, llamando a las dependencias correctas (como `revalidatePath`)
  *   y transformando los datos como se espera (ej. generación de slug).
@@ -238,4 +229,13 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
  *   automatizado que protege la integridad de una de las entidades de datos más
  *   importantes del sistema.
  * =================================================================================================
+ */
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar esta suite de pruebas de acciones.
+ *
+ * 1.  **Factoría de Mocks Compartida:** Mover la lógica de creación de mocks (como `mockUser` o la inicialización del `mockSupabaseClient`) a un archivo de utilidad de pruebas compartido (`lib/test/utils.ts`) para reutilizarla en otras suites de pruebas de acciones.
+ * 2.  **Pruebas de Concurrencia:** Diseñar pruebas que simulen acciones rápidas y concurrentes (ej. eliminar una campaña justo después de crearla) para verificar la robustez del manejo de estado y la invalidación de caché.
+ * 3.  **Validación de Contratos con Zod en Pruebas:** Importar los esquemas de Zod de las acciones y usarlos para validar la forma de los `FormData` de prueba y los objetos de resultado, asegurando que las pruebas se mantengan alineadas con los contratos de datos.
  */

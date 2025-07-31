@@ -11,12 +11,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import toast from "react-hot-toast";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type z } from "zod";
 
 import { sites as sitesActions } from "@/lib/actions";
-import type { SiteWithCampaignsCount } from "@/lib/data/sites";
-import type { CreateSiteSchema } from "@/lib/validators";
-import type { z } from "zod";
-
+import { type SiteWithCampaignsCount } from "@/lib/data/sites";
+import { type CreateSiteSchema } from "@/lib/validators";
 import { useSitesManagement } from "./useSitesManagement";
 
 // --- Simulación de Dependencias ---
@@ -114,7 +113,6 @@ describe("Hook: useSitesManagement", () => {
 
   describe("Flujo de Creación Optimista (handleCreate)", () => {
     it("debe añadir un sitio temporal a la UI inmediatamente y con los datos correctos", async () => {
-      // CORRECCIÓN: El mock ahora cumple el contrato de `ActionResult`.
       vi.mocked(sitesActions.createSiteAction).mockResolvedValue({
         success: true,
         data: { id: "new-site-id" },
@@ -122,7 +120,6 @@ describe("Hook: useSitesManagement", () => {
       const { result } = renderHook(() => useSitesManagement(mockInitialSites));
 
       act(() => {
-        // CORRECCIÓN: Se llama a `handleCreate` con el objeto de datos completo.
         result.current.handleCreate(mockValidFormData);
       });
 
@@ -173,11 +170,44 @@ describe("Hook: useSitesManagement", () => {
   });
 });
 
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `useSitesManagement.ts` es un hook de estado especializado, diseñado
+ *               para desacoplar toda la lógica de negocio de la UI de presentación en la
+ *               página "Mis Sitios". Su suite de pruebas ha sido refactorizada para una
+ *               máxima fiabilidad.
+ *
+ * @functionality
+ * - **Controlador de Estado Centralizado:** Abstrae toda la gestión de estado (lista de
+ *   sitios, consulta de búsqueda, estado de modales, estados de carga) lejos de los
+ *   componentes de UI.
+ * - **Actualización Optimista Robusta:** Implementa un patrón de "actualización optimista"
+ *   para crear y eliminar sitios, proporcionando una experiencia de usuario instantánea. La
+ *   suite de pruebas ahora valida rigurosamente este flujo, incluyendo la reversión en
+ *   caso de fallo.
+ * - **Orquestación de Acciones:** Actúa como el intermediario entre la UI y las Server Actions.
+ *   La prueba valida que el método `handleCreate` maneje correctamente el objeto de datos
+ *   `FormOutput` y que `handleDelete` procese el `FormData`.
+ *
+ * @relationships
+ * - Es el "cerebro" del componente orquestador `SitesClient.tsx`.
+ * - Invoca directamente las Server Actions definidas en `lib/actions/sites.actions.ts`.
+ *
+ * @expectations
+ * - Se espera que este hook sea la única fuente de verdad para la lógica de la página de
+ *   gestión de sitios. Con esta suite de pruebas corregida, podemos confiar en que la lógica
+ *   de estado, la búsqueda con debounce y los flujos de UI optimista son robustos y
+ *   funcionan como se espera.
+ * =================================================================================================
+ */
+
 /**
  * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar esta suite de pruebas.
+ * @description Mejoras para evolucionar la lógica de estado de la UI.
  *
- * 1.  **Pruebas de `useEffect` de Sincronización:** Añadir pruebas que validen que si la prop `initialSites` cambia (por ejemplo, después de un `router.refresh`), el estado interno del hook se sincroniza correctamente con los nuevos datos del servidor.
- * 2.  **Factoría de Mocks Avanzada:** Crear funciones factoría (`createMockSite()`) para generar datos de prueba consistentes y reducir la duplicación, haciendo las pruebas más legibles.
- * 3.  **Pruebas de Interacción de Múltiples Acciones:** Diseñar pruebas que simulen al usuario realizando acciones rápidas y concurrentes (ej. eliminar un sitio mientras se está creando otro) para verificar la robustez del manejo de estado.
+ * 1.  **Abstracción a un Hook Genérico:** La lógica de "actualización optimista -> llamada al servidor -> reversión en fallo" es un patrón reutilizable. Se podría crear un hook genérico `useOptimisticResource(actions)` para ser utilizado en `sites`, `campaigns`, `members`, etc., reduciendo drásticamente el código duplicado.
+ * 2.  **Manejo de Errores Más Granular:** En lugar de un toast genérico, se podrían manejar códigos de error específicos devueltos por la Server Action para mostrar mensajes más contextuales al usuario (ej. "El subdominio ya está en uso. Por favor, elige otro.").
+ * 3.  **Cancelación de Acciones:** Para la lógica de búsqueda en el servidor (una mejora futura), se podría integrar un `AbortController` para cancelar peticiones de búsqueda previas si el usuario sigue escribiendo, optimizando el uso de recursos de red y servidor.
  */

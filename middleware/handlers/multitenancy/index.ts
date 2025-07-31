@@ -6,7 +6,7 @@
  *              utilizando el cliente de Supabase para middleware y eliminando
  *              dependencias a la capa de datos del servidor.
  * @author L.I.A Legacy
- * @version 4.1.0 (Edge Runtime Compatibility)
+ * @version 5.0.0 (Edge Runtime Compatibility & Architectural Purity)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -105,9 +105,11 @@ export async function handleMultitenancy(
  * =================================================================================================
  */
 
-/*
- * f. [Mejoras Futuras Detectadas]
- * 1. **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a una consulta similar para buscar una coincidencia en una columna `custom_domain`.
- * 2. **Página de Subdominio Inválido Dedicada:** Si un subdominio no se encuentra en la base de datos, se podría reescribir la URL a una página `/404-subdomain` que muestre un mensaje de error más específico y útil que la página 404 genérica.
- * 3. **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar la gestión de multi-tenancy en el Edge.
+ *
+ * 1.  **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
+ * 2.  **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a una consulta similar para buscar una coincidencia en una columna `custom_domain` en la tabla `sites`.
+ * 3.  **Página de Subdominio Inválido Dedicada:** Si un subdominio no se encuentra en la base de datos, se podría reescribir la URL a una página `/404-subdomain` que muestre un mensaje de error más específico y útil que la página 404 genérica de la aplicación.
  */

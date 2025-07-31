@@ -2,9 +2,9 @@
 /**
  * @file UserManagementTable.tsx
  * @description Componente de cliente para mostrar, buscar, filtrar y gestionar usuarios y sus roles.
- *              Refactorizado para una correcta componentización y seguridad de tipos en las props.
+ *              Refactorizado para manejar de forma segura el contrato de tipo `ActionResult`.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 5.3.0 (Componentization & Props Contract Fix)
+ * @version 5.4.0 (Type-Safe Action Result Handling)
  */
 "use client";
 
@@ -58,13 +58,16 @@ const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
     if (!profile.id) return;
     startTransition(async () => {
       const result = await adminActions.impersonateUserAction(profile.id!);
-      if (result.success && result.data) {
+
+      // REFACTORIZACIÓN: Usar type narrowing para manejar la unión discriminada de forma segura.
+      if (result.success) {
         toast.success(
           "Enlace de inicio de sesión generado. Abriendo en una nueva pestaña..."
         );
         window.open(result.data.signInLink, "_blank");
         setIsOpen(false);
       } else {
+        // En esta rama, TypeScript sabe que `result` tiene la propiedad `error`.
         toast.error(
           result.error || "No se pudo generar el enlace de suplantación."
         );
@@ -102,7 +105,6 @@ const ImpersonationDialog = ({ profile }: { profile: ProfileRow }) => {
   );
 };
 
-// CORRECCIÓN: Se define la interfaz de props para el subcomponente.
 interface PaginationControlsProps {
   page: number;
   totalCount: number;
@@ -122,7 +124,6 @@ const PaginationControls = ({
 
   if (totalPages <= 1) return null;
 
-  // CORRECCIÓN: Se añade la sentencia `return` para que el componente devuelva JSX.
   return (
     <div className="flex items-center justify-between mt-4 px-4 pb-4">
       <p className="text-sm text-muted-foreground">
@@ -144,14 +145,12 @@ const PaginationControls = ({
   );
 };
 
-// CORRECCIÓN: Se define la interfaz de props para el subcomponente.
 interface TableToolbarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 }
 
 const TableToolbar = ({ searchQuery, setSearchQuery }: TableToolbarProps) => {
-  // CORRECCIÓN: Se añade la sentencia `return` para que el componente devuelva JSX.
   return (
     <div className="flex items-center p-4 border-b">
       <div className="relative w-full max-w-sm">
@@ -271,81 +270,43 @@ export function UserManagementTable({
   );
 }
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar la tabla de gestión de usuarios.
+/*
+ * =================================================================================================
+ *                                   L.I.A. LOGIC ANALYSIS
+ * =================================================================================================
+ * @fileoverview El aparato `UserManagementTable.tsx` es una herramienta de administración crítica
+ *               para los desarrolladores.
  *
- * 1.  **Búsqueda en Servidor:** (Revalidado) Para escalar, el filtrado debe realizarse en la base de datos, pasando `searchQuery` como parámetro en la URL a `users/page.tsx`.
- * 2.  **Abstracción de Componentes:** Los subcomponentes `PaginationControls` y `TableToolbar` son patrones de UI reutilizables. Podrían ser movidos a `components/ui` o `components/shared` para ser utilizados en otras tablas de datos de la aplicación.
- * 3.  **Ordenamiento de Columnas:** Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol, pasando parámetros de orden a la consulta de la base de datos en `users/page.tsx`.
- */
-
-/**
- * @fileoverview El aparato `UserManagementTable.tsx` es una herramienta de administración crítica para desarrolladores.
  * @functionality
  * - Muestra una lista paginada de todos los usuarios de la plataforma.
  * - Permite la búsqueda y filtrado de usuarios en el lado del cliente.
  * - Permite a los desarrolladores cambiar el `app_role` de un usuario directamente desde la UI.
- * - Proporciona una funcionalidad de "suplantación" para que los desarrolladores puedan iniciar sesión como otro usuario para depurar problemas.
+ * - Proporciona una funcionalidad de "suplantación" para que los desarrolladores puedan
+ *   iniciar sesión como otro usuario para depurar problemas.
+ * - **Manejo de Resultados de Acción (Refactorización Clave):** La lógica para manejar la
+ *   respuesta de `impersonateUserAction` ha sido refactorizada para usar un patrón de
+ *   "estrechamiento de tipos" (type narrowing). Al comprobar `if (result.success)`, se
+ *   le indica al compilador de TypeScript la forma exacta del objeto `result` dentro
+ *   de cada rama del condicional, resolviendo el error de tipo `TS2339` y garantizando
+ *   un manejo de errores y éxitos seguro y robusto.
+ *
  * @relationships
  * - Es el componente hijo principal de `app/[locale]/dev-console/users/page.tsx`.
- * - Invoca Server Actions del namespace `admin` (`admin.actions.ts`) para realizar operaciones con privilegios elevados.
+ * - Invoca Server Actions del namespace `admin` (`admin.actions.ts`) para realizar
+ *   operaciones con privilegios elevados.
  * - Depende de los tipos de la base de datos, específicamente de la vista `user_profiles_with_email`.
- * @expectations
- * - Se espera que este componente sea una herramienta fiable y segura. Debe proporcionar un feedback claro al desarrollador sobre el resultado de sus acciones y manejar de forma segura las operaciones de alto privilegio.
- */
-// Ruta: app/[locale]/dev-console/components/UserManagementTable.tsx
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar la tabla de gestión de usuarios.
  *
- * 1.  **Búsqueda en Servidor:** (Revalidado) Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos, pasando `searchQuery` como parámetro en la URL a `users/page.tsx`.
- * 2.  **Abstracción de Componentes:** Los subcomponentes `PaginationControls` y `TableToolbar` son patrones de UI reutilizables. Podrían ser movidos a `components/ui` o `components/shared` para ser utilizados en otras tablas de datos de la aplicación.
- * 3.  **Ordenamiento de Columnas:** Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol, pasando parámetros de orden a la consulta de la base de datos en `users/page.tsx`.
+ * @expectations
+ * - Se espera que este componente sea una herramienta fiable y segura. Debe proporcionar un
+ *   feedback claro al desarrollador sobre el resultado de sus acciones y manejar de forma
+ *   segura las operaciones de alto privilegio. Con la refactorización, ahora cumple
+ *   plenamente con el contrato de tipo `ActionResult`.
+ * =================================================================================================
  */
 
-/**
- * @fileoverview El aparato `UserManagementTable.tsx` es una herramienta de administración crítica para desarrolladores.
- * @functionality
- * - Muestra una lista paginada de todos los usuarios de la plataforma.
- * - Permite la búsqueda y filtrado de usuarios en el lado del cliente.
- * - Permite a los desarrolladores cambiar el `app_role` de un usuario directamente desde la UI.
- * - Proporciona una funcionalidad de "suplantación" para que los desarrolladores puedan iniciar sesión como otro usuario para depurar problemas.
- * @relationships
- * - Es el componente hijo principal de `app/[locale]/dev-console/users/page.tsx`.
- * - Invoca Server Actions del namespace `admin` (`admin.actions.ts`) para realizar operaciones con privilegios elevados.
- * - Depende de los tipos de la base de datos, específicamente de la vista `user_profiles_with_email`.
- * @expectations
- * - Se espera que este componente sea una herramienta fiable y segura. Debe proporcionar un feedback claro al desarrollador sobre el resultado de sus acciones y manejar de forma segura las operaciones de alto privilegio.
- */
-// Ruta: app/[locale]/dev-console/components/UserManagementTable.tsx
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
- * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
- * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
- * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
- * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
- * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
- * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda del Lado del Servidor: Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro en la URL y modificar la consulta en `users/page.tsx` para usar `.ilike()` en la vista.
- * 2. Edición en Línea (Inline Editing): Permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
- * 3. Logging de Auditoría para Acciones de Admin: Cada cambio de rol o suplantación debería registrarse en una tabla `audit_logs` con información sobre qué administrador realizó la acción, sobre qué usuario y cuándo.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Acción de Suplantación (Impersonation): Añadir un botón de acción en cada fila que permita a un `developer` iniciar sesión temporalmente como ese usuario para depurar problemas, utilizando una Server Action y funciones avanzadas de Supabase Auth.
- * 2. Búsqueda del Lado del Servidor (Server-Side Search): Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos. Esto implicaría pasar el `searchQuery` como un parámetro de búsqueda en la URL y modificar la consulta de Supabase en `users/page.tsx` para usar `.ilike()`.
- * 3. Edición en Línea (Inline Editing): Para cambios rápidos, se podría permitir editar el `full_name` directamente en la tabla, mostrando un campo de texto al hacer clic y una Server Action para guardar el cambio.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Acción de Suplantación (Impersonation): Añadir un botón de acción en cada fila que permita a un `developer` iniciar sesión temporalmente como ese usuario para depurar problemas, utilizando una Server Action y funciones avanzadas de Supabase Auth.
- * 2. Búsqueda de Usuarios: Implementar un campo de búsqueda para filtrar la lista de usuarios por email o nombre, lo cual es esencial para gestionar una gran cantidad de usuarios.
- * 3. Paginación: Al igual que la tabla de campañas, esta tabla necesita paginación para escalar eficientemente a medida que la base de usuarios crece.
+/*
+ * f. [Mejoras Futuras Detectadas]
+ * 1.  **Búsqueda en Servidor:** Para escalar a miles de usuarios, el filtrado debe realizarse en la base de datos, pasando `searchQuery` como parámetro en la URL a `users/page.tsx`, que a su vez lo pasaría a la capa de datos.
+ * 2.  **Abstracción de Componentes de UI:** Los subcomponentes `PaginationControls` y `TableToolbar` son patrones de UI altamente reutilizables. Podrían ser movidos a un directorio `components/shared` para ser utilizados en otras tablas de datos de la aplicación.
+ * 3.  **Ordenamiento de Columnas:** Añadir la capacidad de hacer clic en las cabeceras de la tabla (`TableHead`) para ordenar la lista de usuarios por email, nombre o rol. Esto implicaría pasar parámetros de orden a la consulta de la base de datos en `users/page.tsx`.
  */

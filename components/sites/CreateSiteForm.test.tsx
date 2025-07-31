@@ -84,7 +84,7 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
 
     // Act
     await user.type(subdomainInput, "subdominio-ocupado");
-    // CORRECCIÓN: Se envuelve la actualización de estado asíncrona en `act`.
+    // Se envuelve la actualización de estado asíncrona en `act`.
     await act(async () => {
       vi.advanceTimersByTime(500); // Disparar el debounce
     });
@@ -118,7 +118,7 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
     // Act
     await user.type(nameInput, "Mi Sitio Válido");
     await user.type(subdomainInput, "sitio-disponible");
-    // CORRECCIÓN: Se envuelve la actualización de estado asíncrona en `act`.
+    // Se envuelve la actualización de estado asíncrona en `act`.
     await act(async () => {
       vi.advanceTimersByTime(500); // Esperar a que la validación asíncrona termine
     });
@@ -147,15 +147,6 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
   });
 });
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar esta suite de pruebas.
- *
- * 1.  **Prueba de Transformación de Datos:** Añadir una prueba que verifique que si el campo de nombre se deja en blanco, la función `onSubmit` es llamada con un objeto donde `name` es igual al `subdomain`, validando la lógica de `.transform()` del esquema Zod.
- * 2.  **Prueba de Interacción del EmojiPicker:** Simular la apertura del popover del `EmojiPicker` y la selección de un nuevo emoji, y luego verificar que el valor se actualiza correctamente en el estado del formulario.
- * 3.  **Pruebas de Accesibilidad (a11y):** Integrar `jest-axe` para ejecutar una auditoría de accesibilidad en el formulario renderizado, verificando que todos los campos tengan etiquetas correctas y los atributos `aria-*` se usen adecuadamente.
- */
-
 /*
  * =================================================================================================
  *                                   L.I.A. LOGIC ANALYSIS
@@ -165,18 +156,17 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
  *               síncrona como la asíncrona.
  *
  * @functionality
- * - **Corrección de `act`:** El error `No se encuentra el nombre 'act'` se ha resuelto
- *   importando la función `act` desde `@testing-library/react`. `act` es crucial para
- *   envolver cualquier código que cause una actualización de estado en React, asegurando
- *   que el DOM se actualice antes de realizar las aserciones.
+ * - **Manejo de Asincronía:** La refactorización clave ha sido el uso correcto de `act` y
+ *   `waitFor` para orquestar la simulación de eventos de usuario, el avance de
+ *   temporizadores (para el `debounce`), la resolución de promesas de las acciones
+ *   simuladas y los re-renders de React resultantes. Esto resuelve los timeouts.
  * - **Prueba de Validación en Cliente:** Simula la entrada de datos inválidos por parte
  *   del usuario y verifica que los mensajes de error de Zod se rendericen correctamente
  *   en el DOM, previniendo la llamada a la función de envío.
  * - **Prueba de Validación Asíncrona (Debounce):** Utiliza temporizadores simulados
  *   (`vi.useFakeTimers`) para probar la lógica de `debounce`. Avanza el tiempo
  *   artificialmente para disparar la llamada a la Server Action de verificación y
- *   afirma que la UI reacciona correctamente al resultado (mostrando un error y
- *   deshabilitando el botón de envío).
+ *   afirma que la UI reacciona correctamente al resultado.
  *
  * @relationships
  * - Valida el aparato `components/sites/CreateSiteForm.tsx`.
@@ -189,4 +179,13 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
  *   guardián que garantiza una experiencia de usuario robusta y predecible durante
  *   la creación de sitios.
  * =================================================================================================
+ */
+
+/**
+ * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @description Mejoras para evolucionar esta suite de pruebas.
+ *
+ * 1.  **Prueba de Transformación de Datos:** Añadir una prueba que verifique que si el campo de nombre se deja en blanco, la función `onSubmit` es llamada con un objeto donde `name` es igual al `subdomain`, validando la lógica de `.transform()` del esquema Zod.
+ * 2.  **Prueba de Interacción del EmojiPicker:** Simular la apertura del popover del `EmojiPicker` y la selección de un nuevo emoji, y luego verificar que el valor se actualiza correctamente en el estado del formulario.
+ * 3.  **Pruebas de Accesibilidad (a11y):** Integrar `jest-axe` para ejecutar una auditoría de accesibilidad en el formulario renderizado, verificando que todos los campos tengan etiquetas correctas y los atributos `aria-*` se usen adecuadamente.
  */
