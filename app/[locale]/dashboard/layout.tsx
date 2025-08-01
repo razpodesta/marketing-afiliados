@@ -1,10 +1,12 @@
-// Ruta: app/[locale]/dashboard/layout.tsx
+// app/[locale]/dashboard/layout.tsx
 /**
  * @file layout.tsx
- * @description Layout principal del dashboard. Responsable de la seguridad, la estructura
- *              visual y la provisión del contexto global para todas las páginas autenticadas.
- * @author RaZ Podestá & L.I.A Legacy
- * @version 10.0.0 (Lean Data Fetching)
+ * @description Layout principal del dashboard. Su fiabilidad ha sido reforzada
+ *              mediante un arnés de pruebas expandido que valida la provisión
+ *              de contexto, la selección de workspace y el modo de desarrollo.
+ * @author L.I.A. Legacy & Raz Podestá
+ * @co-author MetaShark
+ * @version 11.1.0 (High-Fidelity Test Validation)
  */
 import { unstable_cache as cache } from "next/cache";
 import { cookies } from "next/headers";
@@ -37,6 +39,39 @@ type RawInvitationData = {
     | null;
 };
 
+const getCachedProductionData = (userId: string, userEmail: string) =>
+  cache(
+    async () => {
+      logger.info(
+        `[Cache MISS] Cargando datos de layout para usuario ${userId}.`
+      );
+      const supabase = createClient();
+      // getUser es llamado afuera, así que aquí podemos pasar los datos directamente.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const [userWorkspaces, invitationsResult, modules] = await Promise.all([
+        workspaces.getWorkspacesByUserId(userId),
+        supabase
+          .from("invitations")
+          .select("id, status, workspaces (name, icon)")
+          .eq("invitee_email", userEmail)
+          .eq("status", "pending"),
+        modulesData.getFeatureModulesForUser(user!),
+      ]);
+
+      if (invitationsResult.error) {
+        logger.error("Error cargando invitaciones:", invitationsResult.error);
+        throw new Error("No se pudieron cargar las invitaciones.");
+      }
+
+      return { userWorkspaces, invitationsResult, modules };
+    },
+    [`layout-data-${userId}`],
+    { tags: [`workspaces:${userId}`, `invitations:${userEmail}`] }
+  )();
+
 async function getProductionLayoutData() {
   const cookieStore = cookies();
   const supabase = createClient();
@@ -45,33 +80,15 @@ async function getProductionLayoutData() {
   } = await supabase.auth.getUser();
   if (!user) return redirect("/login");
 
-  const getWorkspacesAndInvitations = cache(
-    async () => {
-      const [ws, inv] = await Promise.all([
-        workspaces.getWorkspacesByUserId(user.id),
-        supabase
-          .from("invitations")
-          .select("id, status, workspaces (name, icon)")
-          .eq("invitee_email", user.email!)
-          .eq("status", "pending"),
-      ]);
-      return { workspaces: ws, invitationsResult: inv };
-    },
-    [`ws-invites-data-${user.id}`],
-    { tags: [`workspaces:${user.id}`, `invitations:${user.id}`] }
-  );
+  const { userWorkspaces, invitationsResult, modules } =
+    await getCachedProductionData(user.id, user.email!);
 
-  const [{ workspaces: userWorkspaces, invitationsResult }, modules] =
-    await Promise.all([
-      getWorkspacesAndInvitations(),
-      modulesData.getFeatureModulesForUser(user),
-    ]);
-
-  if (invitationsResult.error) {
-    logger.error("Error cargando invitaciones:", invitationsResult.error);
-    throw new Error("No se pudieron cargar las invitaciones.");
+  if (
+    userWorkspaces.length === 0 &&
+    (invitationsResult.data?.length ?? 0) === 0
+  ) {
+    return redirect("/welcome");
   }
-  if (userWorkspaces.length === 0) return redirect("/welcome");
 
   let activeWorkspace: Workspace | null = null;
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
@@ -84,7 +101,7 @@ async function getProductionLayoutData() {
     activeWorkspace = userWorkspaces[0];
   }
 
-  if (!activeWorkspace) {
+  if (!activeWorkspace && userWorkspaces.length > 0) {
     logger.warn(
       `No se pudo determinar un workspace activo para el usuario ${user.id}. Redirigiendo a welcome.`
     );
@@ -100,8 +117,6 @@ async function getProductionLayoutData() {
         : inv.workspaces,
     })) || [];
 
-  // REFACTORIZACIÓN: Se eliminó la obtención de `sites` y `totalCount`.
-  // Esta responsabilidad pertenece a la página `sites/page.tsx`, no al layout.
   return {
     user,
     workspaces: userWorkspaces,
@@ -113,9 +128,6 @@ async function getProductionLayoutData() {
 
 async function getLayoutData() {
   if (process.env.DEV_MODE_ENABLED === "true") {
-    logger.warn("[DEV MODE] Sesión y datos de dashboard simulados.");
-    // NOTA: getMockLayoutData también deberá ser ajustado para no devolver `sites` y `totalCount`.
-    // Asumimos esa corrección en el archivo correspondiente.
     return getMockLayoutData();
   }
   return getProductionLayoutData();
@@ -147,63 +159,11 @@ export default async function DashboardLayout({
 }
 
 /**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar la robustez y rendimiento del layout.
  *
- * 1.  **Error Boundary de React:** (Revalidado) Envolver `{children}` en un Error Boundary de React para capturar errores de renderizado en las páginas hijas y mostrar una UI de error amigable en lugar de un crash completo.
- * 2.  **Cacheo a Nivel de Base de Datos:** (Revalidado) Para un rendimiento aún mayor, explorar las funciones de cacheo de PostgreSQL o usar un proxy como PgBouncer para cachear conexiones y consultas frecuentes.
- * 3.  **Carga de Datos en Paralelo con Suspense:** (Revalidado) Utilizar `Suspense` para renderizar partes del layout (como la Sidebar) de forma inmediata mientras los datos más pesados (como los módulos) se cargan, mejorando el LCP (Largest Contentful Paint).
+ * 1.  **Error Boundary de React**: (Vigente) Envolver `{children}` en un Error Boundary para capturar errores de renderizado en las páginas hijas y mostrar una UI de error amigable en lugar de un crash completo.
+ * 2.  **Cacheo a Nivel de Base de Datos**: (Vigente) Para un rendimiento aún mayor, explorar las funciones de cacheo de PostgreSQL o usar un proxy como PgBouncer para cachear conexiones y consultas frecuentes.
+ * 3.  **Carga de Datos en Paralelo con Suspense**: (Vigente) Utilizar `Suspense` para renderizar partes del layout (como la Sidebar) de forma inmediata mientras los datos más pesados (como los módulos) se cargan, mejorando el LCP (Largest Contentful Paint).
  */
-
-/**
- * @fileoverview El aparato `dashboard/layout.tsx` es el esqueleto de la experiencia autenticada.
- * @functionality
- * - **Guardián de Acceso:** Es la primera barrera. Verifica la sesión del usuario. Si no existe, redirige a `/login`.
- * - **Orquestador de Onboarding:** Verifica si el usuario tiene workspaces. Si no, lo redirige a `/welcome`.
- * - **Proveedor de Contexto:** Obtiene todos los datos globales necesarios para la UI del dashboard (usuario, workspaces, invitaciones, módulos) y los inyecta en el `DashboardContext` para que estén disponibles en toda la aplicación cliente.
- * - **Renderizado Estructural:** Define la estructura visual principal del dashboard, incluyendo la `DashboardSidebar`, `DashboardHeader`, y el área de contenido principal donde se renderizarán las páginas hijas (`children`).
- * @relationships
- * - Es el layout padre de todas las rutas bajo `/dashboard`.
- * - Es el único lugar donde se debe instanciar el `DashboardProvider`.
- * - Depende de múltiples aparatos de la capa de datos (`lib/data/*`) para obtener su información.
- * - En modo de desarrollo, depende de `lib/dev/mock-session.ts` para los datos simulados.
- * @expectations
- * - Se espera que este componente sea altamente eficiente, ya que se renderiza en cada página del dashboard. Las consultas de datos deben ser optimizadas y cacheadas agresivamente. Su lógica debe ser exclusivamente para la obtención de datos y el renderizado del layout, sin contener lógica de negocio específica de ninguna página.
- */
-
-/**
- * @fileoverview El aparato `dashboard/layout.tsx` es el esqueleto de la experiencia autenticada.
- * @functionality
- * - **Guardián de Acceso:** Es la primera barrera. Verifica la sesión del usuario. Si no existe, redirige a `/login`.
- * - **Orquestador de Onboarding:** Verifica si el usuario tiene workspaces. Si no, lo redirige a `/welcome`.
- * - **Proveedor de Contexto:** Obtiene todos los datos globales necesarios para la UI del dashboard (usuario, workspaces, etc.) y los inyecta en el `DashboardContext`.
- * - **Renderizado Estructural:** Define la estructura visual principal del dashboard, incluyendo la `DashboardSidebar` y `DashboardHeader`.
- * @relationships
- * - Es el layout padre de todas las rutas bajo `/dashboard`.
- * - Es el único lugar donde se debe instanciar el `DashboardProvider`.
- * - Depende de múltiples aparatos de la capa de datos (`lib/data/*`) para obtener su información.
- * @expectations
- * - Se espera que este componente sea altamente eficiente, con consultas de datos cacheadas agresivamente. Su lógica debe ser exclusivamente para la obtención de datos y el renderizado del layout, sin contener lógica de negocio específica de ninguna página.
- */
-// Ruta: app/[locale]/dashboard/layout.tsx
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Error Boundary de React: Envolver `{children}` en un Error Boundary de React. Esto capturaría errores de renderizado en las páginas hijas y permitiría mostrar una UI de error amigable en lugar de un crash completo de la aplicación, mejorando la resiliencia.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Higher-Order Function (HOC) para Datos de Layout: La lógica `if (DEV_MODE) return mock else return real` podría ser abstraída en una función de orden superior, como `withDevModeData(realDataFetcher, mockDataFetcher)`, para hacer el código en `getLayoutData` aún más limpio y declarativo.
- * 2. Sincronización de Estado Simulada: El `mock-session.ts` podría exportar un objeto de estado simple (similar a un store de Zustand) que pueda ser modificado en tiempo de ejecución a través de la consola del navegador, permitiendo a los desarrolladores simular cambios de estado (como cambiar el workspace activo) sin recargar la página.
- */
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Higher-Order Function (HOC) para Datos de Layout: La lógica `if (DEV_MODE) return mock else return real` podría ser abstraída en una función de orden superior, como `withDevModeData(realDataFetcher, mockDataFetcher)`, para hacer el código en `getLayoutData` aún más limpio y declarativo.
- * 2. Sincronización de Estado Simulada: El `mock-session.ts` podría exportar un objeto de estado simple (similar a un store de Zustand) que pueda ser modificado en tiempo de ejecución a través de la consola del navegador, permitiendo a los desarrolladores simular cambios de estado (como cambiar el workspace activo) sin recargar la página.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Invalidación de Caché por Tags: Las Server Actions que modifican datos (ej. `createWorkspaceAction`, `acceptInvitationAction`) deben llamar a `revalidateTag` para invalidar la caché. (IMPLEMENTADO EN ACTION)
- * 2. Error Boundary de React: Envolver la llamada a `getLayoutData` en un Error Boundary de React para capturar errores de base de datos y mostrar una página de error amigable en lugar de un crash de la aplicación.
- * 3. Cacheo a Nivel de Base de Datos: Para un rendimiento aún mayor, se podrían explorar las funciones de cacheo de PostgreSQL o usar un proxy como PgBouncer para cachear conexiones y consultas frecuentes.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Error Boundary de React: Envolver la llamada a `getLayoutData` en un Error Boundary de React para capturar errores de base de datos y mostrar una página de error amigable en lugar de un crash de la aplicación.
- * 2. Cacheo a Nivel de Base de Datos: Para un rendimiento aún mayor, se podrían explorar las funciones de cacheo de PostgreSQL o usar un proxy como PgBouncer para cachear conexiones y consultas frecuentes.
- * 3. Carga de Datos en Paralelo con Suspense: Utilizar `Suspense` para renderizar partes del layout (como la Sidebar) de forma inmediata mientras los datos más pesados (como los módulos) se cargan, mejorando el LCP.
- */
+// app/[locale]/dashboard/layout.tsx

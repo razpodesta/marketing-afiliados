@@ -1,12 +1,21 @@
-// Ruta: lib/actions/campaigns.actions.ts
+// lib/actions/campaigns.actions.ts
 /**
  * @file campaigns.actions.ts
  * @description Acciones de servidor seguras para la entidad 'campaigns'. Este aparato ha
- *              sido refactorizado para una máxima cohesión, eliminando la lógica
- *              redundante de autenticación y normalización de datos, y adhiriéndose
+ *              sido refactorizado para una máxima cohesión y seguridad, adhiriéndose
  *              estrictamente al principio de responsabilidad única.
  * @author RaZ Podestá & L.I.A Legacy
+ * @co-author MetaShark
  * @version 4.0.0 (High Cohesion & DRY Refactoring)
+ *
+ * @see {@link file://./campaigns.actions.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para la capa de acciones de campañas.
+ *
+ * 1.  **Transacciones Atómicas**: (Vigente) La creación de una campaña y su log de auditoría deberían ocurrir dentro de una transacción de base de datos para garantizar que si una falla, la otra se revierte.
+ * 2.  **Manejo de Errores Granular**: (Vigente) Mapear códigos de error específicos de PostgreSQL (ej. violación de clave foránea) a mensajes de error más amigables para el usuario.
+ * 3.  **Acción de Duplicar Campaña**: (Vigente) Crear una nueva `duplicateCampaignAction(campaignId)` que copie una campaña existente, incluyendo su `content`, para agilizar el flujo de trabajo del usuario.
  */
 "use server";
 
@@ -24,15 +33,8 @@ import {
   DeleteCampaignSchema,
 } from "@/lib/validators";
 
-/**
- * @private
- * @async
- * @function getAuthenticatedUser
- * @description Obtiene el usuario autenticado para una acción. Actúa como un
- *              guardián de autenticación para reducir la duplicación de código.
- * @returns {Promise<{ user: User } | { error: ActionResult<never> }>} Un objeto con el
- *          usuario si tiene éxito, o un objeto de error de acción si falla.
- */
+import { createAuditLog } from "./_helpers";
+
 async function getAuthenticatedUser(): Promise<
   { user: User } | { error: ActionResult<never> }
 > {
@@ -56,8 +58,6 @@ export async function createCampaignAction(
 
   try {
     const rawData = Object.fromEntries(formData);
-    // LÓGICA REDUNDANTE ELIMINADA: La generación del slug es ahora
-    // manejada por el `.transform()` del `CreateCampaignSchema`.
     const { name, slug, siteId } = CreateCampaignSchema.parse(rawData);
 
     const site = await sitesData.getSiteById(siteId);
@@ -92,6 +92,13 @@ export async function createCampaignAction(
       logger.error("Error al crear la campaña en la base de datos:", error);
       return { success: false, error: "No se pudo crear la campaña." };
     }
+
+    await createAuditLog("campaign.created", {
+      userId: user.id,
+      targetEntityId: newCampaign.id,
+      targetEntityType: "campaign",
+      metadata: { name, siteId },
+    });
 
     revalidatePath(`/dashboard/sites/${siteId}/campaigns`);
     return { success: true, data: { id: newCampaign.id } };
@@ -161,6 +168,13 @@ export async function deleteCampaignAction(
       return { success: false, error: "No se pudo eliminar la campaña." };
     }
 
+    await createAuditLog("campaign.deleted", {
+      userId: user.id,
+      targetEntityId: campaign.id,
+      targetEntityType: "campaign",
+      metadata: { name: campaign.name, siteId: campaign.site_id },
+    });
+
     revalidatePath(`/dashboard/sites/${campaign.site_id}/campaigns`);
     return { success: true, data: { message: "Campaña eliminada." } };
   } catch (error) {
@@ -171,18 +185,4 @@ export async function deleteCampaignAction(
     return { success: false, error: "Un error inesperado ocurrió." };
   }
 }
-/**
-@fileoverview El aparato campaigns.actions.ts es un componente de seguridad crítico que sirve como el único guardián para las mutaciones de la entidad campaigns.
-@functionality
-Abstracción de Autenticación: Utiliza un helper privado getAuthenticatedUser para encapsular la lógica de verificación de sesión, adhiriéndose al principio DRY (Don't Repeat Yourself).
-createCampaignAction: Valida y transforma los datos de entrada a través del CreateCampaignSchema del manifiesto central. Verifica que el usuario tiene permisos de miembro en el workspace al que pertenece el sitio y luego crea el registro en la base de datos.
-deleteCampaignAction: Valida el ID de la campaña a eliminar. Antes de ejecutar la eliminación, realiza el patrón de seguridad "obtener antes de actuar": recupera la campaña, determina a qué workspace pertenece y verifica que el usuario actual tenga permisos sobre dicho workspace.
-@relationships
-Es invocado por componentes de cliente, principalmente por CreateCampaignForm.tsx y CampaignsClient.tsx.
-Depende de forma crítica del guardián de permisos hasWorkspacePermission de lib/data/permissions.ts para hacer cumplir las reglas de autorización.
-Interactúa con la capa de datos (lib/data/sites.ts) para obtener información contextual necesaria para las comprobaciones de seguridad.
-Utiliza revalidatePath de Next.js para invalidar la caché y asegurar que la UI se actualice después de una mutación de datos.
-Consume los esquemas de Zod del manifiesto lib/validators/index.ts.
-@expectations
-Se espera que este aparato sea una barrera de seguridad robusta para todas las mutaciones de la entidad campaigns. Debe validar todos los datos de entrada y verificar los permisos para cada operación sin excepción. Su lógica debe ser atómica y proporcionar un feedback claro al cliente sobre el resultado de la operación a través del contrato ActionResult.
-*/
+// lib/actions/campaigns.actions.ts

@@ -1,17 +1,27 @@
-// Ruta: components/sites/SitesHeader.tsx
+// components/sites/SitesHeader.tsx
 /**
  * @file SitesHeader.tsx
- * @description Encabezado para la página "Mis Sitios", que contiene el título, la
- *              barra de búsqueda y el disparador del modal de creación. Ha sido
- *              refactorizado para adherirse a un contrato de tipos estricto y cohesivo.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.0.0 (Simplified Cohesive Design)
+ * @description Encabezado para la página "Mis Sitios". Este aparato ha sido refactorizado a un
+ *              componente controlado, recibiendo el estado de la búsqueda y los manejadores de
+ *              eventos como props. Encapsula la UI para el título, la barra de búsqueda y el
+ *              disparador del modal de creación, alineándose con la arquitectura de búsqueda en servidor.
+ * @author Metashark (Refactorizado por L.I.A Legacy & RaZ Podestá)
+ * @version 5.0.0 (Server-Side Search & Controlled Component Pattern)
+ *
+ * @see {@link file://./SitesHeader.test.tsx} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para el encabezado de la página de sitios.
+ *
+ * 1.  **Dropdown de Ordenamiento**: (Vigente) Añadir un componente `<Select>` junto a la barra de búsqueda para permitir al usuario ordenar los sitios por "Fecha de Creación" o "Nombre", pasando el valor seleccionado a un nuevo manejador de eventos `onSortChange`.
+ * 2.  **Selector de Vista (Cuadrícula/Lista)**: (Vigente) Incorporar un interruptor o grupo de botones para que el usuario pueda alternar entre una vista de cuadrícula (`<SitesGrid>`) y una vista de tabla (`<SitesTable>`), mejorando la accesibilidad y la densidad de información para usuarios avanzados.
+ * 3.  **Animaciones de Layout con Framer Motion**: (Vigente) Envolver los elementos del encabezado en `motion.div` para añadir animaciones de entrada sutiles, mejorando la estética y la percepción de fluidez al cargar la página.
  */
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusCircle, Search, X } from "lucide-react";
-import { useRouter } from "@/lib/navigation";
+import React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,12 +35,11 @@ import { Input } from "@/components/ui/input";
 
 import { CreateSiteForm } from "./CreateSiteForm";
 
-// CORRECCIÓN: La interfaz de props se simplifica enormemente.
 interface SitesHeaderProps {
   isCreateDialogOpen: boolean;
   setCreateDialogOpen: (isOpen: boolean) => void;
   searchQuery: string;
-  setSearchQuery: (query: string) => void;
+  onSearchChange: (query: string) => void;
   workspaceId: string;
 }
 
@@ -38,14 +47,11 @@ export function SitesHeader({
   isCreateDialogOpen,
   setCreateDialogOpen,
   searchQuery,
-  setSearchQuery,
+  onSearchChange,
   workspaceId,
 }: SitesHeaderProps) {
-  const router = useRouter();
-
   const handleCreateSuccess = () => {
     setCreateDialogOpen(false);
-    router.refresh(); // Notifica al router que revalide los datos de la página.
   };
 
   return (
@@ -64,7 +70,7 @@ export function SitesHeader({
           <Input
             placeholder="Buscar por subdominio..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10 pr-10"
           />
           <AnimatePresence>
@@ -79,7 +85,7 @@ export function SitesHeader({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => onSearchChange("")}
                   aria-label="Limpiar búsqueda"
                 >
                   <X className="h-4 w-4" />
@@ -109,29 +115,4 @@ export function SitesHeader({
     </div>
   );
 }
-
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `SitesHeader.tsx` es un componente de UI "controlado" y de presentación.
- *
- * @functionality
- * - **Presentación Pura:** Su única responsabilidad es renderizar la UI del encabezado. No
- *   gestiona su propio estado de envío, sino que lo delega a sus hijos.
- * - **Orquestación de Diálogo:** Controla el estado de apertura y cierre del `Dialog` que
- *   contiene el `CreateSiteForm`.
- * - **Corrección de Contrato:** La interfaz `SitesHeaderProps` ha sido actualizada para
- *   eliminar las props `onSubmitCreate` y `isCreating`, que ya no son necesarias. Ahora
- *   define una función `handleCreateSuccess` que pasa como callback `onSuccess` al formulario,
- *   desacoplando completamente al header de la lógica de envío del formulario.
- *
- * @relationships
- * - Es un componente hijo de `SitesClient.tsx`.
- * - Es el padre de `CreateSiteForm.tsx`, al cual le pasa la callback `onSuccess`.
- *
- * @expectations
- * - Se espera que este componente actúe como una capa de presentación pura. Su contrato de
- *   props ahora es robusto, seguro en tipos y alineado con la arquitectura cohesiva.
- * =================================================================================================
- */
+// components/sites/SitesHeader.tsx

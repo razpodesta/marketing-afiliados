@@ -6,14 +6,22 @@
  *              utilizando el cliente de Supabase para middleware y eliminando
  *              dependencias a la capa de datos del servidor.
  * @author L.I.A Legacy
+ * @co-author MetaShark
  * @version 5.0.0 (Edge Runtime Compatibility & Architectural Purity)
+ * @see {@link file://../../tests/infrastructure.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar la gestión de multi-tenancy en el Edge.
+ *
+ * 1.  **Cacheo de Búsqueda de Sitios (Redis/KV):** (Vigente) Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente.
+ * 2.  **Manejo de Dominios Personalizados:** (Vigente) La función debería comprobar si `host` no es un subdominio y, si no lo es, buscar una coincidencia en una columna `custom_domain`.
+ * 3.  **Página de Subdominio Inválido Dedicada:** (Vigente) Si un subdominio no se encuentra, se podría reescribir la URL a una página `/404-subdomain` con un mensaje de error más específico.
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { logger } from "../../../lib/logging";
-// Se importa el cliente de Supabase específico para el middleware.
-import { createClient } from "../../../lib/supabase/middleware";
-import { rootDomain } from "../../../lib/utils";
+import { logger } from "@/lib/logging";
+import { createClient } from "@/lib/supabase/middleware";
+import { rootDomain } from "@/lib/utils";
 
 export async function handleMultitenancy(
   request: NextRequest,
@@ -34,7 +42,6 @@ export async function handleMultitenancy(
   if (subdomain) {
     logger.trace({ subdomain }, "[MULTITENANCY_HANDLER] Subdominio detectado.");
 
-    // LÓGICA DE CONSULTA REIMPLEMENTADA PARA EL EDGE RUNTIME
     const { supabase } = await createClient(request);
     const { data: siteData, error } = await supabase
       .from("sites")
@@ -60,56 +67,14 @@ export async function handleMultitenancy(
         request.url
       );
 
-      const rewriteResponse = NextResponse.rewrite(rewriteUrl);
-
-      // Preservar las cabeceras de la petición original es crucial
-      request.headers.forEach((value, key) => {
-        rewriteResponse.headers.set(key, value);
+      const rewriteResponse = NextResponse.rewrite(rewriteUrl, {
+        headers: response.headers,
       });
 
       return rewriteResponse;
     }
   }
 
-  // Si no hay acción de reescritura, devuelve la respuesta que recibió para continuar la cadena.
   return response;
 }
-
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `handleMultitenancy` es el responsable de enrutar las peticiones
- *               basadas en subdominios a la lógica de renderizado correcta dentro del Edge.
- *
- * @functionality
- * - **Detección de Subdominio:** Analiza el `host` de la petición para extraer un posible subdominio.
- * - **Validación Edge-Compatible (Refactorización Clave):** La causa de las advertencias
- *   críticas era la importación de una función de la capa de datos (`"use server"`) dentro
- *   de un entorno Edge (`middleware`). La refactorización ha eliminado esta dependencia
- *   y ha replicado la lógica de consulta directamente en el manejador, pero utilizando el
- *   cliente de Supabase específico para middleware, que es compatible con el Edge Runtime.
- *   Esto resuelve la violación arquitectónica y previene fallos en producción.
- * - **Reescritura de URL:** Si el subdominio es válido, reescribe la URL internamente a la ruta
- *   `app/s/[subdomain]/...`, preservando la ruta y las cabeceras originales.
- *
- * @relationships
- * - Es un manejador dentro del pipeline del `middleware.ts`.
- * - Interactúa directamente con la base de datos a través del `lib/supabase/middleware.ts`.
- * - Su correcto funcionamiento es vital para que las páginas públicas de los tenants se rendericen.
- *
- * @expectations
- * - Se espera que este manejador actúe como un enrutador inteligente y eficiente a nivel de
- *   infraestructura, respetando los límites de los runtimes de Next.js. Con la refactorización,
- *   ahora es robusto, arquitectónicamente correcto y funcional en el entorno de producción.
- * =================================================================================================
- */
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar la gestión de multi-tenancy en el Edge.
- *
- * 1.  **Cacheo de Búsqueda de Sitios (Redis/KV):** Para un rendimiento a escala de producción, la consulta a la base de datos dentro del middleware debería ser cacheada agresivamente en un almacén de clave-valor como Vercel KV o Upstash Redis para minimizar la latencia y la carga en la base de datos.
- * 2.  **Manejo de Dominios Personalizados:** Esta es la siguiente evolución lógica. La función debería comprobar si `host` no es un subdominio y, si no lo es, llamar a una consulta similar para buscar una coincidencia en una columna `custom_domain` en la tabla `sites`.
- * 3.  **Página de Subdominio Inválido Dedicada:** Si un subdominio no se encuentra en la base de datos, se podría reescribir la URL a una página `/404-subdomain` que muestre un mensaje de error más específico y útil que la página 404 genérica de la aplicación.
- */
+// middleware/handlers/multitenancy/index.ts

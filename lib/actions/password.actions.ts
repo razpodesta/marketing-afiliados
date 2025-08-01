@@ -1,9 +1,12 @@
 // lib/actions/password.actions.ts
 /**
  * @file lib/actions/password.actions.ts
- * @description Contém as Server Actions para o fluxo de recuperação e redefinição de senha.
- * @author Metashark (Refatorado por L.I.A Legacy)
- * @version 1.3.0 (Helper and Schema Imports Correction)
+ * @description Aparato canónico y Única Fuente de Verdad para las Server Actions
+ *              del flujo de recuperación y reseteo de contraseñas. Corregido para
+ *              manejar de forma segura el contrato de tipos de ActionResult.
+ * @author L.I.A. Legacy & Raz Podestá
+ * @co-author MetaShark
+ * @version 2.1.0 (Type-Safe Error Handling)
  */
 "use server";
 
@@ -13,17 +16,19 @@ import { z } from "zod";
 
 import { logger } from "@/lib/logging";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { EmailSchema, type RequestPasswordResetState } from "@/lib/validators"; // <-- CORREÇÃO: Importar de lib/validators
+import { EmailSchema, type RequestPasswordResetState } from "@/lib/validators";
 
-import { createAuditLog, EmailService, rateLimiter } from "./_helpers"; // <-- CORREÇÃO: Importar do barrel file de helpers
+import { createAuditLog, EmailService, rateLimiter } from "./_helpers";
 
 const ResetPasswordSchema = z
   .object({
-    password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres."),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres."),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "As senhas não coincidem.",
+    message: "Las contraseñas no coinciden.",
     path: ["confirmPassword"],
   });
 
@@ -32,12 +37,12 @@ type UpdatePasswordFormState = { error: string | null; success: boolean };
 /**
  * @async
  * @function requestPasswordResetAction
- * @description Solicita um link de redefinição de senha para o e-mail fornecido.
- *              Inclui controle de taxa (rate limiting) e registro de auditoria.
- *              Não revela se o e-mail existe para maior segurança.
- * @param {RequestPasswordResetState} prevState - O estado anterior do formulário.
- * @param {FormData} formData - Os dados do formulário (deve conter 'email').
- * @returns {Promise<RequestPasswordResetState>} O novo estado do formulário com possíveis erros.
+ * @description Inicia el flujo de reseteo de contraseña. Incluye rate limiting,
+ *              auditoría y es agnóstico a la existencia del email para prevenir
+ *              enumeración de usuarios.
+ * @param {RequestPasswordResetState} prevState - El estado anterior del formulario.
+ * @param {FormData} formData - Datos del formulario, debe contener 'email'.
+ * @returns {Promise<RequestPasswordResetState>} El nuevo estado del formulario.
  */
 export async function requestPasswordResetAction(
   prevState: RequestPasswordResetState,
@@ -46,19 +51,26 @@ export async function requestPasswordResetAction(
   const ip = headers().get("x-forwarded-for") ?? "127.0.0.1";
   const limit = await rateLimiter.check(ip, "password_reset");
   if (!limit.success) {
-    return { error: limit.error };
+    // --- INICIO DE CORRECCIÓN (TS2322) ---
+    // Se añade un fallback para asegurar que el valor nunca sea `undefined`,
+    // cumpliendo así con el contrato de `RequestPasswordResetState['error']`
+    // que espera `string | null`.
+    return {
+      error:
+        limit.error || "Demasiadas solicitudes. Intente nuevamente más tarde.",
+    };
+    // --- FIN DE CORRECCIÓN ---
   }
 
   const email = formData.get("email");
   const validation = EmailSchema.safeParse(email);
   if (!validation.success) {
-    return { error: "Por favor, digite um e-mail válido." };
+    return { error: "Por favor, introduce un email válido." };
   }
 
   const validatedEmail = validation.data;
   const adminSupabase = createAdminClient();
 
-  // A forma correta de buscar um usuário por e-mail é consultando a tabela auth.users.
   const { data: user, error: userError } = await adminSupabase
     .from("users")
     .select("id")
@@ -66,9 +78,8 @@ export async function requestPasswordResetAction(
     .single();
 
   if (userError && userError.code !== "PGRST116") {
-    // PGRST116 = 'Not Found', o que não é um erro neste fluxo.
     logger.error(
-      `[PasswordActions] Erro ao buscar usuário por e-mail ${validatedEmail}:`,
+      `[PasswordActions] Error al buscar usuario ${validatedEmail}:`,
       userError
     );
   }
@@ -86,7 +97,7 @@ export async function requestPasswordResetAction(
 
     if (error || !data) {
       logger.error(
-        `[PasswordActions] Erro ao gerar link de recuperação para ${validatedEmail}:`,
+        `[PasswordActions] Error al generar link para ${validatedEmail}:`,
         error
       );
     } else {
@@ -97,7 +108,7 @@ export async function requestPasswordResetAction(
     }
   } else {
     logger.warn(
-      `[PasswordActions] Solicitação de redefinição para e-mail não existente (oculto ao cliente): ${validatedEmail}`
+      `[PasswordActions] Solicitud de reseteo para email no existente (oculto al cliente): ${validatedEmail}`
     );
   }
 
@@ -107,10 +118,10 @@ export async function requestPasswordResetAction(
 /**
  * @async
  * @function updatePasswordAction
- * @description Atualiza a senha do usuário.
- * @param {UpdatePasswordFormState} prevState - O estado anterior do formulário.
- * @param {FormData} formData - Os dados do formulário.
- * @returns {Promise<UpdatePasswordFormState>} O novo estado do formulário.
+ * @description Actualiza la contraseña del usuario autenticado en un flujo de recuperación.
+ * @param {UpdatePasswordFormState} prevState - El estado anterior del formulario.
+ * @param {FormData} formData - Datos del formulario.
+ * @returns {Promise<UpdatePasswordFormState>} El nuevo estado del formulario.
  */
 export async function updatePasswordAction(
   prevState: UpdatePasswordFormState,
@@ -124,7 +135,7 @@ export async function updatePasswordAction(
     const errorMessage =
       formErrors.password?.[0] ||
       formErrors.confirmPassword?.[0] ||
-      "Dados inválidos.";
+      "Datos inválidos.";
     return { error: errorMessage, success: false };
   }
 
@@ -137,7 +148,7 @@ export async function updatePasswordAction(
   if (userError || !user) {
     return {
       error:
-        "Sessão de recuperação inválida ou expirada. Por favor, solicite um novo link.",
+        "Sesión de recuperación inválida o expirada. Por favor, solicita un nuevo link.",
       success: false,
     };
   }
@@ -148,17 +159,17 @@ export async function updatePasswordAction(
 
   if (error) {
     logger.error(
-      `[PasswordActions] Erro ao atualizar a senha para ${user.id}:`,
+      `[PasswordActions] Error al actualizar la contraseña para ${user.id}:`,
       error.message
     );
     if (error.message.includes("token has expired")) {
       return {
-        error: "O link de redefinição expirou. Por favor, solicite um novo.",
+        error: "El link de reseteo ha expirado. Por favor, solicita uno nuevo.",
         success: false,
       };
     }
     return {
-      error: "Não foi possível atualizar a senha. Tente novamente.",
+      error: "No fue posible actualizar la contraseña. Tente nuevamente.",
       success: false,
     };
   }
@@ -169,9 +180,12 @@ export async function updatePasswordAction(
   return { error: null, success: true };
 }
 
-/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
- * 1. Prevenção de Reutilização de Senha: Para segurança de nível empresarial, a `updatePasswordAction` poderia consultar um hash das N senhas anteriores do usuário (se armazenadas de forma segura) para prevenir a reutilização de senhas recentes.
- * 2. Integração com `zxcvbn`: Em vez de uma lógica de pontuação simples, pode-se integrar uma biblioteca como `zxcvbn-ts` para uma análise de força de senha muito mais robusta e precisa, que detecta padrões comuns e palavras de dicionário.
- * 3. Internacionalização de Mensagens de Erro Zod: Integrar `zod-i18n` para que as mensagens de erro do schema de validação (e.g., "As senhas não coincidem") sejam traduzidas automaticamente com base no idioma do usuário.
- * 4. Forçar Encerramento de Sessão em Outros Dispositivos: Após uma atualização de senha bem-sucedida, a função `supabase.auth.signOut({ scope: 'others' })` é invocada para invalidar todas as outras sessões ativas do usuário, uma prática de segurança recomendada. (Já implementado).
+/**
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para el sistema de gestión de contraseñas.
+ *
+ * 1.  **Implementación Real de `rateLimiter` y `EmailService`**: Reemplazar las simulaciones actuales por clientes reales (ej. Upstash Redis para rate limiting, Resend para emails), configurando las variables de entorno y manejando sus respuestas de API de forma robusta.
+ * 2.  **Prevención de Reutilización de Contraseña**: Para seguridad de nivel empresarial, la `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario (si se almacenan de forma segura) para prevenir la reutilización de contraseñas recientes.
+ * 3.  **Internacionalización de Mensajes de Error de Zod**: Integrar `zod-i18n` para que los mensajes de error del esquema de validación (ej. "Las contraseñas no coinciden") se traduzcan automáticamente según el idioma del usuario.
  */
+// lib/actions/password.actions.ts

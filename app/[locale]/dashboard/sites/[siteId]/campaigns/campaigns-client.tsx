@@ -1,34 +1,36 @@
-// Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
+// app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
 /**
  * @file campaigns-client.tsx
- * @description Componente de cliente para mostrar y gestionar las campañas de un sitio,
- *              ahora con navegación segura y tipada hacia el constructor de campañas.
- * @author RaZ Podestá & L.I.A Legacy
- * @version 3.2.0 (Type-Safe Dynamic Navigation)
+ * @description Componente de cliente para gestionar campañas. Este aparato ha sido
+ *              refactorizado para integrarse con la lógica de UI optimista del hook
+ *              `useCampaignsManagement`, proporcionando una experiencia de creación
+ *              de campañas instantánea y resolviendo inconsistencias de tipos.
+ * @author L.I.A. Legacy & Raz Podestá
+ * @co-author MetaShark
+ * @version 5.2.0 (Type Coercion & Contract Fix)
+ *
+ * @see {@link file://./campaigns-client.test.tsx} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para la gestión de campañas.
+ *
+ * 1.  **Tabla de Datos Reutilizable (`<DataTable />`)**: (Vigente) A medida que la aplicación crezca, se necesitarán más tablas con funcionalidades similares (ordenamiento, búsqueda). Se podría crear un componente genérico `<DataTable />` para reducir el código repetitivo.
+ * 2.  **Búsqueda y Filtros en el Cliente**: (Vigente) Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas por nombre en tiempo real, directamente en el cliente.
+ * 3.  **Animaciones de Lista con Framer Motion**: (Vigente) Envolver el `map` de campañas en un componente `<AnimatePresence>` de Framer Motion para animar la entrada y salida de elementos de la lista, mejorando la fluidez visual al crear o eliminar campañas.
  */
 "use client";
 
-import {
-  ArrowLeft,
-  Edit,
-  Loader2,
-  PlusCircle,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, Edit, PlusCircle, ShieldAlert, Trash2 } from "lucide-react";
 import { useFormatter } from "next-intl";
-import { useState } from "react";
 
 import { CreateCampaignForm } from "@/components/campaigns";
 import { PaginationControls } from "@/components/sites/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -42,65 +44,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCampaignsManagement } from "@/lib/hooks/useCampaignsManagement";
-import { Link, useRouter } from "@/lib/navigation";
+import { Link } from "@/lib/navigation";
 import type { Tables } from "@/lib/types/database";
 
 type Campaign = Tables<"campaigns">;
 type SiteInfo = { id: string; subdomain: string | null };
-
-const DeleteCampaignDialog = ({
-  campaign,
-  onDelete,
-  isPending,
-}: {
-  campaign: Campaign;
-  onDelete: (formData: FormData) => void;
-  isPending: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:bg-destructive/10"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <form action={onDelete}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-6 w-6 text-red-600" />
-              ¿Eliminar Campaña?
-            </DialogTitle>
-            <DialogDescription>
-              Esta acción es irreversible. La campaña{" "}
-              <strong className="font-medium text-foreground">
-                {campaign.name}
-              </strong>{" "}
-              será eliminada permanentemente.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Cancelar
-              </Button>
-            </DialogClose>
-            <input type="hidden" name="campaignId" value={campaign.id} />
-            <Button variant="destructive" type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sí, eliminar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
 export function CampaignsClient({
   site,
@@ -116,16 +64,19 @@ export function CampaignsClient({
   limit: number;
 }) {
   const format = useFormatter();
-  const router = useRouter(); // Se añade el hook useRouter
   const {
     campaigns,
     isCreateDialogOpen,
     setCreateDialogOpen,
     isPending,
-    deletingId,
+    mutatingId,
     handleDelete,
-    handleCreateSuccess,
-  } = useCampaignsManagement(initialCampaigns);
+    handleCreate,
+  } = useCampaignsManagement(initialCampaigns, site.id);
+
+  // CORRECCIÓN: Se utiliza la coerción a booleano (`!!`) para garantizar que el tipo
+  // sea siempre `boolean` y nunca `undefined`, cumpliendo el contrato de la prop.
+  const isCreating = !!(isPending && mutatingId?.startsWith("optimistic-"));
 
   return (
     <div className="space-y-6 relative">
@@ -158,7 +109,8 @@ export function CampaignsClient({
             </DialogHeader>
             <CreateCampaignForm
               siteId={site.id}
-              onSuccess={handleCreateSuccess}
+              onSubmit={handleCreate}
+              isPending={isCreating}
             />
           </DialogContent>
         </Dialog>
@@ -177,7 +129,14 @@ export function CampaignsClient({
           <TableBody>
             {campaigns.length > 0 ? (
               campaigns.map((campaign) => (
-                <TableRow key={campaign.id}>
+                <TableRow
+                  key={campaign.id}
+                  className={
+                    campaign.id.startsWith("optimistic-")
+                      ? "opacity-50 pointer-events-none"
+                      : ""
+                  }
+                >
                   <TableCell className="font-medium">{campaign.name}</TableCell>
                   <TableCell className="font-mono text-xs">
                     /{campaign.slug}
@@ -200,10 +159,32 @@ export function CampaignsClient({
                         Editar
                       </Link>
                     </Button>
-                    <DeleteCampaignDialog
-                      campaign={campaign}
-                      onDelete={handleDelete}
-                      isPending={isPending && deletingId === campaign.id}
+                    <ConfirmationDialog
+                      triggerButton={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          aria-label={`Eliminar la campaña ${campaign.name}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      }
+                      icon={ShieldAlert}
+                      title="¿Eliminar Campaña?"
+                      description={
+                        <>
+                          Esta acción es irreversible. La campaña{" "}
+                          <strong className="font-medium text-foreground">
+                            {campaign.name}
+                          </strong>{" "}
+                          será eliminada permanentemente.
+                        </>
+                      }
+                      confirmButtonText="Sí, eliminar"
+                      onConfirm={handleDelete}
+                      isPending={isPending && mutatingId === campaign.id}
+                      hiddenInputs={{ campaignId: campaign.id }}
                     />
                   </TableCell>
                 </TableRow>
@@ -218,42 +199,15 @@ export function CampaignsClient({
           </TableBody>
         </Table>
       </Card>
+      {/* CORRECCIÓN: Se pasa la ruta plantilla a `basePath` y los params a `routeParams`. */}
       <PaginationControls
         page={page}
         totalCount={totalCount}
         limit={limit}
-        basePath={`/dashboard/sites/${site.id}/campaigns`}
+        basePath="/dashboard/sites/[siteId]/campaigns"
+        routeParams={{ siteId: site.id }}
       />
     </div>
   );
 }
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para la gestión de campañas.
- *
- * 1.  **Actualización Optimista para Creación:** (Revalidado) Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista.
- * 2.  **Tabla de Datos Reutilizable (`<DataTable />`):** (Revalidado) Crear un componente genérico `<DataTable />` para reducir el código repetitivo.
- * 3.  **Búsqueda y Filtros en el Cliente:** (Revalidado) Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas en tiempo real.
- */
-
-/**
- * @fileoverview El aparato `campaigns-client.tsx` es el componente de cliente que renderiza la interfaz para gestionar las campañas de un sitio específico.
- * @functionality
- * - Muestra una tabla con la lista de campañas.
- * - Proporciona los controles de UI para las operaciones CRUD.
- * - Utiliza un hook personalizado (`useCampaignsManagement`) para abstraer toda la lógica de estado.
- * - Renderiza la paginación.
- * @relationships
- * - Es el componente hijo de `app/[locale]/dashboard/sites/[siteId]/campaigns/page.tsx`.
- * - Utiliza `useCampaignsManagement` de `lib/hooks/useCampaignsManagement.ts`.
- * - Utiliza el componente `Link` de `lib/navigation.ts` para toda la navegación.
- * @expectations
- * - Se espera que este componente sea un "orquestador" de UI, delegando la lógica de negocio a hooks y Server Actions.
- */
-// Ruta: app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Actualización Optimista para Creación: Para una experiencia de usuario superior y consistente, la creación de campañas también debería ser optimista. El hook `useCampaignsManagement` puede ser mejorado para añadir una "campaña fantasma" a la UI localmente mientras la Server Action se completa, de la misma forma que lo hace el hook `useSitesManagement`.
- * 2. Tabla de Datos Reutilizable y Avanzada: A medida que la aplicación crezca, se necesitarán más tablas con funcionalidades similares (ordenamiento, búsqueda, selección). Se podría crear un componente genérico `<DataTable />` (usando una librería como `TanStack Table`) que encapsule toda esta funcionalidad, y luego usarlo aquí y en otras páginas para mostrar los datos, reduciendo drásticamente el código repetitivo.
- * 3. Búsqueda y Filtros en el Cliente: Añadir un campo de búsqueda en el encabezado de esta página para permitir al usuario filtrar la lista de campañas por nombre en tiempo real, directamente en el cliente. Esto mejoraría la usabilidad para sitios con un gran número de campañas en la página actual.
- */
+// app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx

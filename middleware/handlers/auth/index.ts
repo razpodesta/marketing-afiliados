@@ -1,12 +1,19 @@
-// Ruta: middleware/handlers/auth/index.ts
+// middleware/handlers/auth/index.ts
 /**
  * @file middleware/handlers/auth/index.ts
  * @description Manejador de middleware para autenticación y protección de rutas.
- *              Refactorizado para ser un manejador de estado puro que consume el
- *              manifiesto de enrutamiento y, críticamente, valida las URLs de
- *              redirección para prevenir vulnerabilidades de Open Redirect.
+ *              Valida las URLs de redirección para prevenir vulnerabilidades de Open Redirect.
  * @author L.I.A Legacy & RaZ Podestá
+ * @co-author MetaShark
  * @version 9.1.0 (Security Hardening: Open Redirect Prevention)
+ * @see {@link file://../../tests/auth.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar la seguridad y el flujo del manejador de autenticación.
+ *
+ * 1.  **Lista Blanca de Redirección (Allow-list):** (Vigente) Para una seguridad aún más estricta, en lugar de solo verificar si la ruta es relativa, se podría mantener una lista blanca explícita de dominios a los que se permite redirigir.
+ * 2.  **Tokens de Redirección de un Solo Uso:** (Vigente) Implementar un sistema donde el servidor genere un token de un solo uso que represente la URL de redirección segura.
+ * 3.  **Refactorización de Lógica de Redirección:** (Vigente) La lógica de redirección segura se repite. Podría abstraerse a una función de utilidad `createSafeRedirectUrl` para adherirse al principio DRY.
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -24,7 +31,7 @@ export async function handleAuth(
   response: NextResponse
 ): Promise<NextResponse> {
   const locale = response.headers.get("x-app-locale") || "pt-BR";
-  const { pathname, origin } = request.nextUrl;
+  const { pathname, origin, searchParams } = request.nextUrl;
   const pathnameWithoutLocale = pathname.startsWith(`/${locale}`)
     ? pathname.slice(`/${locale}`.length) || "/"
     : pathname;
@@ -54,8 +61,6 @@ export async function handleAuth(
     if (isProtectedRoute) {
       const loginUrl = new URL(`/${locale}/login`, origin);
 
-      // --- PARCHE DE SEGURIDAD: PREVENCIÓN DE OPEN REDIRECT ---
-      // Se valida que la ruta 'next' sea una ruta relativa segura.
       const nextPath = pathname;
       if (nextPath.startsWith("/")) {
         loginUrl.searchParams.set("next", nextPath);
@@ -64,8 +69,6 @@ export async function handleAuth(
           { attemptedRedirect: nextPath },
           "[SECURITY] Intento de Open Redirect bloqueado."
         );
-        // Si no es segura, no se añade el parámetro, lo que resultará
-        // en una redirección segura al dashboard por defecto post-login.
       }
 
       return NextResponse.redirect(loginUrl);
@@ -77,9 +80,7 @@ export async function handleAuth(
     pathnameWithoutLocale.startsWith(r)
   );
   if (isAuthRoute || pathnameWithoutLocale === "/") {
-    // --- LÓGICA DE REDIRECCIÓN POST-LOGIN SEGURA ---
-    const nextUrlParam = request.nextUrl.searchParams.get("next");
-    // Se valida de nuevo el parámetro 'next' por si el usuario llega a /login con él.
+    const nextUrlParam = searchParams.get("next");
     if (nextUrlParam && nextUrlParam.startsWith("/")) {
       return NextResponse.redirect(new URL(nextUrlParam, origin));
     }
@@ -143,40 +144,4 @@ export async function handleAuth(
     return supabaseResponse;
   }
 }
-
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `handleAuth` es el guardián de la seguridad de rutas y sesiones.
- *
- * @functionality
- * - **Protección de Rutas:** Redirige a los usuarios no autenticados que intentan acceder a rutas protegidas.
- * - **Flujo Post-Login:** Redirige a los usuarios ya autenticados lejos de las páginas de autenticación.
- * - **Prevención de Open Redirect (Refactorización Clave):** Se ha añadido una validación explícita
- *   para el parámetro `next`. La lógica ahora verifica que la ruta de redirección sea relativa
- *   (comience con `/`) antes de usarla. Si la validación falla, se registra una advertencia de
- *   seguridad y se utiliza un fallback seguro, mitigando eficazmente la vulnerabilidad.
- * - **Gestión de Onboarding:** Dirige a los nuevos usuarios sin workspace a la página `/welcome`.
- * - **Control de Acceso Basado en Roles (RBAC):** Protege las rutas `/admin` y `/dev-console`
- *   basándose en el `appRole` del usuario.
- *
- * @relationships
- * - Es un manejador clave en el pipeline del `middleware.ts`.
- * - Depende del Guardián de Permisos (`lib/auth/user-permissions.ts`) para obtener los datos de la sesión.
- * - Consume el manifiesto de enrutamiento (`lib/routing-manifest.ts`) como su fuente de verdad
- *   para la clasificación de rutas.
- *
- * @expectations
- * - Se espera que este manejador sea una barrera de seguridad infalible. Con el parche de
- *   seguridad, ahora maneja de forma robusta las redirecciones, protegiendo a los usuarios
- *   contra ataques de phishing basados en Open Redirect.
- * =================================================================================================
- */
-
-/*
- * f. [Mejoras Futuras Detectadas]
- * 1.  **Lista Blanca de Redirección (Allow-list):** Para una seguridad aún más estricta, en lugar de solo verificar si la ruta es relativa, se podría mantener una lista blanca explícita de dominios a los que se permite redirigir (útil si se necesita redirigir a subdominios de confianza).
- * 2.  **Tokens de Redirección de un Solo Uso:** Implementar un sistema donde el servidor genere un token de un solo uso que represente la URL de redirección segura. El parámetro `next` contendría este token en lugar de la URL directa, que sería validado por el servidor post-login.
- * 3.  **Refactorización de Lógica de Redirección:** La lógica de redirección segura se repite (al proteger rutas y al manejar el post-login). Podría abstraerse a una función de utilidad `createSafeRedirectUrl` para adherirse al principio DRY.
- */
+// middleware/handlers/auth/index.ts

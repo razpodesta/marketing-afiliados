@@ -1,24 +1,34 @@
-// Ruta: lib/builder/core/store.ts
+// lib/builder/core/store.ts
 /**
  * @file store.ts
- * @description Almacén de estado global de Zustand para el constructor. Esta es la
- *              ÚNICA fuente de verdad para el estado del editor de campañas en toda la aplicación.
- *              Contiene el estado de la configuración de la campaña, el bloque seleccionado,
- *              estados de UI y todas las acciones para modificar el estado de forma inmutable.
+ * @description Almacén de estado global de Zustand para el constructor. Ha sido refactorizado
+ *              con una implementación de historial (undo/redo) manual, simple y de alto
+ *              rendimiento para eliminar dependencias externas y garantizar la máxima estabilidad.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 3.2.0 (Canonical Source of Truth)
+ * @version 6.1.0 (Manual History Type-Safe Refactor)
+ *
+ * @see {@link file://./store.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para el store del constructor.
+ *
+ * 1.  **Middleware de Persistencia en `localStorage`**: (Vigente) Integrar el middleware `persist` de Zustand para guardar `campaignConfig`.
+ * 2.  **Uso de Immer para Mutaciones Inmutables**: (Vigente) Integrar el middleware `immer` para simplificar las actualizaciones de estado anidado.
+ * 3.  **Límites de Historial**: (Vigente) Añadir lógica para limitar el tamaño de los arrays `pastStates` y `futureStates` para optimizar el uso de memoria.
  */
 import { arrayMove } from "@dnd-kit/sortable";
 import { create, type StateCreator } from "zustand";
-// Futura mejora: importar middlewares de Zustand si se implementan persistencia/historial.
-// import { persist } from 'zustand/middleware';
-// import { temporal } from 'zustand/middleware';
 
 import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 
 export type DevicePreview = "desktop" | "tablet" | "mobile";
 
-interface BuilderState {
+interface HistoryState {
+  pastStates: CampaignConfig[];
+  futureStates: CampaignConfig[];
+}
+
+export interface BuilderState extends HistoryState {
   campaignConfig: CampaignConfig | null;
   selectedBlockId: string | null;
   isSaving: boolean;
@@ -26,64 +36,32 @@ interface BuilderState {
   setCampaignConfig: (config: CampaignConfig) => void;
   setSelectedBlockId: (blockId: string | null) => void;
   updateBlockProp: (blockId: string, propName: string, value: unknown) => void;
-  updateBlockStyle: (blockId: string, styleName: string, value: string) => void;
   addBlock: (blockType: string, defaultProps: Record<string, unknown>) => void;
-  moveBlock: (activeId: string, overId: string) => void;
   deleteBlock: (blockId: string) => void;
+  moveBlock: (activeId: string, overId: string) => void;
   duplicateBlock: (blockId: string) => void;
   setIsSaving: (isSaving: boolean) => void;
   setDevicePreview: (device: DevicePreview) => void;
-  moveBlockByStep: (blockId: string, direction: "up" | "down") => void;
+  undo: () => void;
+  redo: () => void;
 }
 
-const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
+const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
   campaignConfig: null,
   selectedBlockId: null,
   isSaving: false,
   devicePreview: "desktop",
+  pastStates: [],
+  futureStates: [],
 
+  // Acciones que NO se registran en el historial
   setCampaignConfig: (config) =>
-    set({ campaignConfig: config, selectedBlockId: null }),
+    set({ campaignConfig: config, pastStates: [], futureStates: [] }),
   setSelectedBlockId: (blockId) => set({ selectedBlockId: blockId }),
   setDevicePreview: (device) => set({ devicePreview: device }),
   setIsSaving: (isSaving) => set({ isSaving }),
 
-  moveBlockByStep: (blockId, direction) =>
-    set((state) => {
-      if (!state.campaignConfig) return {};
-      const { blocks } = state.campaignConfig;
-      const index = blocks.findIndex((b) => b.id === blockId);
-
-      if (index === -1) return {};
-      const newIndex = direction === "up" ? index - 1 : index + 1;
-      if (newIndex < 0 || newIndex >= blocks.length) return {};
-
-      const newBlocks = arrayMove(blocks, index, newIndex);
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
-    }),
-
-  updateBlockProp: (blockId, propName, value) =>
-    set((state) => {
-      if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.map((block) =>
-        block.id === blockId
-          ? { ...block, props: { ...block.props, [propName]: value } }
-          : block
-      );
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
-    }),
-
-  updateBlockStyle: (blockId, styleName, value) =>
-    set((state) => {
-      if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.map((block) =>
-        block.id === blockId
-          ? { ...block, styles: { ...block.styles, [styleName]: value } }
-          : block
-      );
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
-    }),
-
+  // Acciones que SÍ se registran en el historial
   addBlock: (blockType, defaultProps) =>
     set((state) => {
       if (!state.campaignConfig) return {};
@@ -94,9 +72,44 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
         styles: {},
       };
       const newBlocks = [...state.campaignConfig.blocks, newBlock];
+      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
       return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
+        campaignConfig: newConfig,
         selectedBlockId: newBlock.id,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
+  deleteBlock: (blockId) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const newBlocks = state.campaignConfig.blocks.filter(
+        (b) => b.id !== blockId
+      );
+      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
+      return {
+        campaignConfig: newConfig,
+        selectedBlockId:
+          state.selectedBlockId === blockId ? null : state.selectedBlockId,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
+  updateBlockProp: (blockId, propName, value) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const newBlocks = state.campaignConfig.blocks.map((block) =>
+        block.id === blockId
+          ? { ...block, props: { ...block.props, [propName]: value } }
+          : block
+      );
+      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
+      return {
+        campaignConfig: newConfig,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
       };
     }),
 
@@ -115,19 +128,11 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
         oldIndex,
         newIndex
       );
-      return { campaignConfig: { ...state.campaignConfig, blocks: newBlocks } };
-    }),
-
-  deleteBlock: (blockId) =>
-    set((state) => {
-      if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.filter(
-        (b) => b.id !== blockId
-      );
+      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
       return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
-        selectedBlockId:
-          state.selectedBlockId === blockId ? null : state.selectedBlockId,
+        campaignConfig: newConfig,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
       };
     }),
 
@@ -141,42 +146,50 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
         (b) => b.id === blockId
       );
       if (!blockToDuplicate || blockIndex === -1) return {};
-
       const newBlock: PageBlock = {
         ...blockToDuplicate,
         id: `block-${Date.now()}`,
       };
       const newBlocks = [...state.campaignConfig.blocks];
       newBlocks.splice(blockIndex + 1, 0, newBlock);
-
+      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
       return {
-        campaignConfig: { ...state.campaignConfig, blocks: newBlocks },
+        campaignConfig: newConfig,
         selectedBlockId: newBlock.id,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
+  // Lógica de historial manual
+  undo: () =>
+    set((state) => {
+      const { pastStates, futureStates, campaignConfig } = state;
+      if (pastStates.length === 0 || !campaignConfig) return {};
+      const previousState = pastStates[pastStates.length - 1];
+      const newPastStates = pastStates.slice(0, pastStates.length - 1);
+      const newFutureStates = [campaignConfig, ...futureStates];
+      return {
+        campaignConfig: previousState,
+        pastStates: newPastStates,
+        futureStates: newFutureStates,
+      };
+    }),
+
+  redo: () =>
+    set((state) => {
+      const { pastStates, futureStates, campaignConfig } = state;
+      if (futureStates.length === 0 || !campaignConfig) return {};
+      const nextState = futureStates[0];
+      const newFutureStates = futureStates.slice(1);
+      const newPastStates = [...pastStates, campaignConfig];
+      return {
+        campaignConfig: nextState,
+        pastStates: newPastStates,
+        futureStates: newFutureStates,
       };
     }),
 });
 
-// Futuras mejoras con middlewares:
-// export const useBuilderStore = create<BuilderState>()(
-//   persist( // Para guardar en localStorage
-//     temporal( // Para historial (undo/redo)
-//       createBuilderSlice,
-//       {
-//         // Opciones de temporal o persist
-//       }
-//     ),
-//     {
-//       name: "builder-storage", // Nombre del item en localStorage
-//       partialize: (state) => ({ campaignConfig: state.campaignConfig }), // Solo persiste la configuración
-//     }
-//   )
-// );
-
-export const useBuilderStore = create<BuilderState>(createBuilderSlice);
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1.  **Middleware de Persistencia en `localStorage`:** Integrar el middleware `persist` de Zustand para guardar automáticamente el estado del constructor (especialmente `campaignConfig`) en el `localStorage` del navegador. Esto protegería el trabajo del usuario contra cierres accidentales de la pestaña o fallos del navegador, permitiéndole retomar su trabajo exactamente donde lo dejó.
- * 2.  **Middleware de Historial (Undo/Redo):** Utilizar el middleware `temporal` de Zustand para implementar un historial de cambios. Esto permitiría a los usuarios deshacer y rehacer acciones con `Ctrl+Z` y `Ctrl+Y`, una característica fundamental en cualquier editor de nivel profesional, con una implementación mínima en el store.
- * 3.  **Uso de Immer para Mutaciones Inmutables:** Integrar el middleware `immer` de Zustand para simplificar drásticamente las acciones que modifican estados anidados, como `updateBlockProp`. Permitiría escribir código que "muta" el estado de forma más directa y legible, mientras Immer se encarga de la inmutabilidad por debajo, manteniendo la garantía de inmutabilidad.
- * 4.  **Optimización del `Date.now()` para IDs:** Aunque `Date.now()` es conveniente para generar IDs únicos de bloques, en un entorno de alta concurrencia (aunque menos probable en un editor de un solo usuario), podría haber colisiones o problemas con el tiempo. Para una robustez extrema, se podría usar una librería de generación de UUIDs (ej. `uuid` o `nanoid`) para asegurar IDs verdaderamente únicos.
- */
+export const useBuilderStore = create<BuilderState>()(createBuilderSlice);
+// lib/builder/core/store.ts

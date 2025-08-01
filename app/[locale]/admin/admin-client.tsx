@@ -1,11 +1,12 @@
-// Ruta: app/[locale]/admin/admin-client.tsx
+// app/[locale]/admin/admin-client.tsx
 /**
  * @file admin-client.tsx
  * @description Componente de cliente para el Dashboard de Administración. Ha sido
- *              refactorizado para manejar de forma segura el contrato de tipo de
- *              unión discriminada de `ActionResult`.
- * @author RaZ Podestá & L.I.A Legacy
- * @version 9.1.0 (Type-Safe Action Result Handling)
+ *              refactorizado para utilizar el componente canónico `ConfirmationDialog`,
+ *              aumentando la reutilización de código y la consistencia de la UI.
+ * @author L.I.A. Legacy & Raz Podestá
+ * @co-author MetaShark
+ * @version 11.0.0 (Canonical Dialog Integration)
  */
 "use client";
 
@@ -17,9 +18,8 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
-import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import * as React from "react";
 import toast from "react-hot-toast";
 
 import { PaginationControls } from "@/components/sites/PaginationControls";
@@ -31,16 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { admin, session } from "@/lib/actions";
 import { protocol, rootDomain } from "@/lib/utils";
 import { type ActionResult } from "@/lib/validators";
@@ -77,61 +68,6 @@ const DashboardHeader = ({ user }: { user: User }) => {
   );
 };
 
-const DeleteSiteDialog = ({
-  site,
-  onDelete,
-  isPending,
-}: {
-  site: TransformedSite;
-  onDelete: (formData: FormData) => void;
-  isPending: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-destructive/10"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Eliminar
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <form action={onDelete}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-6 w-6 text-red-600" />
-              ¿Estás seguro?
-            </DialogTitle>
-            <DialogDescription>
-              Esta acción es irreversible. El sitio{" "}
-              <strong className="font-medium text-foreground">
-                {site.subdomain}
-              </strong>{" "}
-              y todos sus datos asociados serán eliminados permanentemente.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Cancelar
-              </Button>
-            </DialogClose>
-            <input type="hidden" name="subdomain" value={site.subdomain} />
-            <Button variant="destructive" type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sí, eliminar sitio
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export function AdminClient({
   sites,
   user,
@@ -145,8 +81,10 @@ export function AdminClient({
   page: number;
   limit: number;
 }) {
-  const [isPending, startTransition] = useTransition();
-  const [deletingSiteId, setDeletingSiteId] = useState<string | null>(null);
+  const [isPending, startTransition] = React.useTransition();
+  const [deletingSiteId, setDeletingSiteId] = React.useState<string | null>(
+    null
+  );
   const format = useFormatter();
   const t = useTranslations("AdminDashboard");
 
@@ -160,14 +98,15 @@ export function AdminClient({
       admin
         .deleteSiteAsAdminAction(formData)
         .then((result: ActionResult<{ message: string }>) => {
-          // CORRECCIÓN DE TIPO (TS2339): Se implementa el estrechamiento de tipo
-          // (type narrowing) para manejar la unión discriminada de forma segura.
           if (result.success) {
             toast.success(result.data.message);
           } else {
-            // Dentro de este bloque, TypeScript sabe que `result.error` existe.
             toast.error(result.error);
           }
+        })
+        .finally(() => {
+          // El estado de `isPending` se resetea automáticamente al final de la transición,
+          // por lo que solo necesitamos resetear nuestro ID de seguimiento.
           setDeletingSiteId(null);
         });
     });
@@ -205,11 +144,38 @@ export function AdminClient({
                         {t("visitSubdomain")}
                       </a>
                     </Button>
-                    <DeleteSiteDialog
-                      site={site}
-                      onDelete={handleDelete}
+                    {/* --- INICIO DE REFACTORIZACIÓN --- */}
+                    {/* Se reemplaza el diálogo local por el componente canónico. */}
+                    <ConfirmationDialog
+                      triggerButton={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-destructive/10"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </Button>
+                      }
+                      icon={ShieldAlert}
+                      title="¿Estás seguro?"
+                      description={
+                        <>
+                          Esta acción es irreversible. El sitio{" "}
+                          <strong className="font-medium text-foreground">
+                            {site.subdomain}
+                          </strong>{" "}
+                          y todos sus datos asociados serán eliminados
+                          permanentemente.
+                        </>
+                      }
+                      confirmButtonText="Sí, eliminar sitio"
+                      confirmButtonVariant="destructive"
+                      onConfirm={handleDelete}
                       isPending={isPending && deletingSiteId === site.subdomain}
+                      hiddenInputs={{ subdomain: site.subdomain }}
                     />
+                    {/* --- FIN DE REFACTORIZACIÓN --- */}
                   </CardFooter>
                 </Card>
               ))}
@@ -235,32 +201,11 @@ export function AdminClient({
 }
 
 /**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
+ * @section MEJORAS FUTURAS
  * @description Mejoras incrementales para evolucionar el dashboard de administración.
  *
- * 1.  **Búsqueda y Filtros en el Servidor:** La mejora de mayor impacto ahora es añadir un campo de búsqueda en el `DashboardHeader`. Este campo debería pasar un parámetro de búsqueda en la URL (ej. `/admin?q=mi-sitio`) para que la función `getAllSites` en `admin/page.tsx` pueda filtrar los resultados de manera eficiente directamente en la base de datos.
- * 2.  **Estado de Carga por Tarjeta Individual:** Para una UX más refinada, en lugar de un `isPending` global para la eliminación, se podría gestionar un estado de carga por cada sitio individualmente (ej. `useState<Record<string, boolean>>({})`). Esto permitiría mostrar el spinner solo en el botón de la tarjeta que se está eliminando.
- * 3.  **Acciones Administrativas Adicionales:** Expandir el `DeleteSiteDialog` o añadir nuevos controles para realizar otras acciones administrativas, como "Suspender Sitio" (que lo pondría en un estado inactivo sin eliminarlo) o "Ver Detalles del Propietario".
+ * 1.  **Búsqueda y Filtros en el Servidor**: (Vigente) La mejora de mayor impacto ahora es añadir un campo de búsqueda en el `DashboardHeader` para que la función `getAllSites` en `admin/page.tsx` pueda filtrar los resultados directamente en la base de datos.
+ * 2.  **Acciones Administrativas Adicionales**: (Vigente) Añadir nuevos controles para realizar otras acciones administrativas, como "Suspender Sitio" (que lo pondría en un estado inactivo sin eliminarlo) o "Ver Detalles del Propietario".
+ * 3.  **Acciones en Lote (Bulk Actions)**: (Nueva) Implementar una UI que permita seleccionar múltiples sitios (con checkboxes en cada `Card`) y ejecutar acciones en lote, como "Eliminar Seleccionados" o "Suspender Seleccionados", mejorando drásticamente la eficiencia para los administradores.
  */
-
-/**
- * @fileoverview El aparato `admin-client.tsx` es el componente de cliente que gestiona la interfaz de usuario del Dashboard de Administración.
- * @functionality
- * - Muestra un encabezado personalizado para el administrador con opciones de sesión.
- * - Presenta una lista paginada de todos los sitios de la plataforma en formato de tarjetas.
- * - Proporciona un control de paginación avanzado y reutilizable para una navegación eficiente.
- * - Permite al administrador visitar cada subdominio público.
- * - Habilita la eliminación de sitios de forma irreversible a través de un diálogo de confirmación, utilizando una Server Action.
- * - Muestra un feedback visual de carga durante las operaciones de eliminación, utilizando `useTransition` para mantener la UI interactiva.
- * @relationships
- * - Es el componente hijo principal de `app/[locale]/admin/page.tsx`, del cual recibe los datos iniciales y el contexto de usuario.
- * - Invoca directamente las Server Actions del namespace `admin` (`admin.deleteSiteAsAdminAction`).
- * - Utiliza componentes de UI genéricos y reutilizables, incluyendo el `PaginationControls` canónico de `@/components/sites/PaginationControls`.
- * @expectations
- * - Se espera que este aparato sea robusto en el manejo de operaciones sensibles. Debe proporcionar una experiencia de usuario clara y segura, con feedback apropiado para las acciones críticas y una navegación consistente con el resto de la aplicación.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Acciones de Suplantación (Impersonation): Integrar la acción `admin.impersonateUserAction` en la UI del `dev-console` para permitir a los desarrolladores iniciar sesión como otros usuarios para depuración.
- * 2. Indicador de Página Numérico: Mejorar el componente de paginación para mostrar números de página (ej. "1, 2, 3 ... 10"), permitiendo al usuario saltar directamente a una página específica.
- * 3. Búsqueda y Filtros del Lado del Servidor: Añadir un campo de búsqueda en el `DashboardHeader` que pase un parámetro en la URL para que la función `getAllSites` en `admin/page.tsx` filtre los resultados en la base de datos.
- */
+// app/[locale]/admin/admin-client.tsx

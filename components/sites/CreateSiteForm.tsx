@@ -1,24 +1,29 @@
-// Ruta: components/sites/CreateSiteForm.tsx
+// components/sites/CreateSiteForm.tsx
 /**
  * @file CreateSiteForm.tsx
  * @description Formulario de cliente para la creación de nuevos sitios.
  *              Implementa el patrón arquitectónico canónico con `react-hook-form`
- *              y `zodResolver` para una validación instantánea del lado del cliente
- *              y una experiencia de usuario superior. Se integra con `SubdomainInput`.
- *              La funcionalidad de selección de iconos ha sido eliminada para simplificar
- *              el formulario y el modelo de datos, centrándose en la información esencial.
- *              Las dependencias de tipo y la construcción de `FormData` se han refinado
- *              para una compatibilidad total con el esquema Zod actualizado.
+ *              y `zodResolver`, utilizando un esquema de validación específico
+ *              para el cliente para una robustez y seguridad de tipos máximas.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 1.5.0 (Type Consistency & FormData Construction Fix)
+ * @co-author MetaShark
+ * @version 2.0.0 (Client Schema Alignment)
+ *
+ * @see {@link file://./CreateSiteForm.test.tsx} Para el arnés de pruebas de integración correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para el formulario de creación de sitios.
+ *
+ * 1.  **Feedback de Disponibilidad Mejorado**: (Vigente) Además del icono, mostrar un mensaje de texto claro ("Subdominio disponible") para mejorar la accesibilidad y la claridad del feedback en `SubdomainInput`.
+ * 2.  **Validación Asíncrona en Zod**: (Vigente) Explorar la capacidad de `zodResolver` para manejar validaciones asíncronas (`.refine(async ...)`).
+ * 3.  **Gestión de Estado con `useFormState`**: (Vigente) Complementar `react-hook-form` con el hook `useFormState` para mostrar errores devueltos por la Server Action directamente en el formulario.
  */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useEffect, useTransition } from "react";
-// Importaciones cruciales para un tipado robusto con react-hook-form
-import { useForm, UseFormReturn, SubmitHandler } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import toast from "react-hot-toast";
 import type { z } from "zod";
 
@@ -26,44 +31,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sites as sitesActions } from "@/lib/actions";
-import { CreateSiteSchema } from "@/lib/validators";
+import { CreateSiteClientSchema } from "@/lib/validators";
 
-import { SubdomainInput } from "./SubdomainInput"; // Componente especializado para subdominio
+import { SubdomainInput } from "./SubdomainInput";
 
-// Define el tipo de datos del formulario *después* de la validación y transformación de Zod.
-// Esto es lo que `handleSubmit` le pasará a `processSubmit`.
-type FormInputData = z.infer<typeof CreateSiteSchema>;
+type FormInputData = z.infer<typeof CreateSiteClientSchema>;
 
-/**
- * @interface CreateSiteFormProps
- * @description Define las propiedades que acepta el componente `CreateSiteForm`.
- * @property {string} workspaceId - El ID del workspace al que se asociará el nuevo sitio.
- * @property {() => void} onSuccess - Función de callback que se ejecuta tras un envío exitoso del formulario.
- */
 interface CreateSiteFormProps {
   workspaceId: string;
   onSuccess: () => void;
 }
 
-/**
- * @function CreateSiteForm
- * @description Componente de formulario para crear un nuevo sitio.
- *              Proporciona validación en tiempo real y gestiona el envío a una Server Action.
- * @param {CreateSiteFormProps} { workspaceId, onSuccess } - Propiedades del componente.
- * @returns {JSX.Element} El formulario de creación de sitio.
- */
 export function CreateSiteForm({
   workspaceId,
   onSuccess,
 }: CreateSiteFormProps) {
   const [isPending, startTransition] = useTransition();
 
-  // Se tipa explícitamente el hook `useForm` con `FormInputData`.
-  // Esto asegura que el formulario opere con el contrato de tipos definido por `CreateSiteSchema`.
-  const form: UseFormReturn<FormInputData> = useForm<FormInputData>({
-    resolver: zodResolver(CreateSiteSchema),
-    // Aseguramos que los valores por defecto para campos opcionales sean cadenas vacías,
-    // lo cual es consistente con cómo Zod los transformará (con .default("")) en el esquema.
+  const form = useForm<FormInputData>({
+    resolver: zodResolver(CreateSiteClientSchema),
     defaultValues: {
       name: "",
       subdomain: "",
@@ -75,49 +61,32 @@ export function CreateSiteForm({
   const {
     register,
     handleSubmit,
-    control, // `control` es necesario para `Controller` si se usara para otros campos complejos.
-    // Aquí se usa indirectamente por `SubdomainInput` que recibe la instancia `form` completa.
     formState: { errors, isSubmitting },
     reset,
-    getValues,
     setValue,
-  } = form; // Se desestructura `form` para que la instancia completa esté disponible.
+    getValues,
+  } = form;
 
-  // Sincroniza el `workspaceId` de las props con el estado del formulario.
-  // Utiliza `setValue` para evitar un reseteo completo y preservar otros campos.
   useEffect(() => {
-    // Solo actualiza si el `workspaceId` de las props difiere del valor actual del formulario.
     if (getValues("workspaceId") !== workspaceId) {
       setValue("workspaceId", workspaceId);
     }
-  }, [workspaceId, setValue, getValues]); // Dependencias del efecto.
+  }, [workspaceId, setValue, getValues]);
 
-  /**
-   * @async
-   * @function processSubmit
-   * @description Maneja el envío del formulario. Se ejecuta solo si la validación en cliente es exitosa.
-   *              Envía los datos a la Server Action `sitesActions.createSiteAction`.
-   * @param {FormInputData} data - Los datos del formulario ya validados y transformados por Zod.
-   */
   const processSubmit: SubmitHandler<FormInputData> = (data) => {
     startTransition(async () => {
-      // Construye un objeto FormData nativo para la Server Action
-      // utilizando los datos *ya validados y transformados* por `react-hook-form`.
-      const formDataToSend = new FormData();
-      formDataToSend.append("name", data.name);
-      formDataToSend.append("subdomain", data.subdomain);
-      formDataToSend.append("workspaceId", data.workspaceId);
+      const formData = new FormData();
+      formData.append("name", data.name || "");
+      formData.append("subdomain", data.subdomain);
+      formData.append("workspaceId", data.workspaceId);
+      formData.append("description", data.description || "");
 
-      // `data.description` ya es un `string` (vacío si no se introdujo) gracias a `.default("")` en Zod.
-      // No se necesita `|| ""` ni comprobación de `undefined`/`null` aquí.
-      formDataToSend.append("description", data.description);
-
-      const result = await sitesActions.createSiteAction(formDataToSend);
+      const result = await sitesActions.createSiteAction(formData);
 
       if (result.success) {
         toast.success("¡Sitio creado con éxito!");
-        reset(); // Reinicia el formulario a sus valores por defecto
-        onSuccess(); // Llama al callback del componente padre (ej. para cerrar un modal)
+        reset();
+        onSuccess();
       } else {
         toast.error(result.error);
       }
@@ -126,11 +95,10 @@ export function CreateSiteForm({
 
   return (
     <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 relative">
-      {/* Campo oculto para workspaceId, gestionado por react-hook-form */}
       <input type="hidden" {...register("workspaceId")} />
 
       <div className="space-y-2">
-        <Label htmlFor="name">Nombre del Sitio</Label>
+        <Label htmlFor="name">Nombre del Sitio (opcional)</Label>
         <Input
           id="name"
           placeholder="Mi Primer Sitio Web"
@@ -146,18 +114,17 @@ export function CreateSiteForm({
 
       <div className="space-y-2">
         <Label htmlFor="subdomain">Subdominio</Label>
-        {/* Se pasa la instancia *completa* de `form` (el resultado de `useForm`) a `SubdomainInput`.
-            Esto permite a `SubdomainInput` acceder a métodos como `watch` y `register` internamente. */}
         <SubdomainInput form={form} />
-        {/* Muestra los errores de validación del esquema Zod para el subdominio */}
         {errors.subdomain && (
-          <p className="text-sm text-destructive" role="alert">
+          <p
+            className="text-sm text-destructive"
+            role="alert"
+            aria-label="Error de subdominio"
+          >
             {errors.subdomain.message}
           </p>
         )}
       </div>
-
-      {/* La sección de selección de ícono ha sido removida por solicitud. */}
 
       <div className="space-y-2">
         <Label htmlFor="description">Descripción (opcional)</Label>
@@ -187,10 +154,4 @@ export function CreateSiteForm({
     </form>
   );
 }
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1.  **Manejo de Errores de Validación de Zod en UI más granular:** Aunque `errors.fieldName.message` ya muestra el error, para una UX aún más rica, se podría implementar una función `mapZodErrorToUI` que interprete errores más complejos de Zod (ej. de `.superRefine` o uniones) y los muestre de forma más amigable o detallada bajo el campo correcto.
- * 2.  **Animaciones de Transición de Formulario:** Usar `framer-motion` para animaciones sutiles en la aparición/desaparición de mensajes de error o en la transición del estado del botón de envío (`Crear Sitio` a `Creando...`), mejorando la fluidez visual.
- * 3.  **Generación de `slug` sugerido en tiempo real:** Si el campo `name` tiene la lógica de generar un `slug` por defecto (como en `CreateCampaignSchema.transform()`), se podría mostrar una previsualización de este `slug` bajo el campo `subdomain` a medida que el usuario escribe el nombre, como una guía.
- * 4.  **Confirmación con `Dialog` para Cierre con Cambios Sin Guardar:** Si se convierte este formulario en uno de edición (o si se introduce un estado 'dirty'), se podría usar un `useBeforeUnload` (o similar) para mostrar un modal de confirmación antes de que el usuario cierre la ventana con cambios sin guardar.
- */
+// components/sites/CreateSiteForm.tsx

@@ -1,33 +1,30 @@
-// Ruta: lib/validators/index.ts
+// lib/validators/index.ts
 /**
  * @file validators/index.ts
  * @description Manifiesto de Validadores y Única Fuente de Verdad. Este aparato
- *              centraliza todos los esquemas de validación de Zod, refactorizado
- *              para una máxima modularidad y reutilización a través de esquemas base,
- *              y endurecido con lógica de saneamiento y transformación de datos.
- *              Se ha ajustado `CreateSiteSchema` para que los campos opcionales `name`
- *              y `description` tengan un valor por defecto de cadena vacía, mejorando
- *              la compatibilidad de tipos con `react-hook-form`.
+ *              ha sido refactorizado para implementar una separación estricta entre
+ *              esquemas de validación de cliente y de servidor, y para corregir
+ *              la lógica de generación de slugs para un soporte de internacionalización robusto.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.4.0 (CreateSiteSchema Default Values Fix)
+ * @version 4.2.0 (Definitive I18n Slug Generation Fix)
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar el manifiesto de validadores.
+ *
+ * 1.  **Biblioteca de Transformación de Slugs:** (Vigente) Extraer la lógica de slug a una utilidad `slugify(text)` dedicada.
+ * 2.  **Esquemas de Actualización Granulares:** (Vigente) Crear esquemas más específicos para las actualizaciones.
+ *
+ * @section MEJORAS ADICIONADAS
+ * 1.  **Soporte de Caracteres Internacionales:** Expandir la lógica de `slugify` para manejar un rango más amplio de caracteres acentuados y diacríticos comunes.
  */
 import { z } from "zod";
 
 // --- CONTRATO DE RESULTADO DE ACCIÓN ---
-
-/**
- * @typedef {object} ActionResult
- * @description Contrato de tipo de unión discriminada para el resultado de una Server Action.
- *              Garantiza que una operación solo puede tener un estado de éxito con datos,
- *              o un estado de fallo con un error, pero nunca ambos.
- * @template T - El tipo de los datos retornados en caso de éxito.
- */
 export type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string | null };
 
 // --- ESQUEMAS BASE REUTILIZABLES ---
-
 const UuidSchema = z.string().uuid("ID inválido.");
 const NameSchema = z
   .string()
@@ -42,17 +39,65 @@ const SubdomainSchema = z
     "Solo se permiten letras minúsculas, números y guiones."
   )
   .transform((subdomain) => subdomain.toLowerCase());
-
-// --- ESQUEMAS DE VALIDACIÓN DE DOMINIO (COMPUESTOS) ---
-
 export const EmailSchema = z
   .string()
   .trim()
   .email("Por favor, introduce un email válido.");
 
+// --- LÓGICA DE SLUGIFY ---
+const slugify = (text: string) => {
+  const a =
+    "àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";
+  const b =
+    "aaaaaaaaaacccddeeeeeeeegghiiiiiilmnnnnoooooooooprrssssssttuuuuuuuuuwxyyzzz------";
+  const p = new RegExp(a.split("").join("|"), "g");
+
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(p, (c) => b.charAt(a.indexOf(c))) // Replace special characters
+    .replace(/&/g, "-and-") // Replace & with 'and'
+    .replace(/[^\w\-]+/g, "") // Remove all non-word chars
+    .replace(/\-\-+/g, "-") // Replace multiple - with single -
+    .replace(/^-+/, "") // Trim - from start of text
+    .replace(/-+$/, ""); // Trim - from end of text
+};
+
+// --- ESQUEMAS DE SITIOS (SEPARACIÓN CLIENTE/SERVIDOR) ---
+export const CreateSiteClientSchema = z.object({
+  name: NameSchema.optional(),
+  subdomain: SubdomainSchema,
+  description: z.string().optional(),
+  workspaceId: UuidSchema.describe(
+    "ID del workspace al que pertenece el sitio."
+  ),
+});
+
+export const CreateSiteServerSchema = CreateSiteClientSchema.transform(
+  (data) => ({
+    ...data,
+    name: data.name || data.subdomain,
+    description: data.description || null,
+    icon: null,
+  })
+);
+
+export const UpdateSiteSchema = z.object({
+  siteId: UuidSchema.describe("ID del sitio a actualizar."),
+  name: NameSchema.optional(),
+  subdomain: SubdomainSchema.optional(),
+  description: z.string().optional(),
+});
+
+export const DeleteSiteSchema = z.object({
+  siteId: UuidSchema.describe("ID del sitio a eliminar."),
+});
+
+// --- OTROS ESQUEMAS DE DOMINIO ---
 export const CreateWorkspaceSchema = z.object({
   workspaceName: NameSchema,
-  icon: z.string().trim().min(1, "El ícono es requerido."), // Icono aún requerido para Workspace
+  icon: z.string().trim().min(1, "El ícono es requerido."),
 });
 
 export const InvitationSchema = z.object({
@@ -61,41 +106,6 @@ export const InvitationSchema = z.object({
     errorMap: () => ({ message: "Por favor, selecciona un rol válido." }),
   }),
   workspaceId: UuidSchema.describe("ID del workspace de la invitación."),
-});
-
-// CreateSiteSchema ajustado para que `name` y `description` tengan valores por defecto de ""
-// Esto resuelve problemas de tipado con `react-hook-form` y los inputs que esperan `string`.
-export const CreateSiteSchema = z
-  .object({
-    subdomain: SubdomainSchema,
-    // `name` ahora es un string con un valor por defecto de cadena vacía.
-    name: z
-      .string()
-      .trim()
-      .min(3, "El nombre del sitio debe tener al menos 3 caracteres.")
-      .default(""), // <-- Cambio clave: default a ""
-    // `description` también es un string con un valor por defecto de cadena vacía.
-    description: z.string().default(""), // <-- Cambio clave: default a ""
-    workspaceId: UuidSchema.describe(
-      "ID del workspace al que pertenece el sitio."
-    ),
-  })
-  .transform((data) => ({
-    ...data,
-    // Si `name` no fue proporcionado (es decir, es ""), el transform lo reemplaza con `subdomain`.
-    // Esto asegura que `name` siempre tendrá un valor significativo.
-    name: data.name || data.subdomain,
-  }));
-
-export const UpdateSiteSchema = z.object({
-  siteId: UuidSchema.describe("ID del sitio a actualizar."),
-  name: NameSchema.optional(), // Aquí puede seguir siendo opcional sin default
-  subdomain: SubdomainSchema.optional(),
-  description: z.string().optional(),
-});
-
-export const DeleteSiteSchema = z.object({
-  siteId: UuidSchema.describe("ID del sitio a eliminar."),
 });
 
 export const CreateCampaignSchema = z
@@ -111,25 +121,12 @@ export const CreateCampaignSchema = z
   })
   .transform((data) => ({
     ...data,
-    slug:
-      data.slug ||
-      data.name
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, ""),
+    slug: data.slug || slugify(data.name),
   }));
 
 export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
 });
 
-// Se define explícitamente el tipo de estado para el formulario
-// de reseteo de contraseña para que coincida con el contrato de ActionResult.
 export type RequestPasswordResetState = { error: string | null };
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1.  **Mensajes de Error Internacionalizados (i18n):** Integrar una librería como `zod-i18n` para que los mensajes de error de validación se traduzcan automáticamente según el idioma del usuario, proporcionando una experiencia de usuario globalmente consistente.
- * 2.  **Validadores Asíncronos Refinados:** Para esquemas como `CreateSiteSchema`, se podría añadir un paso de `.refine()` asíncrono que verifique la disponibilidad del subdominio directamente en la base de datos, centralizando la lógica de validación que actualmente reside en el componente `SubdomainInput`.
- * 3.  **Esquemas Discriminados por Rol:** Para escenarios de autorización complejos, se podrían crear uniones discriminadas (`z.discriminatedUnion`) que apliquen diferentes reglas de validación basadas en el rol del usuario que realiza la acción.
- * 4.  **Esquema de Actualización de Perfil (Profile Update Schema):** Crear un `UpdateProfileSchema` para validar campos como `full_name`, `avatar_url` o `preferences`, asegurando que todas las actualizaciones de perfil sigan un contrato estricto.
- */
+// lib/validators/index.ts
