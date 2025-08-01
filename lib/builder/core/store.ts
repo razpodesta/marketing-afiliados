@@ -3,11 +3,16 @@
  * @file store.ts
  * @description Almacén de estado global de Zustand para el constructor. Esta es la
  *              ÚNICA fuente de verdad para el estado del editor de campañas en toda la aplicación.
+ *              Contiene el estado de la configuración de la campaña, el bloque seleccionado,
+ *              estados de UI y todas las acciones para modificar el estado de forma inmutable.
  * @author RaZ Podestá & L.I.A Legacy
  * @version 3.2.0 (Canonical Source of Truth)
  */
 import { arrayMove } from "@dnd-kit/sortable";
 import { create, type StateCreator } from "zustand";
+// Futura mejora: importar middlewares de Zustand si se implementan persistencia/historial.
+// import { persist } from 'zustand/middleware';
+// import { temporal } from 'zustand/middleware';
 
 import { type CampaignConfig, type PageBlock } from "@/lib/builder/types.d";
 
@@ -151,5 +156,27 @@ const createBuilderSlice: StateCreator<BuilderState> = (set) => ({
     }),
 });
 
+// Futuras mejoras con middlewares:
+// export const useBuilderStore = create<BuilderState>()(
+//   persist( // Para guardar en localStorage
+//     temporal( // Para historial (undo/redo)
+//       createBuilderSlice,
+//       {
+//         // Opciones de temporal o persist
+//       }
+//     ),
+//     {
+//       name: "builder-storage", // Nombre del item en localStorage
+//       partialize: (state) => ({ campaignConfig: state.campaignConfig }), // Solo persiste la configuración
+//     }
+//   )
+// );
+
 export const useBuilderStore = create<BuilderState>(createBuilderSlice);
-// Ruta: lib/builder/core/store.ts
+
+/* MEJORAS FUTURAS DETECTADAS
+ * 1.  **Middleware de Persistencia en `localStorage`:** Integrar el middleware `persist` de Zustand para guardar automáticamente el estado del constructor (especialmente `campaignConfig`) en el `localStorage` del navegador. Esto protegería el trabajo del usuario contra cierres accidentales de la pestaña o fallos del navegador, permitiéndole retomar su trabajo exactamente donde lo dejó.
+ * 2.  **Middleware de Historial (Undo/Redo):** Utilizar el middleware `temporal` de Zustand para implementar un historial de cambios. Esto permitiría a los usuarios deshacer y rehacer acciones con `Ctrl+Z` y `Ctrl+Y`, una característica fundamental en cualquier editor de nivel profesional, con una implementación mínima en el store.
+ * 3.  **Uso de Immer para Mutaciones Inmutables:** Integrar el middleware `immer` de Zustand para simplificar drásticamente las acciones que modifican estados anidados, como `updateBlockProp`. Permitiría escribir código que "muta" el estado de forma más directa y legible, mientras Immer se encarga de la inmutabilidad por debajo, manteniendo la garantía de inmutabilidad.
+ * 4.  **Optimización del `Date.now()` para IDs:** Aunque `Date.now()` es conveniente para generar IDs únicos de bloques, en un entorno de alta concurrencia (aunque menos probable en un editor de un solo usuario), podría haber colisiones o problemas con el tiempo. Para una robustez extrema, se podría usar una librería de generación de UUIDs (ej. `uuid` o `nanoid`) para asegurar IDs verdaderamente únicos.
+ */

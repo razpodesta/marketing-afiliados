@@ -1,12 +1,14 @@
-// Ruta: middleware/tests/auth.test.ts (Archivo Único, Consolidado y Corregido)
+// Ruta: middleware/tests/auth.test.ts
 /**
  * @file auth.test.ts
  * @description Protocolo de Validación Canónico para el Manejador de Autenticación.
  *              Esta es una suite de pruebas de integración exhaustiva para el
  *              manejador `handleAuth`, cubriendo 50 casos de uso atómicos para
  *              garantizar la máxima fiabilidad de la capa de seguridad.
- * @author L.I.A Legacy
- * @version 3.0.0 (Consolidated & Security-Hardened)
+ *              La prueba de Open Redirect (4.3) ha sido corregida para simular
+ *              el escenario de usuario autenticado que es engañado.
+ * @author L.I.A Legacy (Refactorizado por L.I.A Legacy)
+ * @version 3.1.0 (Open Redirect Test Fix)
  */
 import { type User } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -73,8 +75,12 @@ const createMockAuthData = (
   ...overrides,
 });
 
-const createMockRequest = (pathname: string): NextRequest =>
-  new NextRequest(`http://localhost:3000/es-ES${pathname}`);
+// `createMockRequest` modificado para aceptar un `basePath` y una `searchParams` string
+const createMockRequest = (
+  pathname: string,
+  searchParams: string = ""
+): NextRequest =>
+  new NextRequest(`http://localhost:3000/es-ES${pathname}${searchParams}`);
 
 const createBaseResponse = (locale: string = "es-ES"): NextResponse => {
   const res = NextResponse.next();
@@ -316,24 +322,23 @@ describe("Protocolo de Validación: Manejador de Autenticación", () => {
         createMockRequest("/dashboard"),
         createBaseResponse()
       );
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(200); // Should return original response or redirect to welcome
     });
 
-    it('4.3 (Seguridad): Debe prevenir Open Redirect en el parámetro "next"', async () => {
-      // Vector de ataque: usuario autenticado es engañado para visitar /login?next=//evil.com
+    it('4.3 (Seguridad): Debe prevenir Open Redirect en el parámetro "next" para usuario autenticado', async () => {
+      // Arrange: Usuario autenticado.
       vi.mocked(getAuthenticatedUserAuthData).mockResolvedValue(
         createMockAuthData("user")
       );
-      const request = new NextRequest(
-        "http://localhost:3000/es-ES/login?next=//evil.com"
-      );
-
+      // Simular que el usuario llega a una ruta de autenticación con un 'next' malicioso.
+      // El middleware debería detectar esto y redirigir al dashboard por defecto.
+      const request = createMockRequest("/login", "?next=//evil.com");
       const response = await handleAuth(request, createBaseResponse());
 
       // Aserción: La lógica de seguridad ignora el 'next' malicioso y redirige al fallback seguro.
       expect(response.status).toBe(307);
       expect(response.headers.get("location")).not.toContain("evil.com");
-      expect(response.headers.get("location")).toContain("/dashboard");
+      expect(response.headers.get("location")).toContain("/es-ES/dashboard"); // Redirige al dashboard por defecto
     });
 
     it("4.4 (Seguridad): Debe manejar cookies malformadas de forma segura", async () => {
@@ -341,6 +346,7 @@ describe("Protocolo de Validación: Manejador de Autenticación", () => {
         createMockAuthData("user")
       );
       const request = createMockRequest("/dashboard");
+      // Simular una cookie malformada, aunque createClient ya lo manejaría internamente
       request.cookies.set("active_workspace_id", "not-a-uuid");
       const response = await handleAuth(request, createBaseResponse());
       expect(response.status).toBe(200);
@@ -356,40 +362,8 @@ describe("Protocolo de Validación: Manejador de Autenticación", () => {
   });
 });
 
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview Esta suite de pruebas actúa como un "contrato de comportamiento" para el
- *               manejador de autenticación `handleAuth`, la pieza de seguridad más crítica.
- *
- * @functionality
- * - **Aislamiento a través de Mocking de Alta Fidelidad:** Se simulan todas las dependencias
- *   externas (`user-permissions`, `data`, `supabase`) para aislar la lógica del manejador.
- *   Las factorías de mocks (`createMockUser`, `createMockAuthData`) garantizan que los datos
- *   simulados cumplan con los contratos de tipo de la aplicación.
- * - **Validación Exhaustiva de Flujos:** Cubre sistemáticamente todos los escenarios posibles:
- *   usuarios no autenticados, usuarios autenticados con diferentes roles, flujos de onboarding
- *   y casos de resiliencia.
- * - **Corrección de Prueba de Seguridad (4.3):** La prueba de "Open Redirect" ha sido
- *   reescrita para simular el vector de ataque real y validar que la lógica de seguridad
- *   en `handleAuth` mitiga correctamente la vulnerabilidad, restaurando la fiabilidad de
- *   esta validación crítica.
- *
- * @relationships
- * - Valida el manejador `middleware/handlers/auth/index.ts`.
- * - Sus resultados impactan directamente en la fiabilidad de la seguridad de toda la aplicación.
- *
- * @expectations
- * - Se espera que esta suite falle si se introduce cualquier cambio en `handleAuth` que
- *   altere la lógica de redirección, la protección de rutas o el manejo de roles. Actúa
- *   como un guardián automatizado que protege contra regresiones de seguridad.
- * =================================================================================================
- */
-
-/*
- * f. [Mejoras Futuras Detectadas]
+/* MEJORAS FUTURAS DETECTADAS
  * 1.  **Factoría de Mocks Compartida:** Mover las funciones `createMockUser` y `createMockAuthData` a un archivo de utilidad de pruebas compartido (ej. `lib/test/utils.ts`) para que puedan ser reutilizadas en otras suites de pruebas, adhiriéndose al principio DRY.
  * 2.  **Pruebas Basadas en Escenarios:** Evolucionar las factorías para aceptar escenarios predefinidos (ej. `createMockUser({ scenario: 'unconfirmed' })`) para probar fácilmente más casos límite del ciclo de vida del usuario sin una configuración verbosa en cada prueba.
- * 3.  **Pruebas de Propiedades (Property-Based Testing):** Para una validación de seguridad de nivel superior, se podría integrar una librería como `fast-check` para generar cientos de combinaciones aleatorias de rutas y roles de usuario, y afirmar que las reglas de seguridad del middleware se mantienen consistentes en todos los casos.
+ * 3.  **Pruebas de Propiedades (Property-Based Testing):** Para una validación de seguridad de nivel superior, se podría integrar una librería como `fast-check` para generar cientos de combinaciones aleatorias de rutas y roles de usuario, y afirmar que las reglas de seguridad del middleware se mantienen consistentemente en todos los casos.
  */

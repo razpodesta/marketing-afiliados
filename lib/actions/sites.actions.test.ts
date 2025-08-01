@@ -4,8 +4,10 @@
  * @description Suite de pruebas de integración exhaustiva para las Server Actions de Sitios.
  *              Valida el ciclo de vida completo (crear, actualizar, eliminar), incluyendo
  *              lógica de negocio, manejo de permisos y resiliencia ante errores.
- * @author Validator
- * @version 2.1.0 (UUID-Compliant Mock Data)
+ *              Las simulaciones del cliente de Supabase han sido refinadas para un comportamiento
+ *              más preciso en el "Camino Feliz" de creación.
+ * @author Validator (Refactorizado por L.I.A Legacy)
+ * @version 2.2.0 (Create Action Happy Path Fix)
  */
 import { revalidatePath } from "next/cache";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -26,6 +28,9 @@ vi.mock("@/lib/data/permissions");
 vi.mock("@/lib/data/sites");
 vi.mock("./_helpers");
 vi.mock("next/cache");
+vi.mock("@/lib/logging", () => ({
+  logger: { error: vi.fn(), warn: vi.fn() },
+}));
 
 describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
   // CORRECCIÓN: Usar UUIDs válidos para los mocks.
@@ -41,18 +46,24 @@ describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
     const formData = new FormData();
     formData.append("name", "Mi Sitio Válido");
     formData.append("subdomain", "sitio-valido");
-    formData.append("icon", "🚀");
+    // 'icon' ya no se envía desde el formulario, ni se requiere en el esquema.
+    // formData.append("icon", "🚀"); // ELIMINADO
     formData.append("workspaceId", MOCK_WORKSPACE_ID);
 
     beforeEach(() => {
       vi.clearAllMocks();
+      // Re-crear el mock de supabase para cada prueba para evitar interferencias
       mockSupabaseClient = {
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
-        from: () => ({
-          insert: () => ({ select: () => ({ single: vi.fn() }) }),
-        }),
+        from: vi.fn(() => ({
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn(), // Este será el punto de resolución para `insert().select().single()`
+            })),
+          })),
+        })),
       };
       vi.mocked(createClient).mockReturnValue(mockSupabaseClient);
       vi.mocked(hasWorkspacePermission).mockResolvedValue(true);
@@ -60,19 +71,45 @@ describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
     });
 
     it("Camino Feliz: debe crear un sitio exitosamente con datos válidos", async () => {
-      // Arrange
+      // Arrange: Asegurar que el mock de `single()` devuelva éxito para la inserción
       mockSupabaseClient
         .from()
         .insert()
         .select()
-        .single.mockResolvedValue({ data: { id: MOCK_SITE_ID }, error: null });
+        .single.mockResolvedValueOnce({
+          data: { id: MOCK_SITE_ID },
+          error: null,
+        });
 
       // Act
       const result = await createSiteAction(formData);
 
       // Assert
       expect(result.success).toBe(true);
-      expect(createAuditLog).toHaveBeenCalled();
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith("sites");
+      expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Mi Sitio Válido",
+          subdomain: "sitio-valido",
+          workspace_id: MOCK_WORKSPACE_ID,
+          owner_id: MOCK_USER_ID,
+          icon: null, // Si el formulario no lo envía, Supabase lo insertará como NULL por defecto
+          description: null, // Si el formulario no lo envía, o lo envía vacío, será null
+        })
+      );
+      expect(createAuditLog).toHaveBeenCalledWith(
+        "site.created",
+        expect.objectContaining({
+          userId: MOCK_USER_ID,
+          targetEntityId: MOCK_SITE_ID,
+          targetEntityType: "site",
+          metadata: {
+            subdomain: "sitio-valido",
+            name: "Mi Sitio Válido",
+            workspaceId: MOCK_WORKSPACE_ID,
+          },
+        })
+      );
       expect(revalidatePath).toHaveBeenCalledWith("/dashboard/sites");
     });
 
@@ -116,9 +153,11 @@ describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
-        from: () => ({
-          update: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-        }),
+        from: vi.fn(() => ({
+          update: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        })),
       };
       vi.mocked(createClient).mockReturnValue(mockSupabaseClient as any);
       vi.mocked(sitesData.getSiteById).mockResolvedValue(mockSite as any);
@@ -167,9 +206,11 @@ describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
-        from: () => ({
-          delete: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-        }),
+        from: vi.fn(() => ({
+          delete: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        })),
       };
       vi.mocked(createClient).mockReturnValue(mockSupabaseClient as any);
       vi.mocked(sitesData.getSiteById).mockResolvedValue(mockSite as any);
@@ -205,47 +246,9 @@ describe("Arnés de Pruebas: lib/actions/sites.actions.ts", () => {
   });
 });
 
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El arnés de pruebas `sites.actions.test.ts` valida el ciclo de vida completo
- *               de la entidad `site`, asegurando la robustez de la lógica de negocio y
- *               la seguridad de las operaciones.
- *
- * @functionality
- * - **Simulación de Alta Fidelidad y Contratos de Tipos:** La refactorización crítica
- *   ha sido la introducción de UUIDs válidos para los datos de prueba, alineando la
- *   suite de pruebas con los contratos de validación de Zod definidos en la aplicación.
- *   Esto resuelve la causa raíz de todos los fallos anteriores.
- * - **Cobertura de Ciclo de Vida (CRUD):** Las pruebas están estructuradas en sub-suites
- *   para cada acción (`create`, `update`, `delete`), validando sistemáticamente:
- *     1. El "camino feliz" donde la operación tiene éxito.
- *     2. Los guardianes de seguridad, asegurando que los usuarios no autenticados o sin
- *        permisos sean bloqueados correctamente.
- *     3. El manejo de errores, como intentar operar sobre una entidad que no existe.
- * - **Validación de Efectos Secundarios:** Las pruebas verifican que las acciones no solo
- *   devuelvan el resultado correcto, sino que también realicen los efectos secundarios
- *   esperados, como llamar a `createAuditLog` y `revalidatePath`.
- *
- * @relationships
- * - Valida el aparato `lib/actions/sites.actions.ts`.
- * - Su correcto funcionamiento es crítico para la fiabilidad de componentes de UI como
- *   `CreateSiteForm.tsx` y el hook `useSitesManagement.ts`, que dependen de estas acciones.
- *
- * @expectations
- * - Se espera que esta suite falle si se introduce una regresión en la lógica de negocio,
- *   los permisos, la validación de datos o el manejo de errores de las acciones de `sites`.
- *   Actúa como una red de seguridad automatizada para una de las entidades de datos
- *   más fundamentales de la aplicación.
- * =================================================================================================
- */
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar esta suite de pruebas de la capa de acciones.
- *
+/* MEJORAS FUTURAS DETECTADAS
  * 1.  **Factoría de Mocks Compartida:** Mover las funciones y patrones de simulación (como el `mockSupabaseClient`) a un archivo de utilidad de pruebas compartido (`lib/test/utils.ts`) para reutilizarlos en todas las suites de pruebas de acciones, adhiriéndose al principio DRY.
  * 2.  **Pruebas de Límites de Planes:** Una vez que el sistema de facturación esté implementado, añadir pruebas que verifiquen que `createSiteAction` falla si el usuario intenta crear más sitios de los permitidos por su plan de suscripción.
  * 3.  **Validación de `FormData` con Zod:** Importar los esquemas de Zod de las acciones y usarlos para validar los `FormData` de prueba y los objetos de resultado, asegurando que las pruebas se mantengan alineadas con los contratos de datos de la aplicación.
+ * 4.  **Prueba de 'icon' null:** Asegurar que `createSiteAction` recibe y persiste correctamente el valor `null` para el campo `icon` si no se envía desde el formulario. (Ya cubierto implícitamente por el cambio del test 'Camino Feliz').
  */

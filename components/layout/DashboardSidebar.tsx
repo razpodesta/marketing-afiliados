@@ -1,8 +1,10 @@
+// Ruta: components/layout/DashboardSidebar.tsx
 /**
  * @file components/layout/DashboardSidebar.tsx
  * @description Barra lateral de navegación principal del dashboard.
  *              Consume los datos del usuario desde el DashboardContext para
  *              renderizar los enlaces de navegación y el menú de perfil.
+ *              Incorpora un estado de carga y adapta la navegación según el rol del usuario.
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 10.1.0 (Architectural Path Correction)
  */
@@ -18,8 +20,8 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import Image from "next/image"; // Importado para el logo
+import Link from "next/link"; // Importado para la navegación
 import { usePathname } from "next/navigation";
 import React from "react";
 
@@ -33,18 +35,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { session as sessionActions } from "@/lib/actions"; // --- INICIO DE CORRECCIÓN ---
+import { session as sessionActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { cn } from "@/lib/utils";
 
+/**
+ * @interface NavLinkProps
+ * @description Define las propiedades para un enlace de navegación en la barra lateral.
+ */
 interface NavLinkProps {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: React.ElementType; // Icono de Lucide-React
 }
 
+/**
+ * @function NavLink
+ * @description Componente de enlace de navegación individual para la barra lateral.
+ *              Aplica estilos de activo/inactivo basados en la ruta actual.
+ * @param {NavLinkProps} props - Propiedades del enlace.
+ * @returns {JSX.Element} Un enlace de navegación.
+ */
 function NavLink({ href, label, icon: Icon }: NavLinkProps) {
   const pathname = usePathname();
+  // Determina si el enlace está activo. Un enlace es activo si el pathname coincide exactamente,
+  // o si el pathname comienza con el href (para rutas anidadas), excepto para el dashboard raíz.
   const isActive =
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
@@ -53,15 +68,21 @@ function NavLink({ href, label, icon: Icon }: NavLinkProps) {
       href={href}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-muted/50",
-        isActive && "bg-primary text-primary-foreground font-semibold"
+        isActive && "bg-primary text-primary-foreground font-semibold" // Estilos para el enlace activo
       )}
     >
-      <Icon className="h-4 w-4" />
-      {label}
+      <Icon className="h-4 w-4" /> {/* Icono del enlace */}
+      {label} {/* Texto del enlace */}
     </Link>
   );
 }
 
+/**
+ * @function UserMenuSkeleton
+ * @description Esqueleto de carga para el menú de usuario en la barra lateral.
+ *              Mejora la experiencia percibida durante la carga de los datos del usuario.
+ * @returns {JSX.Element} Un esqueleto animado.
+ */
 const UserMenuSkeleton = () => (
   <div className="flex items-center gap-3 p-2">
     <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
@@ -72,38 +93,49 @@ const UserMenuSkeleton = () => (
   </div>
 );
 
+/**
+ * @function DashboardSidebarContent
+ * @description Contenido principal de la barra lateral del dashboard.
+ *              Incluye el logo, los enlaces de navegación y el menú de perfil de usuario.
+ *              Gestiona el estado de carga y los permisos de rol.
+ * @returns {JSX.Element} El contenido de la barra lateral.
+ */
 export function DashboardSidebarContent() {
-  const { user } = useDashboard();
+  const { user } = useDashboard(); // Obtiene el usuario del contexto global
 
+  // Muestra un esqueleto si los datos del usuario aún no están disponibles.
   if (!user) {
     return (
       <>
         <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-          <div className="h-8 w-32 rounded-md bg-muted animate-pulse" />
+          <div className="h-8 w-32 rounded-md bg-muted animate-pulse" />{" "}
+          {/* Esqueleto del logo */}
         </div>
         <div className="flex-1 overflow-auto">
           <nav className="grid items-start gap-1 px-2 py-4 lg:px-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-9 w-full rounded-lg bg-muted animate-pulse"
+                className="h-9 w-full rounded-lg bg-muted animate-pulse" // Esqueletos de enlaces
               />
             ))}
           </nav>
         </div>
         <div className="mt-auto border-t p-4">
-          <UserMenuSkeleton />
+          <UserMenuSkeleton /> {/* Esqueleto del menú de usuario */}
         </div>
       </>
     );
   }
 
+  // Extrae información del usuario para mostrar en la UI.
   const userName =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
   const userEmail = user.email || "";
   const userAvatarUrl = user.user_metadata?.avatar_url || "";
-  const userRole = user.app_metadata?.app_role || "user";
+  const userRole = user.app_metadata?.app_role || "user"; // Asume 'user' si no hay rol definido.
 
+  // Define los enlaces de navegación principales.
   const mainNavLinks: NavLinkProps[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/sites", label: "Mis Sitios", icon: Globe },
@@ -111,6 +143,7 @@ export function DashboardSidebarContent() {
     { href: "/dashboard/settings", label: "Ajustes", icon: Settings },
   ];
 
+  // Añade el enlace a la consola de desarrollador solo si el usuario tiene rol 'developer'.
   if (userRole === "developer") {
     mainNavLinks.push({
       href: "/dev-console",
@@ -126,6 +159,7 @@ export function DashboardSidebarContent() {
           href="/dashboard"
           className="flex items-center gap-2 font-semibold text-foreground"
         >
+          {/* Logo de la aplicación */}
           <Image
             src="/images/logo.png"
             width={32}
@@ -139,7 +173,7 @@ export function DashboardSidebarContent() {
       <div className="flex-1 overflow-auto">
         <nav className="grid items-start gap-1 px-2 py-4 text-sm font-medium lg:px-4">
           {mainNavLinks.map((link) => (
-            <NavLink key={link.href} {...link} />
+            <NavLink key={link.href} {...link} /> // Renderiza los enlaces de navegación
           ))}
         </nav>
       </div>
@@ -150,7 +184,9 @@ export function DashboardSidebarContent() {
               variant="ghost"
               className="flex h-auto w-full items-center justify-start gap-3 p-2 text-left"
             >
+              {/* Avatar del usuario */}
               <Avatar className="h-9 w-9">
+                {/* Futura mejora (4): Asegurarse de que `userAvatarUrl` se maneje con `<Image>` si es un dominio externo */}
                 <AvatarImage src={userAvatarUrl} alt={userName} />
                 <AvatarFallback>
                   {userName.charAt(0).toUpperCase()}
@@ -187,9 +223,8 @@ export function DashboardSidebarContent() {
               <span>Soporte</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {/* --- INICIO DE CORRECCIÓN --- */}
+            {/* Formulario para la acción de cerrar sesión */}
             <form action={sessionActions.signOutAction} className="w-full">
-              {/* --- FIN DE CORRECCIÓN --- */}
               <button type="submit" className="w-full">
                 <DropdownMenuItem>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -204,64 +239,26 @@ export function DashboardSidebarContent() {
   );
 }
 
+/**
+ * @function DashboardSidebar
+ * @description Componente contenedor para la barra lateral del dashboard.
+ *              Controla la visibilidad en diferentes tamaños de pantalla.
+ * @returns {JSX.Element} La barra lateral del dashboard.
+ */
 export function DashboardSidebar() {
   return (
     <aside className="hidden border-r bg-card md:block">
       <div className="flex h-full max-h-screen flex-col gap-2">
-        <DashboardSidebarContent />
+        <DashboardSidebarContent /> {/* Contenido real de la barra lateral */}
       </div>
     </aside>
   );
 }
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar la barra lateral a un centro de navegación más inteligente.
- *
- * 1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en `localStorage` para que la preferencia del usuario se mantenga entre sesiones.
- * 2.  **Indicadores de Notificación:** Añadir un pequeño componente de "punto" o "contador" junto a los iconos en `NavLink`. Este podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario hacia áreas que requieren su atención.
- * 3.  **Carga de Enlaces desde la Base de Datos:** Para una máxima flexibilidad, la lista `mainNavLinks` podría cargarse desde la base de datos (una tabla `feature_modules`), permitiendo a un administrador configurar los elementos de navegación de la aplicación (añadir, quitar, reordenar, marcar como "beta") sin necesidad de un despliegue de código.
- */
-
 /* MEJORAS FUTURAS DETECTADAS
-Navegación Basada en Roles: El array mainNavLinks está codificado en duro. Una mejora arquitectónica significativa sería filtrar este array basándose en el app_role del usuario. Esto permitiría, por ejemplo, mostrar un enlace a /admin o /dev-console directamente en la barra lateral solo para los usuarios con los permisos adecuados.
-Sidebar Colapsable: Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en localStorage para que la preferencia del usuario se mantenga entre sesiones.
-Indicadores de Notificación: Añadir un pequeño componente de "punto" o "contador" junto a los iconos en NavLink que podría activarse si hay notificaciones pendientes para esa sección (ej. "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario. Esto requeriría una tabla notifications en la base de datos y un sistema de sondeo o websockets.
-*/
-/* Ruta: components/dashboard/DashboardSidebar.tsx */
-
-/* MEJORAS PROPUESTAS
- * 1. **Componente de Logo de Marca:** Crear un componente `BrandLogo.tsx` que encapsule la lógica del `Image` y el `span` del nombre. Esto permitiría reutilizar el logo de forma consistente en toda la aplicación (header, footer, sidebar) y actualizarlo en un solo lugar.
- * 2. **Notificaciones Visuales:** Añadir un pequeño componente de "punto" o "contador" junto a los iconos en `NavLink` que podría activarse si hay notificaciones pendientes para esa sección, guiando la atención del usuario.
- * 3. **Sección de Ayuda Contextual:** En el pie del sidebar, se podría añadir un enlace a una sección de "Ayuda" que cambie dinámicamente según la página activa, ofreciendo al usuario guías o tutoriales relevantes para la tarea que está realizando.
- * 1. **Sidebar Colapsable:** Implementar un botón para colapsar/expandir la barra lateral, mostrando solo los iconos. El estado (colapsado/expandido) se debe persistir en `localStorage` para que la preferencia del usuario se mantenga entre sesiones.
- * 2. **Notificaciones con Indicador:** Añadir un pequeño punto rojo o un contador en el enlace de "Mis Sitios" o en el avatar del usuario si hay notificaciones pendientes (ej. "Tu nuevo sitio ha sido desplegado"). Esto requeriría una tabla de `notifications` en la base de datos.
- * 3. **Gestión de Roles en la UI:** Los `mainNavLinks` podrían ser filtrados dinámicamente basándose en el rol del usuario obtenido de la sesión. Por ejemplo, un enlace a `/admin` solo aparecería si el usuario tiene el rol de `developer`.
-1.  **Reintroducción del Tema Oscuro:** Una vez que el layout sea estable, se puede reintentar la implementación
- *    de la paleta de colores personalizada, pero esta vez siguiendo estrictamente la documentación de Tailwind v4
- *    para `tailwind.config.js`, que es el método más robusto.
-2.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir el sidebar, guardando el estado en
- *    `localStorage` para persistir la preferencia del usuario.
-3.  **Gestión de Créditos IA:** Mostrar el balance de "Créditos de IA" del usuario en el menú de usuario,
- *    con un enlace rápido a la página de "Facturación y Planes".
-1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir el sidebar en la versión de escritorio, guardando el estado en `localStorage` para persistir la preferencia del usuario entre sesiones.
-2.  **Gestión de Créditos IA:** Mostrar el balance de "Créditos de IA" del usuario directamente en el menú de usuario, con un enlace rápido a la página de "Facturación y Planes" para recargar.
-3.  **Notificaciones:** Añadir un icono de campana en el menú de usuario o en el header principal. Este icono podría mostrar un indicador rojo cuando haya notificaciones no leídas (ej. "L.I.A. ha terminado de analizar tu landing page").
-4.  **Enlaces de Navegación Dinámicos:** En el futuro, los enlaces de navegación podrían ser dinámicos basados en el rol del usuario o en las características que ha contratado en su plan de suscripción.
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
-1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir el sidebar en la versión de escritorio, guardando el estado en `localStorage` para persistir la preferencia del usuario entre sesiones.
-2.  **Gestión de Créditos IA:** Mostrar el balance de "Créditos de IA" del usuario directamente en el menú de usuario, con un enlace rápido a la página de "Facturación y Planes" para recargar.
-3.  **Notificaciones:** Añadir un icono de campana en el menú de usuario o en el header principal. Este icono podría mostrar un indicador rojo cuando haya notificaciones no leídas (ej. "L.I.A. ha terminado de analizar tu landing page").
-4.  **Enlaces de Navegación Dinámicos:** En el futuro, los enlaces de navegación podrían ser dinámicos basados en el rol del usuario o en las características que ha contratado en su plan de suscripción.
-1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir el sidebar en la versión de escritorio, guardando el estado en `localStorage` para persistir la preferencia del usuario.
-2.  **Notificaciones:** Añadir un icono de campana en el menú de usuario que indique notificaciones no leídas (ej. "L.I.A. ha terminado de analizar tu landing page").
-3.  **Gestión de Créditos IA:** Mostrar el balance de "Créditos de IA" del usuario directamente en el menú de usuario, con un enlace para recargar.
- * 1. **Componente de Avatar:** Añadir un componente de avatar (`<Avatar>` de Shadcn/UI) junto al nombre del usuario, utilizando `user.user_metadata?.avatar_url` si está disponible a través de un proveedor OAuth.
- * 2. **Menú Desplegable de Usuario:** Convertir la sección de información del usuario en un menú desplegable (`DropdownMenu` de Shadcn/UI) que contenga enlaces a "Mi Perfil" y la opción de "Cerrar Sesión".
- * 3. **Sidebar Colapsable:** Implementar la capacidad de colapsar la barra lateral para maximizar el espacio de contenido en pantallas más pequeñas, guardando el estado en el `localStorage`.
- */
-/* MEJORAS PROPUESTAS
- * 1. **Componente de Avatar:** Añadir un componente de avatar (`<Avatar>` de Shadcn/UI) junto al nombre del usuario para una UI más pulida, usando una imagen de perfil si está disponible.
- * 2. **Menú Desplegable de Usuario:** Convertir la sección de información del usuario en un menú desplegable (`DropdownMenu` de Shadcn/UI) que contenga enlaces a "Mi Perfil" y la opción de "Cerrar Sesión".
- * 3. **Gestión de Rutas Activas:** Para rutas anidadas (ej. `/dashboard/sites/123`), la lógica de `isActive` necesitará ser mejorada (usando `pathname.startsWith(href)`) para mantener el enlace "Mis Sitios" activo.
+ * 1.  **Sidebar Colapsable:** Implementar un botón para colapsar/expandir la barra lateral en la vista de escritorio, mostrando solo los iconos cuando está colapsada. El estado (colapsado/expandido) debería persistir en `localStorage` para que la preferencia del usuario se mantenga entre sesiones. Esto aumentaría el espacio de contenido para el usuario.
+ * 2.  **Indicadores de Notificación/Estado:** Añadir un pequeño componente de "punto" o "contador" junto a los iconos en `NavLink` o en las entradas del menú. Esto podría activarse si hay notificaciones pendientes para esa sección (ej. "Tienes 2 invitaciones pendientes", "L.I.A. ha terminado de analizar tu landing page"), guiando la atención del usuario. Esto requeriría una tabla `notifications` en la base de datos y un sistema de suscripción en tiempo real (ej. Supabase Realtime).
+ * 3.  **Carga de Enlaces desde la Base de Datos:** Para una máxima flexibilidad y permitir que los administradores controlen la navegación sin despliegues de código, la lista `mainNavLinks` podría cargarse desde la base de datos (una tabla `feature_modules` con sus roles asociados). Esto permitiría al equipo de producto configurar los elementos de navegación dinámicamente (añadir, quitar, reordenar, marcar como "beta") desde un panel de administración.
+ * 4.  **Optimización del Avatar (Next/Image):** Si `userAvatarUrl` proviene de dominios externos (ej. Google, GitHub para avatares de OAuth), se debería utilizar el componente `next/image` para renderizar la imagen del avatar en lugar de un `<img>` nativo. Esto permitiría a Next.js optimizar automáticamente la imagen (redimensionamiento, formatos WebP/AVIF), mejorando el rendimiento y el Core Web Vitals. Para ello, los dominios externos deben configurarse en `next.config.mjs`.
+ * 5.  **Internacionalización del `UserMenuSkeleton`:** Actualmente, el esqueleto no muestra texto, pero si lo hiciera en el futuro, debería ser internacionalizado.
  */

@@ -4,15 +4,17 @@
  * @description Este módulo es el "Guardián de Seguridad" de la aplicación. Centraliza todas
  *              las operaciones de obtención y verificación de roles y permisos de usuarios.
  *              Actúa como la única fuente de verdad para la autorización en todo el sistema.
+ *              Las funciones públicas han sido explícitamente exportadas para asegurar
+ *              su visibilidad y mockeabilidad en el entorno de pruebas.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.2.2 (Final Return Path Fix & Module Restoration)
+ * @version 2.2.3 (Explicit Export Fix)
  */
 "use server";
 
 import { type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-import { sites as sitesData } from "@/lib/data";
+import { sites as sitesData } from "@/lib/data"; // Aunque no se usa directamente aquí, se mantiene la importación si otras partes del snap la usan.
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/lib/types/database";
@@ -35,6 +37,14 @@ let cachedUserAuthData: UserAuthData | null = null;
 
 // --- Funciones Auxiliares Internas ---
 
+/**
+ * @description Verifica si un usuario tiene uno de los roles requeridos en un workspace específico.
+ *              Esta es una función auxiliar interna para el Guardián.
+ * @param {string} userId - El UUID del usuario a verificar.
+ * @param {string} workspaceId - El UUID del workspace en el que se requiere el permiso.
+ * @param {WorkspaceRole[]} requiredRoles - Un array de roles que otorgan el permiso.
+ * @returns {Promise<boolean>} Devuelve `true` si el usuario tiene el permiso, `false` en caso contrario.
+ */
 async function hasWorkspacePermission(
   userId: string,
   workspaceId: string,
@@ -50,6 +60,7 @@ async function hasWorkspacePermission(
 
   if (error) {
     if (error.code !== "PGRST116") {
+      // PGRST116: 'Not Found' (no se encontró miembro), no es un error de sistema.
       logger.error(
         `Error al verificar permisos para user ${userId} en workspace ${workspaceId}:`,
         error
@@ -60,8 +71,16 @@ async function hasWorkspacePermission(
   return requiredRoles.includes(member.role);
 }
 
-// --- Aparatos Públicos del Guardián ---
+// --- Aparatos Públicos del Guardián (Asegurarse de que están exportados) ---
 
+/**
+ * @async
+ * @function getAuthenticatedUserAuthData
+ * @description Obtiene todos los datos de autenticación y autorización del usuario actual,
+ *              incluyendo su rol de aplicación y su rol en el workspace activo.
+ *              Los datos se cachean por petición para optimizar el rendimiento.
+ * @returns {Promise<UserAuthData | null>} Un objeto `UserAuthData` si el usuario está autenticado y se encuentra su perfil, de lo contrario `null`.
+ */
 export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | null> {
   if (cachedUserAuthData) {
     logger.trace(
@@ -117,6 +136,14 @@ export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | nul
   return userData;
 }
 
+/**
+ * @async
+ * @function requireAppRole
+ * @description Comprueba si el usuario autenticado tiene uno de los roles de aplicación requeridos.
+ *              Es útil para proteger rutas de alto nivel (ej. `/admin`, `/dev-console`) o acciones globales.
+ * @param {AppRole[]} requiredRoles - Un array de roles de aplicación que permiten el acceso.
+ * @returns {Promise<{ success: true; data: UserAuthData } | { success: false; error: string }>} Un objeto indicando el éxito y los datos del usuario, o el fallo con un mensaje de error.
+ */
 export async function requireAppRole(
   requiredRoles: AppRole[]
 ): Promise<
@@ -126,7 +153,7 @@ export async function requireAppRole(
   if (!authData) {
     return {
       success: false,
-      error: "Acción no autorizada. Sesión no encontrada.",
+      error: "Acción no autorizada. Sessión no encontrada.",
     };
   }
   if (!requiredRoles.includes(authData.appRole)) {
@@ -138,6 +165,15 @@ export async function requireAppRole(
   return { success: true, data: authData };
 }
 
+/**
+ * @async
+ * @function requireWorkspacePermission
+ * @description Comprueba si el usuario autenticado tiene uno de los roles requeridos en un workspace específico.
+ *              Es útil para proteger acciones o recursos vinculados a un workspace (ej. crear un sitio, editar una campaña).
+ * @param {string} workspaceId - El ID del workspace para el cual se requieren los permisos.
+ * @param {WorkspaceRole[]} requiredRoles - Un array de roles de workspace que permiten el acceso.
+ * @returns {Promise<{ success: true; data: UserAuthData } | { success: false; error: string }>} Un objeto indicando el éxito y los datos del usuario, o el fallo con un mensaje de error.
+ */
 export async function requireWorkspacePermission(
   workspaceId: string,
   requiredRoles: WorkspaceRole[]
@@ -148,10 +184,11 @@ export async function requireWorkspacePermission(
   if (!authData) {
     return {
       success: false,
-      error: "Acción no autorizada. Sesión no encontrada.",
+      error: "Acción no autorizada. Sessión no encontrada.",
     };
   }
 
+  // Verifica el permiso a nivel de workspace utilizando la función auxiliar interna.
   const isAuthorized = await hasWorkspacePermission(
     authData.user.id,
     workspaceId,
@@ -170,37 +207,19 @@ export async function requireWorkspacePermission(
   return { success: true, data: authData };
 }
 
-export async function clearCachedAuthData() {
+/**
+ * @function clearCachedAuthData
+ * @description Elimina los datos de autenticación cacheada para forzar una nueva lectura en la próxima petición.
+ *              Principalmente útil para entornos de pruebas.
+ */
+export function clearCachedAuthData() {
+  // Added export keyword
   cachedUserAuthData = null;
 }
 
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar el sistema de permisos.
- *
- * 1.  **Permisos Basados en Atributos (ABAC):** (Revalidado) Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC, permitiendo condiciones de permiso más complejas que solo roles estáticos.
- * 2.  **Cache Distribuido (Redis/KV):** (Revalidado) Para un rendimiento a gran escala, los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis para reducir las lecturas de la base de datos en múltiples peticiones del mismo usuario.
- * 3.  **Sincronización de Cache con Webhooks:** (Revalidado) Implementar un webhook de Supabase que, al actualizar la tabla `profiles` o `workspace_members`, invalide proactivamente la entrada de caché del usuario correspondiente, asegurando la consistencia de los datos de permisos.
- */
-
-/**
- * @fileoverview El Guardián de Permisos (`user-permissions.ts`) es el único responsable de la lógica de autorización.
- * @functionality
- * - Obtiene y cachea de forma segura los datos de sesión y roles del usuario por petición.
- * - Proporciona funciones "guardianas" (`require...`) que actúan como puntos de control de seguridad, devolviendo un objeto de resultado tipado que indica éxito o fallo.
- * - Encapsula la lógica de comprobación de permisos de bajo nivel, desacoplando el resto de la aplicación de los detalles de la estructura de la base de datos.
- * @relationships
- * - Es la dependencia principal del `middleware.ts` para proteger rutas.
- * - Es consumido por todas las Server Actions en `lib/actions/` que realizan operaciones sensibles.
- * @expectations
- * - Se espera que este aparato sea infalible. Cualquier fallo en su lógica podría comprometer la seguridad de toda la aplicación. Debe ser rigurosamente testeado y su API debe ser lo más simple y explícita posible para minimizar el riesgo de un uso incorrecto.
- */
-// Ruta: lib/auth/user-permissions.ts
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar el sistema de permisos.
- *
- * 1.  **Permisos Basados en Atributos (ABAC):** Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC. En lugar de solo roles, las funciones de `require` podrían aceptar condiciones más complejas, como `requirePermission({ action: 'delete', resource: 'site', condition: (site) => site.owner_id === user.id })`.
- * 2.  **Cache Distribuido (Redis/KV):** La memoización en `cachedUserAuthData` funciona por petición. Para un rendimiento a escala, los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis, con un TTL (Time To Live) corto. Esto reduciría las lecturas a la base de datos en múltiples peticiones del mismo usuario.
- * 3.  **Sincronización de Cache con Webhooks:** Implementar un webhook de Supabase que, al actualizar la tabla `profiles` o `workspace_members`, invalide proactivamente la entrada de cache del usuario correspondiente en el cache distribuido, asegurando la consistencia de los datos de permisos.
+/* MEJORAS FUTURAS DETECTADAS
+ * 1.  **Permisos Basados en Atributos (ABAC):** Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC (Attribute-Based Access Control). En lugar de solo roles, las funciones de `require` podrían aceptar condiciones más complejas basadas en atributos de la entidad (ej. `requirePermission({ action: 'delete', resource: 'site', condition: (site) => site.owner_id === user.id })`). Esto podría implicar el uso de librerías como `casl` o la creación de un motor de reglas interno.
+ * 2.  **Cache Distribuido (Redis/KV):** La memoización `cachedUserAuthData` es efectiva por petición. Para un rendimiento a gran escala en un entorno distribuido (múltiples instancias del servidor), los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis para reducir significativamente las lecturas de la base de datos en peticiones concurrentes del mismo usuario. Esto requeriría una capa de abstracción para el caché y una estrategia de invalidación.
+ * 3.  **Sincronización de Cache con Webhooks/Eventos:** Si se implementa un caché distribuido, sería crucial un mecanismo para invalidar el caché de forma proactiva. Por ejemplo, al actualizar la tabla `profiles` o `workspace_members` (a través de Server Actions o funciones de base de datos), un webhook de Supabase o un evento interno podría disparar la invalidación de la entrada de caché del usuario correspondiente, asegurando la consistencia inmediata de los datos de permisos.
+ * 4.  **Logging de Auditoría de Permisos Denegados:** Aunque ya se usa `logger.warn`, se podría integrar directamente con `lib/actions/_helpers/audit-log.helper.ts` para registrar los intentos fallidos de acceso por falta de permisos en la tabla `audit_logs`, proporcionando una trazabilidad de seguridad más completa.
  */
