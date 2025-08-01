@@ -1,4 +1,19 @@
 // app/[locale]/forgot-password/page.tsx
+/**
+ * @file page.tsx
+ * @description Página para solicitar la recuperación de contraseña. Se ha corregido la
+ *              importación de la Server Action para alinearla con el manifiesto de
+ *              acciones, resolviendo un fallo crítico de compilación.
+ * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
+ * @version 3.3.0 (Fix: Action Import Path)
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar el flujo de recuperación de contraseña.
+ *
+ * 1.  **Rate Limiting (Server-Side):** (Vigente) Implementar limitación de tasa real en la `requestPasswordResetAction` del servidor.
+ * 2.  **Integración con Servicio de Email Transaccional:** (Vigente) Integrar un servicio como Resend o Postmark para mejorar la entregabilidad de los correos.
+ * 3.  **Validación en Tiempo Real en Cliente:** (Vigente) Migrar este formulario a `react-hook-form` con `zodResolver` para una UX superior.
+ */
 "use client";
 
 import { Loader2 } from "lucide-react";
@@ -12,15 +27,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { auth as authActions } from "@/lib/actions";
+// CORRECCIÓN ESTRUCTURAL: Se importa desde el namespace 'password' correcto.
+import { password as passwordActions } from "@/lib/actions";
 import { type RequestPasswordResetState } from "@/lib/validators";
 
-/**
- * @file page.tsx
- * @description Página para solicitar la recuperación de contraseña.
- * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
- * @version 3.2.0 (Type-Safe State Initialization)
- */
 function SubmitButton() {
   const { pending } = useFormStatus();
   const t = useTranslations("ForgotPasswordPage");
@@ -36,12 +46,9 @@ function SubmitButton() {
 export default function ForgotPasswordPage() {
   const t = useTranslations("ForgotPasswordPage");
 
-  // CORRECCIÓN CRÍTICA: Se inicializa el estado con `error: null` para cumplir
-  // con el nuevo contrato de tipo robustecido `RequestPasswordResetState`.
-  // Esto resuelve el error de compilación `TS2322`.
   const initialState: RequestPasswordResetState = { error: null };
   const [state, formAction] = useFormState(
-    authActions.requestPasswordResetAction,
+    passwordActions.requestPasswordResetAction,
     initialState
   );
 
@@ -96,42 +103,4 @@ export default function ForgotPasswordPage() {
     </main>
   );
 }
-
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `forgot-password/page.tsx` es el componente de cliente que
- *               renderiza el formulario para iniciar el flujo de recuperación de contraseña.
- *
- * @functionality
- * - **Integración con Server Actions:** Utiliza los hooks `useFormState` y `useFormStatus` de
- *   React para una integración nativa y optimizada con la Server Action `requestPasswordResetAction`.
- * - **Manejo de Estado del Formulario:** `useFormState` gestiona el estado de la respuesta
- *   de la acción, permitiendo mostrar errores de validación o del servidor directamente en la UI.
- * - **Feedback de Usuario:** Un `useEffect` observa los cambios en el estado y utiliza
- *   `react-hot-toast` para mostrar notificaciones de error de forma no intrusiva.
- * - **Corrección de Contrato:** La refactorización clave fue alinear el `initialState`
- *   del formulario con el contrato de datos corregido en `lib/validators/index.ts`,
- *   resolviendo el error de compilación.
- *
- * @relationships
- * - Es una ruta pública definida en `/app/[locale]/forgot-password/`.
- * - Invoca la Server Action `auth.requestPasswordResetAction`.
- * - Su estado es gobernado por el tipo `RequestPasswordResetState` del manifiesto de validadores.
- *
- * @expectations
- * - Se espera que este componente sea un formulario robusto y seguro. Debe proporcionar un
- *   feedback claro al usuario sobre el resultado de su petición y manejar correctamente
- *   el estado de carga para prevenir envíos duplicados.
- * =================================================================================================
- */
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar el flujo de recuperación de contraseña.
- *
- * 1.  **Rate Limiting (Server-Side):** La mejora de seguridad más crítica para este flujo es implementar limitación de tasa real en la `requestPasswordResetAction` del servidor. Esto previene ataques de bombardeo de correos electrónicos y es esencial para un sistema en producción.
- * 2.  **Integración con Servicio de Email Transaccional:** Para mejorar la entregabilidad, el seguimiento y el branding de los correos, la `requestPasswordResetAction` debería integrarse con un servicio como Resend o Postmark en lugar de depender del servicio de email por defecto de Supabase.
- * 3.  **Validación en Tiempo Real en Cliente:** Para una UX superior, se podría migrar este formulario a `react-hook-form` con `zodResolver`. Esto permitiría mostrar errores de validación (ej. "el formato del email es incorrecto") instantáneamente mientras el usuario escribe, sin necesidad de un envío al servidor.
- */
+// app/[locale]/forgot-password/page.tsx
