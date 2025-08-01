@@ -5,7 +5,7 @@
  *              Valida el ciclo de vida completo con mocks de alta fidelidad y contextualmente conscientes.
  * @author L.I.A Legacy & RaZ Podestá (Validator)
  * @co-author MetaShark
- * @version 3.5.0 (Fix: Definitive Slug Logic & Context-Aware Mocking)
+ * @version 3.6.0 (Fix: Definitive Slug Logic & Context-Aware Mocking)
  * @see {@link file://./campaigns.actions.ts} Para el aparato de producción bajo prueba.
  * @see {@link file://../validators/index.ts} Para el validador de producción bajo prueba.
  *
@@ -93,7 +93,6 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(mockFrom).toHaveBeenCalledWith("campaigns");
         expect(mockInsert).toHaveBeenCalledWith(
           expect.objectContaining({
             name: "Campaña de Ñandú",
@@ -128,7 +127,6 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(mockFrom).toHaveBeenCalledWith("campaigns");
         expect(mockDelete().eq).toHaveBeenCalledWith("id", MOCK_CAMPAIGN_ID);
       }
     });

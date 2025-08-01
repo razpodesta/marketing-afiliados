@@ -37,16 +37,6 @@ interface PaginationControlsProps {
 
 const DOTS = "...";
 
-/**
- * @private
- * @function usePaginationRange
- * @description Hook de lógica para calcular el rango de números de página a mostrar,
- *              incluyendo puntos suspensivos para rangos largos.
- * @param {number} totalPages - El número total de páginas.
- * @param {number} currentPage - La página actual.
- * @param {number} [siblingCount=1] - Cuántos números de página mostrar a cada lado del actual.
- * @returns {(string | number)[]} Un array de números de página y/o puntos suspensivos.
- */
 const usePaginationRange = (
   totalPages: number,
   currentPage: number,
@@ -84,7 +74,7 @@ const usePaginationRange = (
       );
       return [firstPageIndex, DOTS, ...middleRange, DOTS, lastPageIndex];
     }
-    return []; // Fallback, no debería alcanzarse
+    return [];
   }, [totalPages, currentPage, siblingCount]);
 };
 
@@ -106,15 +96,6 @@ export function PaginationControls({
   const hasPreviousPage = page > 1;
   const hasNextPage = page < totalPages;
 
-  /**
-   * @private
-   * @function createPageLink
-   * @description Construye el objeto `href` para el componente `Link` de `next-intl`,
-   *              incluyendo `pathname`, `params` para rutas dinámicas, y `query`
-   *              para los parámetros de búsqueda.
-   * @param {number} pageNumber - El número de página para el enlace.
-   * @returns {object} El objeto `href` compatible con el `Link` de `next-intl`.
-   */
   const createPageLink = (pageNumber: number) => {
     const query: { page: string; q?: string } = {
       page: String(pageNumber),
