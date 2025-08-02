@@ -1,34 +1,83 @@
+
 {
-  "HomePage": {
-    "title": "MetaShark",
-    "description": "Crie seu próprio subdomínio com um emoji personalizado",
-    "adminLink": "Administrar"
+  "Breadcrumbs": {
+    "dashboard": "Painel",
+    "sites": "Meus Sites",
+    "settings": "Configurações",
+    "campaigns": "Campanhas",
+    "dev-console": "Console Dev",
+    "users": "Usuários",
+    "logs": "Logs"
   },
-  "SubdomainForm": {
-    "subdomainLabel": "Subdomínio",
-    "subdomainPlaceholder": "seu-subdominio",
-    "iconLabel": "Ícone",
-    "selectEmoji": "Selecionar Emoji",
-    "createButton": "Criar Site",
-    "creatingButton": "Criando..."
+  "DashboardSidebar": {
+    "dashboard": "Painel",
+    "mySites": "Meus Sites",
+    "liaChat": "Chat L.I.A",
+    "settings": "Configurações",
+    "devConsole": "Console Dev",
+    "userMenu_accountSettings": "Configurações da Conta",
+    "userMenu_support": "Suporte",
+    "userMenu_signOut": "Sair"
+  },
+  "WorkspaceSwitcher": {
+    "selectWorkspace_label": "Selecionar workspace",
+    "search_placeholder": "Buscar workspace...",
+    "empty_results": "Nenhum workspace encontrado.",
+    "createWorkspace_button": "Criar Workspace",
+    "inviteMember_button": "Convidar Membro",
+    "workspaceSettings_button": "Configurações do Workspace",
+    "changing_status": "Trocando..."
+  },
+  "SitesPage": {
+    "header_title": "Meus Sites",
+    "header_description": "Gerencie e pesquise seus sites. Cada site pode ter múltiplas campanhas.",
+    "search_placeholder": "Buscar por subdomínio...",
+    "createSite_button": "Criar Site",
+    "emptyState_title": "Nenhum site encontrado",
+    "emptyState_description": "Tente outra busca ou crie um novo site.",
+    "createSiteDialog_title": "Criar um novo site",
+    "createSiteDialog_description": "Sites permitem que você organize suas campanhas sob um subdomínio único."
+  },
+  "CampaignsPage": {
+    "header_title_prefix": "Campanhas para:",
+    "header_description": "Crie e edite as páginas para este site.",
+    "backToSites_button": "Voltar para Meus Sites",
+    "createCampaign_button": "Nova Campanha",
+    "tableHeader_name": "Nome",
+    "tableHeader_slug": "Slug",
+    "tableHeader_lastUpdated": "Última Atualização",
+    "tableHeader_actions": "Ações",
+    "tableRow_edit": "Editar",
+    "emptyState_text": "Nenhuma campanha foi criada para este site ainda.",
+    "createCampaignDialog_title": "Criar Nova Campanha"
+  },
+  "Dialogs": {
+    "deleteSite_title": "Excluir Site?",
+    "deleteSite_description": "Esta ação é irreversível. O site <strong>{subdomain}</strong>, junto com todas as suas campanhas e dados, será excluído permanentemente.",
+    "deleteSite_confirmButton": "Sim, excluir site",
+    "deleteCampaign_title": "Excluir Campanha?",
+    "deleteCampaign_description": "Esta ação é irreversível. A campanha <strong>{campaignName}</strong> será excluída permanentemente.",
+    "deleteCampaign_confirmButton": "Sim, excluir",
+    "generic_cancelButton": "Cancelar"
   },
   "AdminDashboard": {
     "headerTitle": "Gerenciamento de Sites",
     "welcomeMessage": "Bem-vindo(a), {username}",
     "signOutButton": "Sair",
     "noSubdomains": "Nenhum site foi criado ainda.",
-    "visitSubdomain": "Visitar Site →",
+    "visitSubdomain": "Visitar Site",
     "created": "Criado em"
   },
   "LoginPage": {
-    "title": "Bem-vindo(a) de Volta",
-    "subtitle": "Faça login ou crie uma conta para continuar",
+    "metadataTitle": "Login | Metashark",
+    "title": "Bem-vindo(a) à Metashark",
+    "subtitle": "Acesse sua conta para começar a transformar seu marketing.",
     "emailLabel": "Endereço de e-mail",
     "passwordLabel": "Senha",
     "signInButton": "Entrar",
-    "signUpButton": "Cadastrar-se",
+    "signUpButton": "Criar Conta",
     "signInWith": "Continuar com",
-    "signUpWith": "Continuar com",
+    "signUpWith": "Criar conta com",
     "alreadyHaveAccount": "Já tem uma conta? Entrar",
     "dontHaveAccount": "Não tem uma conta? Cadastre-se",
     "forgotPasswordLink": "Esqueceu sua senha?",
@@ -45,20 +94,24 @@
     "title": "Redefinir sua Senha",
     "newPasswordLabel": "Nova Senha",
     "confirmPasswordLabel": "Confirmar Nova Senha",
-    "submitButton": "Atualizar Senha"
+    "submitButton": "Atualizar Senha",
+    "strength_veryWeak": "Muito Fraca",
+    "strength_weak": "Fraca",
+    "strength_medium": "Média",
+    "strength_strong": "Forte",
+    "strength_veryStrong": "Muito Forte"
   },
   "AuthNoticePage": {
-    "confirmation": {
-      "title": "Verifique seu e-mail",
-      "description": "Enviamos um link de confirmação para o seu endereço de e-mail."
-    },
-    "reset": {
-      "title": "Verifique seu e-mail",
-      "description": "Enviamos um link para redefinir sua senha para o seu e-mail."
-    },
-    "default": {
-      "title": "Ação Necessária",
-      "description": "Por favor, verifique seu e-mail para mais instruções."
-    }
+    "confirmation_title": "Verifique seu e-mail",
+    "confirmation_description": "Enviamos um link de confirmação para o seu endereço de e-mail.",
+    "reset_title": "Verifique seu e-mail",
+    "reset_description": "Enviamos um link para redefinir sua senha para o seu e-mail.",
+    "default_title": "Ação Necessária",
+    "default_description": "Por favor, verifique seu e-mail para mais instruções.",
+    "backToLogin_button": "Voltar para o Login",
+    "resend_button": "Reenviar e-mail",
+    "resend_countdown": "Reenviar em {seconds}s",
+    "open_email_provider": "Abrir {provider}"
   }
 }
+

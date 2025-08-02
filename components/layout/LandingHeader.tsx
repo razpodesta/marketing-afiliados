@@ -1,19 +1,12 @@
 // components/layout/LandingHeader.tsx
 /**
  * @file LandingHeader.tsx
- * @description Encabezado principal de la landing page pública.
- *              Se ha corregido el nombre de la exportación para alinearlo con el
- *              nombre del archivo y las convenciones del proyecto.
+ * @description Encabezado principal de la landing page pública. Ha sido actualizado
+ *              para incluir el `LanguageSwitcher`, permitiendo a los visitantes
+ *              cambiar su idioma preferido directamente desde la página de inicio.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 6.0.0 (Canonical Renaming)
+ * @version 7.0.0 (Global Language Switching)
  * @see {@link file://./LandingHeader.test.tsx} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar el encabezado de la landing page.
- *
- * 1.  **Animación al Hacer Scroll:** (Vigente) Implementar una animación que reduzca sutilmente la altura del header cuando el usuario hace scroll.
- * 2.  **Estado de Autenticación Dinámico:** (Vigente) Este componente debería recibir la sesión del usuario como prop. Si el usuario está autenticado, los botones de login se reemplazarían por un menú de avatar.
- * 3.  **Resaltado de Sección Activa:** (Vigente) Utilizar un "Intersection Observer" para detectar qué sección está en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente.
  */
 "use client";
 
@@ -50,7 +43,6 @@ export function LandingHeader() {
           <span className="text-xl font-bold text-foreground">Metashark</span>
         </Link>
 
-        {/* Navegación para Escritorio */}
         <nav
           aria-label="Navegación Principal"
           className="hidden items-center gap-6 text-sm font-medium md:flex"
@@ -68,7 +60,9 @@ export function LandingHeader() {
 
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-2">
+            {/* --- INTEGRACIÓN --- */}
             <LanguageSwitcher />
+            {/* --- FIN DE INTEGRACIÓN --- */}
             <Button variant="ghost" asChild>
               <Link href="/login">Iniciar Sesión</Link>
             </Button>
@@ -77,7 +71,6 @@ export function LandingHeader() {
             </Button>
           </div>
 
-          {/* Menú para Móviles */}
           <div className="md:hidden">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
@@ -103,7 +96,9 @@ export function LandingHeader() {
                   ))}
                 </nav>
                 <div className="mt-8 pt-8 border-t border-border/40 flex flex-col gap-4">
+                  {/* --- INTEGRACIÓN --- */}
                   <LanguageSwitcher />
+                  {/* --- FIN DE INTEGRACIÓN --- */}
                   <Button variant="ghost" asChild>
                     <Link href="/login">Iniciar Sesión</Link>
                   </Button>
@@ -119,4 +114,13 @@ export function LandingHeader() {
     </header>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ * @description Mejoras para evolucionar el encabezado de la landing page.
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Animación al Hacer Scroll:** (Vigente) Implementar una animación que reduzca sutilmente la altura del header cuando el usuario hace scroll.
+ * 2. **Estado de Autenticación Dinámico:** (Vigente) Este componente debería recibir la sesión del usuario como prop. Si el usuario está autenticado, los botones de login se reemplazarían por un menú de avatar.
+ * 3. **Resaltado de Sección Activa:** (Vigente) Utilizar un "Intersection Observer" para detectar qué sección está en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente.
+ */
 // components/layout/LandingHeader.tsx

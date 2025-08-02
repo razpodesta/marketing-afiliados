@@ -1,17 +1,17 @@
 // lib/types/database/index.ts
 /**
  * @file lib/types/database/index.ts
- * @description Arquivo "barrel" que monta e exporta a definição de tipo
- *              completa da `Database` a partir de seus módulos especializados.
- * @author Metashark (Refatorado por L.I.A Legacy)
- * @version 2.5.0 (Corrected Table Indexing)
+ * @description Archivo "barrel" que monta y exporta la definición de tipo
+ *              completa de la `Database` a partir de sus módulos especializados.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.6.0 (Visitor Log Integration)
  */
 import { type Enums } from "./enums";
 import {
   type AcceptWorkspaceInvitation,
   type CreateWorkspaceWithOwner,
 } from "./functions";
-import * as T from "./tables/index"; // <-- CORREÇÃO: Importar do barrel file correto
+import * as T from "./tables/index";
 import { type UserProfilesWithEmail } from "./views";
 
 export * from "./_shared";
@@ -46,6 +46,7 @@ export type Database = {
       tickets: T.Tickets;
       user_achievements: T.UserAchievements;
       user_tokens: T.UserTokens;
+      visitor_logs: T.VisitorLogs; // <-- NUEVA TABLA
       workspace_members: T.WorkspaceMembers;
       workspaces: T.Workspaces;
     };
@@ -63,8 +64,13 @@ export type Database = {
   };
 };
 
-/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
- * 1. Suporte para Múltiplos Schemas: A estrutura atual define apenas o schema `public`. Pode ser estendida para suportar outros schemas Supabase (e.g., `storage` ou `graphql`) adicionando novas chaves ao objeto `Database`.
- * 2. Tipos Compostos: O campo `CompositeTypes` está atualmente vazio. Se tipos compostos forem usados no PostgreSQL, suas definições TypeScript devem ser geradas e importadas aqui para uma cobertura de tipos completa.
- * 3. Script de Verificação de Sincronização: Criar um script de diagnóstico que compare as exportações deste arquivo com o schema real do banco de dados (obtido via introspecção) para alertar sobre qualquer desalinhamento entre os tipos gerados e a realidade do banco de dados.
+/**
+ * @section MEJORA CONTINUA
+ * @description Mejoras para la gestión de la infraestructura de tipos.
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Soporte para Múltiples Schemas**: (Vigente) La estructura actual puede ser extendida para soportar otros schemas de Supabase.
+ * 2. **Tipos Compostos**: (Vigente) El campo `CompositeTypes` está actualmente vacío. Si se utilizan, sus definiciones deben ser importadas aquí.
+ * 3. **Script de Verificación de Sincronización**: (Vigente) Crear un script de diagnóstico que compare las exportaciones de este archivo con el schema real de la base de datos.
  */
+// lib/types/database/index.ts

@@ -9,14 +9,35 @@
  * @co-author MetaShark
  * @version 2.0.0 (Client Schema Alignment)
  *
+ * @functionality
+ * - **Validación en Tiempo Real:** Utiliza `react-hook-form` con `zodResolver` para proporcionar
+ *   feedback de validación instantáneo al usuario, mejorando la UX y previniendo envíos inválidos.
+ * - **Verificación Asíncrona:** Se compone con el aparato `SubdomainInput`, que maneja la
+ *   verificación de disponibilidad del subdominio en tiempo real de forma asíncrona.
+ * - **Estado de Transición:** Emplea `useTransition` de React para gestionar el estado de carga
+ *   durante la llamada a la Server Action, deshabilitando el formulario para prevenir envíos duplicados.
+ * - **Comunicación por Callbacks:** Es un componente controlado que recibe una prop `onSuccess`,
+ *   permitiendo al componente padre reaccionar a la creación exitosa (ej. cerrando un modal).
+ *
+ * @relationships
+ * - Es el componente hijo de `SitesHeader` y es renderizado dentro de un `<Dialog>`.
+ * - Utiliza el componente especializado `SubdomainInput` para el campo de subdominio.
+ * - Invoca la Server Action `sites.createSiteAction` para la persistencia de datos.
+ * - Utiliza el esquema `CreateSiteClientSchema` del manifiesto de validadores.
+ *
+ * @expectations
+ * - Se espera que este componente sea la única interfaz para la creación de sitios. Su lógica debe
+ *   permanecer del lado del cliente, centrada en la validación y la experiencia del usuario,
+ *   delegando toda la lógica de negocio y seguridad a la Server Action correspondiente.
+ *
  * @see {@link file://./CreateSiteForm.test.tsx} Para el arnés de pruebas de integración correspondiente.
  *
  * @section MEJORAS FUTURAS
  * @description Mejoras incrementales para el formulario de creación de sitios.
  *
  * 1.  **Feedback de Disponibilidad Mejorado**: (Vigente) Además del icono, mostrar un mensaje de texto claro ("Subdominio disponible") para mejorar la accesibilidad y la claridad del feedback en `SubdomainInput`.
- * 2.  **Validación Asíncrona en Zod**: (Vigente) Explorar la capacidad de `zodResolver` para manejar validaciones asíncronas (`.refine(async ...)`).
- * 3.  **Gestión de Estado con `useFormState`**: (Vigente) Complementar `react-hook-form` con el hook `useFormState` para mostrar errores devueltos por la Server Action directamente en el formulario.
+ * 2.  **Validación Asíncrona en Zod**: (Vigente) Explorar la capacidad de `zodResolver` para manejar validaciones asíncronas (`.refine(async ...)`). Esto podría simplificar la lógica de `SubdomainInput` al integrar la llamada de disponibilidad directamente en el esquema de validación.
+ * 3.  **Gestión de Estado con `useFormState`**: (Vigente) Complementar `react-hook-form` con el hook `useFormState` para mostrar errores devueltos por la Server Action (ej. "Subdominio ya registrado", si ocurre una race condition) directamente en el formulario, asociados al campo correspondiente.
  */
 "use client";
 
@@ -27,11 +48,11 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import toast from "react-hot-toast";
 import type { z } from "zod";
 
+import { sites as sitesActions } from "@/lib/actions";
+import { CreateSiteClientSchema } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sites as sitesActions } from "@/lib/actions";
-import { CreateSiteClientSchema } from "@/lib/validators";
 
 import { SubdomainInput } from "./SubdomainInput";
 

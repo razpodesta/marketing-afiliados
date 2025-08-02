@@ -1,49 +1,47 @@
-// Ruta: app/[locale]/choose-language/page.tsx (NUEVO APARATO)
+// app/[locale]/choose-language/page.tsx
 /**
  * @file page.tsx
- * @description Página intersticial para que los nuevos visitantes seleccionen su idioma.
- *              Esta página establece una cookie de preferencia y redirige al usuario.
- *              Incluye un temporizador de cuenta regresiva para una redirección automática
- *              al idioma por defecto.
+ * @description Página de fallback para que los visitantes seleccionen su idioma
+ *              cuando no puede ser determinado automáticamente. Ha sido refactorizada
+ *              para cumplir con los nuevos requisitos de temporizador y idioma por defecto.
  * @author L.I.A Legacy
- * @version 1.0.0
+ * @version 2.0.0 (Intelligent Fallback Alignment)
+ * @see {@link file://./page.test.tsx} Para el arnés de pruebas correspondiente.
  */
 "use client";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Se necesitaría una librería ligera como 'js-cookie' para un manejo robusto de cookies en el cliente.
-// Se puede instalar con `pnpm add js-cookie @types/js-cookie`
-import Cookies from "js-cookie";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { Separator } from "@/components/ui/separator";
 
 const languages = [
   { code: "es-ES", name: "Español", flag: "🇪🇸" },
   { code: "en-US", name: "English", flag: "🇺🇸" },
   { code: "pt-BR", name: "Português", flag: "🇧🇷" },
 ];
-const DEFAULT_LOCALE = "pt-BR";
+// CORRECCIÓN: Ajustado a los nuevos requisitos.
+const DEFAULT_LOCALE = "es-ES";
+const REDIRECT_TIMEOUT_SECONDS = 15;
 const COOKIE_NAME = "NEXT_LOCALE_CHOSEN";
-const REDIRECT_TIMEOUT_SECONDS = 120; // 2 minutos
 
 export default function ChooseLanguagePage() {
   const router = useRouter();
   const [countdown, setCountdown] = useState(REDIRECT_TIMEOUT_SECONDS);
 
-  // Lógica del temporizador de cuenta regresiva
   useEffect(() => {
     if (countdown <= 0) {
       handleLanguageSelect(DEFAULT_LOCALE);
       return;
     }
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    // Limpieza del temporizador al desmontar el componente
     return () => clearTimeout(timer);
-  }, [countdown]);
+  }, [countdown, router]); // Se añade router a las dependencias por completitud.
 
   /**
    * @function handleLanguageSelect
@@ -55,8 +53,7 @@ export default function ChooseLanguagePage() {
     router.replace(`/${locale}`);
   };
 
-  const minutes = Math.floor(countdown / 60);
-  const seconds = (countdown % 60).toString().padStart(2, "0");
+  const seconds = countdown.toString().padStart(2, "0");
 
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -84,7 +81,7 @@ export default function ChooseLanguagePage() {
             Please Select Your Language
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center">
+        <CardContent className="flex flex-col items-center gap-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {languages.map((lang) => (
               <Button
@@ -98,11 +95,29 @@ export default function ChooseLanguagePage() {
               </Button>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground mt-8 text-center">
-            Redirecting to default language in {minutes}:{seconds}
+          <Separator />
+          {/* REFACTORIZACIÓN: Se añade el LanguageSwitcher para permitir cambio si el idioma detectado es incorrecto */}
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              O selecciona de la lista completa:
+            </p>
+            <LanguageSwitcher />
+          </div>
+          <p className="text-sm text-muted-foreground mt-4 text-center">
+            Redirigiendo al idioma por defecto en 00:{seconds}
           </p>
         </CardContent>
       </Card>
     </main>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ * @description Mejoras para evolucionar la página de selección de idioma.
+ *
+ * @subsection Mejoras Adicionadas
+ * 1. **Traducción del Contenido de la Página**: (Vigente) El texto de esta página ("Please Select Your Language") está codificado en inglés. Debería ser internacionalizado para que se muestre en el idioma que el middleware detectó en el navegador, proporcionando una experiencia más nativa incluso en esta página de fallback.
+ * 2. **Detección de País como Sugerencia**: (Vigente) Podríamos leer la información de geolocalización de Vercel en el `middleware` y pasarla como un parámetro de búsqueda a esta página. La página podría entonces resaltar visualmente el idioma sugerido basado en el país del usuario (ej. un borde de color primario en el botón de Español si el país es 'CL').
+ * 3. **Animación de la Cuenta Regresiva**: (Vigente) Añadir una animación sutil a la cuenta regresiva (ej. un pulso o un cambio de color a medida que se acerca a cero) para llamar la atención del usuario sobre la redirección automática inminente.
+ */
+// app/[locale]/choose-language/page.tsx

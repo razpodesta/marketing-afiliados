@@ -2,28 +2,39 @@
 /**
  * @file LanguageSwitcher.tsx
  * @description Componente de cliente para cambiar el idioma de la aplicación.
- *              Establece una cookie de preferencia para persistir la elección del usuario,
- *              mejorando la experiencia en visitas posteriores. Utiliza los hooks de
- *              navegación de `next-intl` para realizar cambios de ruta seguros y tipados.
+ *              Ha sido refactorizado para utilizar el router nativo de Next.js,
+ *              garantizando un cambio de idioma robusto al delegar la lógica de
+ *              internacionalización al middleware, que es su única fuente de verdad.
  * @author RaZ Podestá & L.I.A Legacy
  * @co-author MetaShark
- * @version 3.0.0 (Persistent Language Preference)
+ * @version 3.1.0 (Native Navigation for Robust Locale Switching)
+ *
+ * @functionality
+ * - **Renderizado Contextual:** Lee el `locale` actual de la URL a través del hook `useParams`.
+ * - **Navegación Nativa:** Al seleccionar un nuevo idioma, construye la nueva ruta completa
+ *   y utiliza el `router.replace` de `next/navigation`. Esto fuerza una navegación que es
+ *   interceptada por el `middleware.ts`, que se encarga de la lógica de i18n. Este es el
+ *   patrón más robusto y desacoplado.
+ * - **Persistencia de Preferencia:** Al cambiar de idioma, establece una cookie (`NEXT_LOCALE_CHOSEN`)
+ *   para que el middleware redirija al usuario a su idioma preferido en futuras visitas.
+ *
  * @see {@link file://./LanguageSwitcher.test.tsx} Para el arnés de pruebas correspondiente.
  *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar el selector de idioma.
  *
- * 1.  **Sincronización con Perfil de Usuario:** (Vigente) Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles`. Al iniciar sesión, la cookie `NEXT_LOCALE_CHOSEN` podría ser establecida desde el servidor basándose en esta preferencia.
+ * 1.  **Sincronización con Perfil de Usuario:** (Vigente) Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles` y ser la fuente de verdad principal.
  * 2.  **Traducciones en la Página de Selección:** (Vigente) La página `/choose-language` podría ser refactorizada para usar `getTranslations` y mostrar su contenido en múltiples idiomas.
- * 3.  **Animaciones de Transición:** (Vigente) Añadir animaciones sutiles con `framer-motion` a la página de selección de idioma para una experiencia de bienvenida más pulida.
+ * 3.  **Animaciones de Transición:** (Vigente) Añadir animaciones sutiles con `framer-motion` al menú desplegable.
  */
 "use client";
 
 import { Globe } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import Cookies from "js-cookie";
 
+import { AppLocale, locales } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,13 +42,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AppLocale,
-  type AppPathname,
-  locales,
-  usePathname,
-  useRouter,
-} from "@/lib/navigation";
 
 const COOKIE_NAME = "NEXT_LOCALE_CHOSEN";
 const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
@@ -48,7 +52,7 @@ const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
 
 export function LanguageSwitcher() {
   const router = useRouter();
-  const pathname: AppPathname = usePathname();
+  const pathname = usePathname();
   const params = useParams();
   const [isPending, startTransition] = useTransition();
 
@@ -63,13 +67,12 @@ export function LanguageSwitcher() {
     Cookies.set(COOKIE_NAME, newLocale, { expires: 365, path: "/" });
 
     startTransition(() => {
-      router.replace(
-        {
-          pathname,
-          params: params as any,
-        },
-        { locale: newLocale }
-      );
+      const currentPathWithoutLocale = pathname.startsWith(`/${currentLocale}`)
+        ? pathname.substring(`/${currentLocale}`.length)
+        : pathname;
+
+      const newPath = `/${newLocale}${currentPathWithoutLocale}`;
+      router.replace(newPath);
     });
   };
 

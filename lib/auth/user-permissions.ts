@@ -1,20 +1,40 @@
 // lib/auth/user-permissions.ts
 /**
  * @file lib/auth/user-permissions.ts
- * @description Este módulo es el "Guardián de Seguridad" de la aplicación. Centraliza todas
+ * @description Este módulo es el **Guardián de Seguridad** de la aplicación. Centraliza todas
  *              las operaciones de obtención y verificación de roles y permisos de usuarios.
  *              Actúa como la única fuente de verdad para la autorización en todo el sistema.
+ *              Su diseño con memoización por petición optimiza el rendimiento al evitar
+ *              consultas redundantes a la base de datos dentro del mismo ciclo de vida de una petición.
  * @author RaZ Podestá & L.I.A Legacy
  * @co-author MetaShark
- * @version 2.2.4 (Async Export for Server Module Compliance)
+ * @version 2.3.0 (Enhanced Error Specificity & Documentation)
  * @see {@link file://./user-permissions.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @functionality
+ * - **`getAuthenticatedUserAuthData`**: Obtiene y cachea los datos de sesión completos
+ *   (usuario, rol de aplicación, rol de workspace activo) para una única petición del servidor.
+ * - **`requireAppRole`**: Función guardiana que valida si el usuario actual tiene un rol
+ *   de aplicación específico (ej. 'developer'). Devuelve un `AuthResult` tipado.
+ * - **`requireWorkspacePermission`**: Función guardiana que valida si el usuario tiene un
+ *   rol específico dentro de un workspace determinado.
+ *
+ * @relationships
+ * - Es consumido por Server Actions y Server Components protegidos (ej. `dev-console/layout.tsx`)
+ *   para implementar la lógica de autorización.
+ * - Depende de `lib/supabase/server.ts` para acceder a la base de datos.
+ *
+ * @expectations
+ * - Se espera que este módulo sea la única vía para realizar comprobaciones de permisos.
+ *   Su contrato de retorno (`AuthResult`) debe ser manejado por todos sus consumidores
+ *   para garantizar un flujo de control seguro y predecible.
  *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar el guardián de seguridad.
  *
- * 1.  **Permisos Basados en Atributos (ABAC):** (Vigente) Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC (Attribute-Based Access Control). En lugar de solo roles, las funciones de `require` podrían aceptar condiciones más complejas.
- * 2.  **Cache Distribuido (Redis/KV):** (Vigente) La memoización `cachedUserAuthData` es efectiva por petición. Para un rendimiento a gran escala, los datos de sesión y permisos podrían ser cacheados en un almacén distribuido como Vercel KV o Upstash Redis.
- * 3.  **Logging de Auditoría de Permisos Denegados:** (Vigente) Integrar directamente con `lib/actions/_helpers/audit-log.helper.ts` para registrar los intentos fallidos de acceso por falta de permisos en la tabla `audit_logs`.
+ * 1.  **Permisos Basados en Atributos (ABAC):** (Vigente) Para una granularidad aún mayor, el sistema podría evolucionar hacia un modelo ABAC (Attribute-Based Access Control).
+ * 2.  **Cache Distribuido (Redis/KV):** (Vigente) La memoización `cachedUserAuthData` es efectiva por petición. Para un rendimiento a gran escala, los datos podrían ser cacheados en un almacén distribuido.
+ * 3.  **Logging de Auditoría de Permisos Denegados:** (Vigente) Integrar con `audit-log.helper.ts` para registrar los intentos fallidos de acceso.
  */
 "use server";
 
@@ -117,23 +137,25 @@ export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | nul
   return userData;
 }
 
+export type AuthResult =
+  | { success: true; data: UserAuthData }
+  | { success: false; error: "SESSION_NOT_FOUND" | "PERMISSION_DENIED" };
+
 export async function requireAppRole(
   requiredRoles: AppRole[]
-): Promise<
-  { success: true; data: UserAuthData } | { success: false; error: string }
-> {
+): Promise<AuthResult> {
   const authData = await getAuthenticatedUserAuthData();
   if (!authData) {
     return {
       success: false,
-      error: "Acción no autorizada. Sessión no encontrada.",
+      error: "SESSION_NOT_FOUND",
     };
   }
   if (!requiredRoles.includes(authData.appRole)) {
     logger.warn(
       `[SEGURIDAD] Violación de permiso: Usuario ${authData.user.id} con rol '${authData.appRole}' intentó acceder a una funcionalidad restringida para '${requiredRoles.join(", ")}'.`
     );
-    return { success: false, error: "Permiso denegado." };
+    return { success: false, error: "PERMISSION_DENIED" };
   }
   return { success: true, data: authData };
 }
@@ -141,14 +163,12 @@ export async function requireAppRole(
 export async function requireWorkspacePermission(
   workspaceId: string,
   requiredRoles: WorkspaceRole[]
-): Promise<
-  { success: true; data: UserAuthData } | { success: false; error: string }
-> {
+): Promise<AuthResult> {
   const authData = await getAuthenticatedUserAuthData();
   if (!authData) {
     return {
       success: false,
-      error: "Acción no autorizada. Sessión no encontrada.",
+      error: "SESSION_NOT_FOUND",
     };
   }
 
@@ -163,7 +183,7 @@ export async function requireWorkspacePermission(
     );
     return {
       success: false,
-      error: "No tienes permiso para realizar esta acción en este workspace.",
+      error: "PERMISSION_DENIED",
     };
   }
 

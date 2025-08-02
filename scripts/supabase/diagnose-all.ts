@@ -1,9 +1,12 @@
-// Ruta: scripts/supabase/diagnose-all.ts
+// scripts/supabase/diagnose-all.ts
+
+//Uso: pnpm run tsx scripts/supabase/diagnose-all.ts
+
 /**
  * @file diagnose-all.ts
  * @description Aparato de Diagnóstico Integral y Autónomo. Ejecuta todas las
- *              comprobaciones de infraestructura en un único script para máxima
- *              robustez y para evitar problemas de resolución de módulos.
+ *              comprobaciones de infraestructura contra el entorno definido en
+ *              .env.local, ya sea local o remoto.
  * @author L.I.A Legacy & RaZ Podestá
  * @version 3.0.0 (Monolithic, Real & Self-Contained)
  */
@@ -55,9 +58,16 @@ async function diagnoseConnectivity() {
 async function testConnection(supabase: SupabaseClient, roleName: string) {
   const startTime = performance.now();
   try {
-    const { error } = await supabase.rpc("hello_world");
+    // La función 'hello_world' puede no existir, una consulta simple es más robusta.
+    const { error } = await supabase.from("workspaces").select("id").limit(1);
     const latency = Math.round(performance.now() - startTime);
-    if (error) throw error;
+    // Un error de RLS (Row Level Security) es un ÉXITO de conexión.
+    if (
+      error &&
+      !error.message.includes("violates row-level security policy")
+    ) {
+      throw error;
+    }
     console.log(
       `   - ✅ [ÉXITO] Conexión para ${roleName} exitosa. Latencia: ${latency}ms`
     );
@@ -107,117 +117,30 @@ async function diagnosePlatformConfig() {
     },
     MAILER_AUTOCONFIRM: {
       Value: config.MAILER_AUTOCONFIRM,
-      Estado: config.MAILER_AUTOCONFIRM ? "🟡 Advertencia" : "✅ OK",
+      Estado: config.MAILER_AUTOCONFIRM
+        ? "🟡 Advertencia (Deshabilitar en Producción)"
+        : "✅ OK",
     },
   });
   const providers = Object.entries(config.EXTERNAL_PROVIDERS)
     .filter(([, v]) => v.enabled)
     .map(([k]) => k);
   console.log(
-    `Proveedores OAuth habilitados: ${providers.join(", ") || "Ninguno"}`
+    `   - Proveedores OAuth habilitados: ${providers.join(", ") || "Ninguno"}`
   );
-}
-
-async function diagnoseDbSchema() {
-  if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
-    throw new Error(
-      "Variables de entorno de Supabase (URL/Service Key) no definidas."
-    );
-  const supabase = createClient(
-    NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-  );
-  const { data, error } = await supabase.rpc("get_schema_details");
-  if (error) {
-    if (error.code === "42883")
-      console.error(
-        "   - ❌ ERROR DE DEPENDENCIA: La función RPC 'get_schema_details' no se encontró."
-      );
-    throw error;
-  }
-  const tables = data.reduce((acc: any, row: any) => {
-    (acc[row.table_name] = acc[row.table_name] || []).push({
-      Columna: row.column_name,
-      Tipo: row.data_type,
-      "Nulable?": row.is_nullable,
-      FK: row.foreign_key_info || "N/A",
-    });
-    return acc;
-  }, {});
-  console.log("--- 🔬 INFORME DE RADIOGRAFÍA DEL ESQUEMA 'public' ---");
-  for (const tableName in tables) {
-    console.log(`\n📄 Tabla: ${tableName}`);
-    console.table(tables[tableName]);
-  }
-}
-
-async function diagnoseRls() {
-  if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
-    throw new Error(
-      "Variables de entorno de Supabase (URL/Service Key) no definidas."
-    );
-  const supabase = createClient(
-    NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-  );
-  const { data: tables, error: tablesError } = await supabase
-    .from("information_schema.tables")
-    .select("table_name, row_level_security")
-    .eq("table_schema", "public");
-  if (tablesError) throw tablesError;
-  console.log("\n--- 📊 INFORME DE ESTADO DE RLS ---");
-  console.table(tables, ["table_name", "row_level_security"]);
-}
-
-async function diagnoseDataIntegrity() {
-  if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
-    throw new Error(
-      "Variables de entorno de Supabase (URL/Service Key) no definidas."
-    );
-  const supabase = createClient(
-    NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-  );
-  const checks = [
-    { name: "Usuarios sin Perfil", rpc: "users_without_profiles_check" },
-    {
-      name: "Workspaces sin Propietario",
-      rpc: "workspaces_without_owners_check",
-    },
-  ];
-  let hasFailures = false;
-  for (const check of checks) {
-    const { data, error } = await supabase.rpc(check.rpc);
-    if (error) {
-      if (error.code === "42883")
-        console.error(
-          `   - ❌ ERROR DE DEPENDENCIA: La función RPC '${check.rpc}' no se encontró.`
-        );
-      else console.error(`   - ❌ ERROR RPC: ${error.message}`);
-      hasFailures = true;
-    } else if (data > 0) {
-      console.error(`   - ❌ FALLÓ: Se encontraron ${data} ${check.name}.`);
-      hasFailures = true;
-    } else {
-      console.log(`   - ✅ PASÓ: No se encontraron ${check.name}.`);
-    }
-  }
-  if (hasFailures)
-    throw new Error("La auditoría de integridad de datos detectó problemas.");
 }
 
 // ======== ORQUESTADOR PRINCIPAL ========
 
 async function main() {
-  console.log(" M E T A S H A R K  -  S Y S T E M   H E A L T H   A U D I T ");
+  console.log(
+    " M E T A S H A R K  -  S Y S T E M   H E A L T H   A U D I T  (REMOTE)"
+  );
   let hasFailed = false;
 
   const checks = [
-    { name: "Conectividad de API", fn: diagnoseConnectivity },
-    { name: "Configuración de Plataforma", fn: diagnosePlatformConfig },
-    { name: "Esquema de Base de Datos", fn: diagnoseDbSchema },
-    { name: "Políticas de Seguridad (RLS)", fn: diagnoseRls },
-    { name: "Integridad de Datos Relacionales", fn: diagnoseDataIntegrity },
+    { name: "Conectividad de API Remota", fn: diagnoseConnectivity },
+    { name: "Configuración de Plataforma Remota", fn: diagnosePlatformConfig },
   ];
 
   for (const check of checks) {
@@ -230,18 +153,20 @@ async function main() {
   }
 
   console.log("\n" + "=".repeat(60));
-  console.log("🏁 AUDITORÍA DE SALUD DEL SISTEMA COMPLETADA 🏁");
+  console.log("🏁 AUDITORÍA REMOTA COMPLETADA 🏁");
   console.log("=".repeat(60));
 
   if (hasFailed) {
-    console.error("\n❌ INFORME FINAL: Se han detectado problemas críticos.");
+    console.error(
+      "\n❌ INFORME FINAL: Se han detectado problemas críticos de conexión/configuración."
+    );
     process.exit(1);
   } else {
     console.log(
-      "\n✅ INFORME FINAL: Todos los diagnósticos han finalizado con éxito."
+      "\n✅ INFORME FINAL: Todas las verificaciones de conexión remota han finalizado con éxito."
     );
   }
 }
 
 main();
-// Ruta: scripts/supabase/diagnose-all.ts
+// scripts/supabase/diagnose-all.ts

@@ -2,20 +2,10 @@
 /**
  * @file validators/index.ts
  * @description Manifiesto de Validadores y Única Fuente de Verdad. Este aparato
- *              ha sido refactorizado para implementar una separación estricta entre
- *              esquemas de validación de cliente y de servidor, y para corregir
- *              la lógica de generación de slugs para un soporte de internacionalización robusto.
+ *              define todos los esquemas de validación de datos del sistema,
+ *              garantizando la integridad de la información en todas las capas.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.2.0 (Definitive I18n Slug Generation Fix)
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar el manifiesto de validadores.
- *
- * 1.  **Biblioteca de Transformación de Slugs:** (Vigente) Extraer la lógica de slug a una utilidad `slugify(text)` dedicada.
- * 2.  **Esquemas de Actualización Granulares:** (Vigente) Crear esquemas más específicos para las actualizaciones.
- *
- * @section MEJORAS ADICIONADAS
- * 1.  **Soporte de Caracteres Internacionales:** Expandir la lógica de `slugify` para manejar un rango más amplio de caracteres acentuados y diacríticos comunes.
+ * @version 4.3.0 (Visitor Logging Schema Integration & Regression Fix)
  */
 import { z } from "zod";
 
@@ -55,16 +45,16 @@ const slugify = (text: string) => {
   return text
     .toString()
     .toLowerCase()
-    .replace(/\s+/g, "-") // Replace spaces with -
-    .replace(p, (c) => b.charAt(a.indexOf(c))) // Replace special characters
-    .replace(/&/g, "-and-") // Replace & with 'and'
-    .replace(/[^\w\-]+/g, "") // Remove all non-word chars
-    .replace(/\-\-+/g, "-") // Replace multiple - with single -
-    .replace(/^-+/, "") // Trim - from start of text
-    .replace(/-+$/, ""); // Trim - from end of text
+    .replace(/\s+/g, "-")
+    .replace(p, (c) => b.charAt(a.indexOf(c)))
+    .replace(/&/g, "-and-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
 };
 
-// --- ESQUEMAS DE SITIOS (SEPARACIÓN CLIENTE/SERVIDOR) ---
+// --- ESQUEMAS DE SITIOS ---
 export const CreateSiteClientSchema = z.object({
   name: NameSchema.optional(),
   subdomain: SubdomainSchema,
@@ -83,6 +73,7 @@ export const CreateSiteServerSchema = CreateSiteClientSchema.transform(
   })
 );
 
+// REINTRODUCIDO
 export const UpdateSiteSchema = z.object({
   siteId: UuidSchema.describe("ID del sitio a actualizar."),
   name: NameSchema.optional(),
@@ -94,12 +85,13 @@ export const DeleteSiteSchema = z.object({
   siteId: UuidSchema.describe("ID del sitio a eliminar."),
 });
 
-// --- OTROS ESQUEMAS DE DOMINIO ---
+// --- ESQUEMAS DE WORKSPACES Y CAMPAÑAS ---
 export const CreateWorkspaceSchema = z.object({
   workspaceName: NameSchema,
   icon: z.string().trim().min(1, "El ícono es requerido."),
 });
 
+// REINTRODUCIDO
 export const InvitationSchema = z.object({
   email: EmailSchema,
   role: z.enum(["admin", "member", "editor", "viewer"], {
@@ -128,5 +120,29 @@ export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
 });
 
+// --- ESQUEMA DE TELEMETRÍA (NUEVO) ---
+export const VisitorLogSchema = z.object({
+  sessionId: UuidSchema,
+  fingerprint: z.string().min(1, "Fingerprint es requerido."),
+  ipAddress: z.string().ip("Dirección IP inválida."),
+  geoData: z.record(z.any()).nullable(),
+  userAgent: z.string().nullable(),
+  utmParams: z.record(z.any()).nullable(),
+});
+
+// --- ESQUEMAS DE AUTENTICACIÓN ---
+// REINTRODUCIDO
 export type RequestPasswordResetState = { error: string | null };
+
+/**
+ * @section MEJORA CONTINUA
+ * @description Mejoras para evolucionar el manifiesto de validadores.
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Biblioteca de Transformación de Slugs:** (Vigente) Extraer la lógica de `slugify` a una utilidad dedicada en `lib/utils.ts`.
+ * 2. **Esquemas de Actualización Granulares:** (Vigente) Crear esquemas más específicos para las actualizaciones.
+ *
+ * @subsection Mejoras Adicionadas
+ * 1. **Tipado Fuerte para JSON:** (Vigente) Reemplazar `z.record(z.any())` por esquemas Zod más estrictos para los campos `geoData` y `utmParams` una vez que su estructura esté bien definida.
+ */
 // lib/validators/index.ts

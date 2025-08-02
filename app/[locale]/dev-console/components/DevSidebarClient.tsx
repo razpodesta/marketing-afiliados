@@ -1,4 +1,12 @@
 // app/[locale]/dev-console/components/DevSidebarClient.tsx
+/**
+ * @file DevSidebarClient.tsx
+ * @description Componente de cliente para la barra lateral del `dev-console`.
+ *              Ha sido actualizado para incluir la navegación a la nueva
+ *              sección de Telemetría.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 2.1.0 (Telemetry Navigation Integration)
+ */
 "use client";
 
 import {
@@ -10,6 +18,7 @@ import {
   LogOut,
   ShieldCheck,
   Users,
+  Waypoints, // <-- NUEVO ICONO
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,12 +34,6 @@ import { Button } from "@/components/ui/button";
 import { session as sessionActions } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
-/**
- * @file DevSidebarClient.tsx
- * @description Componente de cliente para la barra lateral del `dev-console`.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.0.0 (Architectural Alignment)
- */
 interface RouteNode {
   name: string;
   path: string;
@@ -98,6 +101,13 @@ export function DevSidebarClient() {
       label: "Visor de Campañas",
       icon: LayoutGrid,
     },
+    // --- NUEVO ENLACE ---
+    {
+      href: "/dev-console/telemetry",
+      label: "Telemetría",
+      icon: Waypoints,
+    },
+    // --- FIN DE NUEVO ENLACE ---
     { href: "/dev-console/logs", label: "Logs de Auditoría", icon: FileText },
   ];
 
@@ -156,9 +166,16 @@ export function DevSidebarClient() {
     </aside>
   );
 }
-/* Ruta: app/[locale]/dev-console/components/DevSidebarClient.tsx */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Búsqueda en el Árbol de Rutas: Añadir un campo de búsqueda por encima del `RouteTree` para permitir al desarrollador filtrar rápidamente las rutas por nombre, lo que sería muy útil en proyectos grandes.
- * 2. Enlaces en el Árbol de Rutas: Hacer que cada nodo del `RouteTree` que represente una página (`isPage: true`) sea un `<Link>` navegable. Esto convertiría el visor de una herramienta informativa a una herramienta de navegación rápida para el desarrollador.
- * 3. Sincronización de Estado del Acordeón: Persistir el estado de apertura/cierre del acordeón del "Visor de Rutas" en `localStorage` para que la preferencia del desarrollador se mantenga entre recargas de página.
+/**
+ * @section MEJORA CONTINUA
+ * @description Mejoras para evolucionar la barra lateral de la consola.
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Búsqueda en el Árbol de Rutas**: (Vigente) Añadir un campo de búsqueda para filtrar rápidamente las rutas.
+ * 2. **Enlaces en el Árbol de Rutas**: (Vigente) Hacer que cada nodo del `RouteTree` que represente una página sea un `<Link>` navegable.
+ * 3. **Sincronización de Estado del Acordeón**: (Vigente) Persistir el estado de apertura/cierre del acordeón en `localStorage`.
+ *
+ * @subsection Mejoras Adicionadas
+ * 1. **Carga Dinámica de Enlaces**: (Vigente) Para una mayor flexibilidad, la lista `navLinks` podría ser cargada desde un archivo de configuración o incluso desde la base de datos, permitiendo añadir nuevas secciones a la `dev-console` sin necesidad de un redespliegue de código.
  */
+// app/[locale]/dev-console/components/DevSidebarClient.tsx

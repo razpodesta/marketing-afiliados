@@ -2,10 +2,11 @@
 /**
  * @file lib/actions/admin.actions.ts
  * @description Contiene Server Actions restringidas a roles administrativos ('admin', 'developer').
- *              Estas acciones son sensibles y exigen verficación rigurosa de permisos.
+ *              Estas acciones son sensibles y exigen verficación rigurosa de permisos
+ *              utilizando el guardián de seguridad `requireAppRole`.
  * @author RaZ Podestá & L.I.A Legacy
  * @co-author MetaShark
- * @version 2.6.0 (Fix: Definitive Action Result Contract Alignment)
+ * @version 2.7.0 (AuthResult Contract Consumption)
  * @see {@link file://./admin.actions.test.ts} Para el arnés de pruebas correspondiente.
  *
  * @section MEJORAS FUTURAS

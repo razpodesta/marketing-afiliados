@@ -1,11 +1,21 @@
-// Ruta: components/sites/SiteCard.tsx
+// components/sites/SiteCard.tsx
 /**
  * @file SiteCard.tsx
- * @description Componente que renderiza una tarjeta individual para un sitio.
- *              Refactorizado para una máxima accesibilidad y una correcta
- *              delegación de eventos.
+ * @description Componente de UI que renderiza una tarjeta individual para un sitio.
+ *              Este aparato muestra información clave como el subdominio y el número de campañas,
+ *              y proporciona acciones contextuales como la navegación a la gestión de campañas,
+ *              la visita al sitio público y la iniciación del flujo de eliminación.
+ *              Está diseñado para ser interactivo, mostrando detalles adicionales en un Popover
+ *              al pasar el cursor, y delega la lógica de estado y las acciones a su
+ *              componente padre a través de props.
  * @author Metashark (Refactorizado por L.I.A Legacy)
  * @version 5.3.0 (Holistic Accessibility & Event Delegation Fix)
+ * @param {object} props - Las propiedades del componente.
+ * @param {SiteWithCampaignsCount} props.site - El objeto de datos del sitio a renderizar, incluyendo la cuenta de campañas.
+ * @param {(formData: FormData) => void} props.onDelete - Callback que se ejecuta cuando se confirma la eliminación del sitio.
+ * @param {boolean} props.isPending - Estado de carga para la acción de eliminación.
+ * @param {string | null} props.deletingSiteId - El ID del sitio que se está eliminando actualmente.
+ * @returns {JSX.Element} Un componente de tarjeta de sitio interactivo y completamente funcional.
  */
 "use client";
 
@@ -108,14 +118,4 @@ export function SiteCard({
     </Popover>
   );
 }
-// Ruta: components/sites/SiteCard.tsx
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Previsualización de Sitio con Captura de Pantalla: La mejora de UX más impactante sería reemplazar el texto "Una previsualización del sitio aparecerá aquí" con una imagen real. Esto se puede lograr con un servicio automatizado (ej. una Edge Function con Puppeteer o una API de terceros) que genere y guarde una captura de pantalla de la página principal del sitio cada vez que se actualice una campaña.
- * 2. Métricas Clave en Popover: Enriquecer el `PopoverContent` para mostrar métricas de rendimiento clave del sitio (obtenidas de una tabla de analíticas), como "Visitas (últimos 7 días)" o "Tasa de Conversión General". Esto proporcionaría valor inmediato al usuario sin necesidad de navegar a una sección de analíticas completa.
- * 3. Edición en Línea Rápida: Permitir al usuario hacer clic en el nombre del subdominio o en el ícono dentro de la tarjeta para editarlos directamente a través de un pequeño formulario dentro del `Popover`. Esto requeriría una nueva `Server Action` (`updateSiteDetailsAction`) y agilizaría significativamente las tareas de gestión comunes.
- */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Generación de Capturas de Pantalla: La previsualización actual es un placeholder. Se podría implementar un servicio (ej. una Edge Function con Puppeteer) que genere y guarde capturas de pantalla de los sitios para mostrarlas en el popover.
- * 2. Métricas Rápidas en Popover: El contenido del popover podría enriquecerse con métricas clave del sitio obtenidas de una tabla de analíticas, como "Visitas (últimos 7 días)" o "Tasa de Conversión".
- * 3. Actualización de Icono/Nombre en Línea: Permitir al usuario hacer clic en el nombre o icono dentro de la tarjeta para editarlos directamente a través de un pequeño formulario en el popover.
- */
+// components/sites/SiteCard.tsx

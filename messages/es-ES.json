@@ -1,30 +1,71 @@
-{
-  "NotFoundPage": {
-    "title": "Error 404",
-    "description": "La página en la ruta {pathname} no existe o fue movida.",
-    "backToHome": "Volver al Inicio",
-    "goToDashboard": "Ir al Dashboard"
-  },
 
-  "HomePage": {
-    "title": "MetaShark",
-    "description": "Crea tu propio subdominio con un emoji personalizado",
-    "adminLink": "Administrar"
+{
+  "Breadcrumbs": {
+    "dashboard": "Dashboard",
+    "sites": "Mis Sitios",
+    "settings": "Ajustes",
+    "campaigns": "Campañas",
+    "dev-console": "Dev Console",
+    "users": "Usuarios",
+    "logs": "Logs"
   },
-  "SubdomainForm": {
-    "subdomainLabel": "Subdominio",
-    "subdomainPlaceholder": "tu-subdominio",
-    "iconLabel": "Ícono",
-    "selectEmoji": "Seleccionar Emoji",
-    "createButton": "Crear Sitio",
-    "creatingButton": "Creando..."
+  "DashboardSidebar": {
+    "dashboard": "Dashboard",
+    "mySites": "Mis Sitios",
+    "liaChat": "Chat L.I.A",
+    "settings": "Ajustes",
+    "devConsole": "Dev Console",
+    "userMenu_accountSettings": "Ajustes de Cuenta",
+    "userMenu_support": "Soporte",
+    "userMenu_signOut": "Cerrar Sesión"
+  },
+  "WorkspaceSwitcher": {
+    "selectWorkspace_label": "Seleccionar workspace",
+    "search_placeholder": "Buscar workspace...",
+    "empty_results": "No se encontró el workspace.",
+    "createWorkspace_button": "Crear Workspace",
+    "inviteMember_button": "Invitar Miembro",
+    "workspaceSettings_button": "Ajustes del Workspace",
+    "changing_status": "Cambiando..."
+  },
+  "SitesPage": {
+    "header_title": "Mis Sitios",
+    "header_description": "Gestiona y busca en tus sitios. Cada sitio puede tener múltiples campañas.",
+    "search_placeholder": "Buscar por subdominio...",
+    "createSite_button": "Crear Sitio",
+    "emptyState_title": "No se encontraron sitios",
+    "emptyState_description": "Intenta con otra búsqueda o crea un nuevo sitio.",
+    "createSiteDialog_title": "Crear un nuevo sitio",
+    "createSiteDialog_description": "Los sitios te permiten organizar tus campañas bajo un subdominio único."
+  },
+  "CampaignsPage": {
+    "header_title_prefix": "Campañas para:",
+    "header_description": "Crea y edita las páginas para este sitio.",
+    "backToSites_button": "Volver a Mis Sitios",
+    "createCampaign_button": "Nueva Campaña",
+    "tableHeader_name": "Nombre",
+    "tableHeader_slug": "Slug",
+    "tableHeader_lastUpdated": "Última Actualización",
+    "tableHeader_actions": "Acciones",
+    "tableRow_edit": "Editar",
+    "emptyState_text": "No se han creado campañas para este sitio todavía.",
+    "createCampaignDialog_title": "Crear Nueva Campaña"
+  },
+  "Dialogs": {
+    "deleteSite_title": "¿Eliminar Sitio?",
+    "deleteSite_description": "Esta acción es irreversible. El sitio <strong>{subdomain}</strong>, junto con todas sus campañas y datos, será eliminado permanentemente.",
+    "deleteSite_confirmButton": "Sí, eliminar sitio",
+    "deleteCampaign_title": "¿Eliminar Campaña?",
+    "deleteCampaign_description": "Esta acción es irreversible. La campaña <strong>{campaignName}</strong> será eliminada permanentemente.",
+    "deleteCampaign_confirmButton": "Sí, eliminar",
+    "generic_cancelButton": "Cancelar"
   },
   "AdminDashboard": {
     "headerTitle": "Gestión de Sitios",
     "welcomeMessage": "Bienvenido, {username}",
     "signOutButton": "Cerrar Sesión",
     "noSubdomains": "Aún no se ha creado ningún sitio.",
-    "visitSubdomain": "Visitar Sitio →",
+    "visitSubdomain": "Visitar Sitio",
     "created": "Creado"
   },
   "LoginPage": {
@@ -53,20 +94,24 @@
     "title": "Restablecer tu Contraseña",
     "newPasswordLabel": "Nueva Contraseña",
     "confirmPasswordLabel": "Confirmar Nueva Contraseña",
-    "submitButton": "Actualizar Contraseña"
+    "submitButton": "Actualizar Contraseña",
+    "strength_veryWeak": "Muy Débil",
+    "strength_weak": "Débil",
+    "strength_medium": "Media",
+    "strength_strong": "Fuerte",
+    "strength_veryStrong": "Muy Fuerte"
   },
   "AuthNoticePage": {
-    "confirmation": {
-      "title": "Revisa tu correo",
-      "description": "Hemos enviado un enlace de confirmación a tu dirección de correo."
-    },
-    "reset": {
-      "title": "Revisa tu correo",
-      "description": "Hemos enviado un enlace para restablecer tu contraseña a tu correo."
-    },
-    "default": {
-      "title": "Acción Requerida",
-      "description": "Por favor, revisa tu correo electrónico para seguir las instrucciones."
-    }
+    "confirmation_title": "Revisa tu correo",
+    "confirmation_description": "Hemos enviado un enlace de confirmación a tu dirección de correo.",
+    "reset_title": "Revisa tu correo",
+    "reset_description": "Hemos enviado un enlace para restablecer tu contraseña a tu correo.",
+    "default_title": "Acción Requerida",
+    "default_description": "Por favor, revisa tu correo electrónico para seguir las instrucciones.",
+    "backToLogin_button": "Volver a Inicio de Sesión",
+    "resend_button": "Reenviar correo",
+    "resend_countdown": "Reenviar en {seconds}s",
+    "open_email_provider": "Abrir {provider}"
   }
 }
+

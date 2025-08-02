@@ -1,54 +1,65 @@
 // app/[locale]/dev-console/layout.tsx
 /**
  * @file layout.tsx
- * @description Layout principal para o Dashboard de Desenvolvedor (`/dev-console`).
- *              Este componente Server protege as rotas filhas, garantindo que
- *              apenas usuários com o role 'developer' tenham acesso.
- * @author Metashark (Refatorado por L.I.A Legacy)
- * @version 3.1.0 (Centralized Permissions Integration)
+ * @description Layout principal para el Dashboard de Desarrollador (`/dev-console`).
+ *              Este componente Server protege las rutas hijas, garantizando que
+ *              solo usuarios con el rol 'developer' tengan acceso. Ha sido refactorizado
+ *              para manejar de forma granular los errores de autenticación y autorización.
+ * @author Metashark (Refactorizado por L.I.A Legacy & RaZ Podestá)
+ * @version 3.2.0 (Granular Auth Error Handling)
  */
-"use server"; // Indica que este é um Server Component.
+"use server";
 
 import { redirect } from "next/navigation";
 import React from "react";
 
-import { requireAppRole } from "@/lib/auth/user-permissions"; // <-- NOVA IMPORTAÇÃO
+import { requireAppRole } from "@/lib/auth/user-permissions";
 import { logger } from "@/lib/logging";
-
 import { DevSidebarClient } from "./components/DevSidebarClient";
 
 /**
  * @async
  * @function DevConsoleLayout
- * @description Componente de Layout para a Console de Desenvolvedor.
- *              Verifica o role do usuário e redireciona se não for 'developer'.
- * @param {object} props - As propriedades do componente.
- * @param {React.ReactNode} props.children - Os componentes filhos a serem renderizados dentro do layout.
- * @returns {Promise<JSX.Element | null>} O layout com os componentes filhos ou um redirecionamento.
+ * @description Componente de Layout para la Consola de Desarrollador.
+ *              Verifica el rol del usuario y redirige de forma contextual si no se cumplen los requisitos.
+ * @param {object} props - Las propiedades del componente.
+ * @param {React.ReactNode} props.children - Los componentes hijos a ser renderizados dentro del layout.
+ * @returns {Promise<JSX.Element>} El layout con los componentes hijos o una redirección.
  */
 export default async function DevConsoleLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // REFACTORIZAÇÃO: Usar a nova função centralizada para verificar o role.
   const roleCheck = await requireAppRole(["developer"]);
 
   if (!roleCheck.success) {
-    logger.warn(
-      `[DevConsoleLayout] Acesso negado a /dev-console. Redirecionando: ${roleCheck.error}`
-    );
-    // Redireciona para login se não autenticado, ou para o dashboard se não autorizado.
-    return redirect(
-      roleCheck.error === "Ação não autorizada. Sessão não encontrada."
-        ? "/login?next=/dev-console"
-        : "/dashboard"
-    );
+    // REFACTORIZACIÓN CRÍTICA: Se manejan los tipos de error específicos.
+    switch (roleCheck.error) {
+      case "SESSION_NOT_FOUND":
+        logger.warn(
+          `[DevConsoleLayout] Acceso denegado: Sesión no encontrada. Redirigiendo a /login.`
+        );
+        // Redirige al login preservando la URL de destino para una mejor UX post-login.
+        return redirect("/login?next=/dev-console");
+
+      case "PERMISSION_DENIED":
+        logger.warn(
+          `[DevConsoleLayout] Acceso denegado: Permisos insuficientes. Redirigiendo a /dashboard.`
+        );
+        // El usuario está logueado pero no tiene permisos, lo mandamos a su dashboard.
+        return redirect("/dashboard");
+
+      default:
+        // Fallback genérico por si se añaden nuevos tipos de error.
+        logger.error(
+          `[DevConsoleLayout] Error de autorización no manejado: ${roleCheck.error}`
+        );
+        return redirect("/dashboard");
+    }
   }
 
-  // Se roleCheck.success for true, roleCheck.data contém o user e appRole.
-  // Não precisamos mais de 'supabase.auth.getUser()' ou 'supabase.from("profiles").select("app_role")' aqui.
-
+  // Si la verificación es exitosa, se renderiza el layout y sus hijos.
   return (
     <div className="flex min-h-screen bg-muted/40">
       <DevSidebarClient />
@@ -56,23 +67,14 @@ export default async function DevConsoleLayout({
     </div>
   );
 }
-/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
- * 1. Componente de Perfil de Desenvolvedor: No `DevSidebarClient`, substituir o botão de "Cerrar Sesión" por um menu suspenso (`DropdownMenu`) que exiba o nome e role do desenvolvedor, similar ao dashboard de usuário, mas com um estilo mais técnico.
- * 2. Carregamento de Dados Globais do Layout: Este layout pode pré-carregar dados necessários em todas as páginas da console (e.g., estatísticas globais como número total de usuários, sites, campanhas) e torná-los disponíveis através de um Contexto React. Isso evitaria que cada página aninhada recarregue esses dados.
- * 3. Notificações do Sistema: Integrar um pequeno sistema de notificações na barra lateral ou no cabeçalho para alertar os desenvolvedores sobre eventos críticos da plataforma (e.g., erros não tratados via Sentry, picos de uso do servidor), proporcionando monitoramento proativo.
- * 4. Tratamento de Erros por Página Dedicada: Em vez de um redirecionamento genérico para `/dashboard` em caso de acesso não autorizado, pode-se redirecionar para uma página `/unauthorized` ou `/access-denied` que explique ao usuário por que ele não pode acessar o recurso.
+
+/**
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar la robustez y rendimiento del layout.
+ *
+ * 1.  **Componente de Perfil de Desenvolvedor:** (Vigente) No `DevSidebarClient`, substituir o botão de "Cerrar Sesión" por um menu suspenso que exiba o nome e role do desenvolvedor.
+ * 2.  **Carga de Datos Globais do Layout:** (Vigente) Este layout pode pré-carregar dados necessários em todas as páginas da console (e.g., estatísticas globais) e torná-los disponíveis através de um Contexto React.
+ * 3.  **Notificações do Sistema:** (Vigente) Integrar um pequeno sistema de notificações na barra lateral para alertar os desenvolvedores sobre eventos críticos da plataforma.
+ * 4.  **Página de Acceso Denegado Específica:** (Adicionada) En lugar de redirigir a `/dashboard` en caso de `PERMISSION_DENIED`, se podría redirigir a una página `/unauthorized` que explique al usuario por qué no puede acceder al recurso, mejorando la claridad.
  */
-/* Ruta: app/[locale]/dev-console/layout.tsx */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Componente de Perfil de Desarrollador: Reemplazar el simple botón de "Cerrar Sesión" (que está dentro de DevSidebarClient) por un menú desplegable (`DropdownMenu`) que se active desde el layout. Este podría mostrar el nombre del desarrollador y su rol, similar al del dashboard de usuario, pero con un estilo más técnico.
- * 2. Carga de Datos Globales del Layout: Este layout podría precargar datos que son necesarios en todas las páginas de la consola (ej. estadísticas globales como número total de usuarios, sitios, campañas) y hacerlos disponibles a través de un Contexto de React. Esto evitaría que cada página anidada tenga que recargar estos datos.
- * 3. Notificaciones del Sistema: Integrar un pequeño sistema de notificaciones en la barra lateral o en un header para alertar a los desarrolladores sobre eventos críticos de la plataforma, como errores no controlados (vía Sentry) o picos de uso del servidor, proporcionando un monitoreo proactivo.
- */
-/* MEJORAS PROPUESTAS (Consolidadas y Refinadas)
- * 1. **Componente de Perfil de Desarrollador:** Reemplazar el simple botón de "Cerrar Sesión" con un menú desplegable (`DropdownMenu`) que muestre el nombre del desarrollador y su rol, similar al del dashboard de usuario, pero con un estilo más técnico.
- * 2. **Carga de Datos Globales del Layout:** Este layout podría precargar datos que serán necesarios en todas las páginas del `dev-console`, como estadísticas globales (número total de usuarios, sitios, etc.), y hacerlos disponibles a través de React Context para evitar la recarga en cada navegación de página.
- * 3. **Notificaciones del Sistema:** Integrar un pequeño sistema de notificaciones en la barra lateral o en un header para alertar a los desarrolladores sobre eventos críticos de la plataforma, como errores no controlados (vía Sentry) o picos de uso del servidor.
- * 1. **Resaltado de Ruta Activa:** Implementar un sub-componente `NavLink` que utilice el hook `usePathname` para determinar la ruta activa y aplicar estilos de resaltado (ej. fondo `bg-primary/10`, texto `text-primary`) al enlace correspondiente en la barra lateral.
- * 2. **Componente de Perfil de Desarrollador:** Reemplazar el simple botón de "Cerrar Sesión" con un menú desplegable (`DropdownMenu`) que muestre el nombre del desarrollador y su rol, similar al del dashboard de usuario, pero con un estilo más técnico.
- * 3. **Carga de Datos Globales del Layout:** Este layout podría precargar datos que serán necesarios en todas las páginas del `dev-console`, como estadísticas globales (número total de usuarios, sitios, etc.), y hacerlos disponibles a través de React Context para evitar la recarga en cada navegación de página.
- */
+// app/[locale]/dev-console/layout.tsx

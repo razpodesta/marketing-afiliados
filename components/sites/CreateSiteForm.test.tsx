@@ -11,32 +11,23 @@
  * @version 6.0.0 (Fix: Definitive Contextual Rendering via Hook Mocking)
  * @see {@link file://./CreateSiteForm.tsx} Para el aparato de producción bajo prueba.
  *
- * @section TÁCTICA DE PRUEBA
- * 1.  **Mocking de Hook:** En lugar de envolver en un Provider, se simula
- *     directamente el hook `useDashboard`. Esto es más limpio, desacoplado y
+ * @section TÁCTICA DE PRUEBA ("Operación Reloj Suizo")
+ * 1.  **Mocking de Hook de Alta Fidelidad:** En lugar de envolver el componente en un Provider, se simula
+ *     directamente el hook `useDashboard` a nivel de módulo. Esto es más limpio, desacoplado y
  *     resuelve el fallo de renderizado en su raíz al proveer el contexto
  *     necesario a cualquier componente hijo que lo consuma.
  * 2.  **Orquestación Asíncrona Definitiva:** Se utiliza `vi.useFakeTimers()` para controlar
- *     el tiempo. Cada interacción del usuario y avance de tiempo se envuelven en
- *     `act()` para asegurar que React procese todas las actualizaciones de estado
- *     pendientes antes de las aserciones. Esto erradica los timeouts.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar esta suite de pruebas.
- *
- * 1.  **Pruebas de Accesibilidad (a11y):** (Vigente) Integrar `jest-axe` para ejecutar una auditoría de accesibilidad en el formulario renderizado.
- * 2.  **Prueba de Estado de Carga:** (Vigente) Añadir una prueba que simule `isPending` como `true` y verifique que el botón de envío esté deshabilitado.
- *
- * @section MEJORAS ADICIONADAS
- * 1.  **Factoría de Mocks Compartida:** Mover la configuración del mock de `useDashboard` a un archivo de utilidades de prueba para reutilizarlo en otros componentes que dependan del mismo contexto.
+ *     el tiempo de forma determinista. Cada interacción del usuario (`user.type`, `user.click`) y cada
+ *     avance de tiempo (`vi.advanceTimersByTimeAsync`) se envuelven en `act()` para asegurar que React procese
+ *     todas las actualizaciones de estado pendientes antes de realizar las aserciones. Esto erradica los timeouts.
  */
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import toast from "react-hot-toast";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useDashboard } from "@/lib/context/DashboardContext";
 import { sites as sitesActions } from "@/lib/actions";
+import { useDashboard } from "@/lib/context/DashboardContext";
 import { CreateSiteForm } from "./CreateSiteForm";
 
 // --- Simulación de Dependencias ---
@@ -48,7 +39,8 @@ vi.mock("@/lib/actions", () => ({
 }));
 vi.mock("react-hot-toast");
 
-// CORRECCIÓN ESTRUCTURAL: Mockear el hook directamente
+// CORRECCIÓN ESTRUCTURAL: Se simula el hook de contexto directamente para proveer
+// los datos necesarios y aislar el componente de su entorno de producción.
 vi.mock("@/lib/context/DashboardContext");
 
 describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
@@ -58,7 +50,8 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    // Configura el mock del hook para que devuelva un valor válido y completo
+    // Se configura el mock del hook para que devuelva un valor válido y completo
+    // que cualquier componente hijo (como un futuro selector de plantillas) podría necesitar.
     vi.mocked(useDashboard).mockReturnValue({
       user: { id: "user-123" },
       workspaces: [{ id: "ws-456", name: "Test WS" }],
@@ -72,13 +65,13 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
     vi.useRealTimers();
   });
 
-  it("Validación en Cliente: debe mostrar un error si el subdominio es inválido", async () => {
+  it("Validación en Cliente: debe mostrar un error si el subdominio es inválido y no enviar", async () => {
     // Arrange
     render(<CreateSiteForm onSuccess={mockOnSuccess} workspaceId="ws-456" />);
     const subdomainInput = screen.getByLabelText(/subdominio/i);
     const submitButton = screen.getByRole("button", { name: /crear sitio/i });
 
-    // Act
+    // Act: Se envuelve la interacción en `act` para asegurar el procesamiento de estado.
     await act(async () => {
       await user.type(subdomainInput, "dominio invalido");
       await user.click(submitButton);
@@ -110,13 +103,22 @@ describe("Arnés de Pruebas: components/sites/CreateSiteForm.tsx", () => {
     const subdomainInput = screen.getByLabelText(/subdominio/i);
     const submitButton = screen.getByRole("button", { name: /crear sitio/i });
 
-    // Act
+    // Act: Orquestación precisa de eventos y tiempo.
     await act(async () => {
       await user.type(nameInput, "Mi Sitio Válido");
       await user.type(subdomainInput, "sitio-disponible");
+      // Se avanza el tiempo para que el debounce de SubdomainInput se ejecute.
       await vi.advanceTimersByTimeAsync(500);
     });
 
+    // Se espera a que el check de disponibilidad se complete.
+    await waitFor(() => {
+      expect(
+        sitesActions.checkSubdomainAvailabilityAction
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    // Act: Envío del formulario.
     await act(async () => {
       await user.click(submitButton);
     });

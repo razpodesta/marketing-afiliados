@@ -1,34 +1,83 @@
+
 {
-  "HomePage": {
-    "title": "Metashark",
-    "description": "Create your own subdomain with a custom emoji",
-    "adminLink": "Admin"
+  "Breadcrumbs": {
+    "dashboard": "Dashboard",
+    "sites": "My Sites",
+    "settings": "Settings",
+    "campaigns": "Campaigns",
+    "dev-console": "Dev Console",
+    "users": "Users",
+    "logs": "Logs"
   },
-  "SubdomainForm": {
-    "subdomainLabel": "Subdomain",
-    "subdomainPlaceholder": "your-subdomain",
-    "iconLabel": "Icon",
-    "selectEmoji": "Select Emoji",
-    "createButton": "Create Site",
-    "creatingButton": "Creating..."
+  "DashboardSidebar": {
+    "dashboard": "Dashboard",
+    "mySites": "My Sites",
+    "liaChat": "L.I.A Chat",
+    "settings": "Settings",
+    "devConsole": "Dev Console",
+    "userMenu_accountSettings": "Account Settings",
+    "userMenu_support": "Support",
+    "userMenu_signOut": "Sign Out"
+  },
+  "WorkspaceSwitcher": {
+    "selectWorkspace_label": "Select workspace",
+    "search_placeholder": "Search workspace...",
+    "empty_results": "Workspace not found.",
+    "createWorkspace_button": "Create Workspace",
+    "inviteMember_button": "Invite Member",
+    "workspaceSettings_button": "Workspace Settings",
+    "changing_status": "Switching..."
+  },
+  "SitesPage": {
+    "header_title": "My Sites",
+    "header_description": "Manage and search your sites. Each site can have multiple campaigns.",
+    "search_placeholder": "Search by subdomain...",
+    "createSite_button": "Create Site",
+    "emptyState_title": "No sites found",
+    "emptyState_description": "Try another search or create a new site.",
+    "createSiteDialog_title": "Create a new site",
+    "createSiteDialog_description": "Sites allow you to organize your campaigns under a unique subdomain."
+  },
+  "CampaignsPage": {
+    "header_title_prefix": "Campaigns for:",
+    "header_description": "Create and edit the pages for this site.",
+    "backToSites_button": "Back to My Sites",
+    "createCampaign_button": "New Campaign",
+    "tableHeader_name": "Name",
+    "tableHeader_slug": "Slug",
+    "tableHeader_lastUpdated": "Last Updated",
+    "tableHeader_actions": "Actions",
+    "tableRow_edit": "Edit",
+    "emptyState_text": "No campaigns have been created for this site yet.",
+    "createCampaignDialog_title": "Create New Campaign"
+  },
+  "Dialogs": {
+    "deleteSite_title": "Delete Site?",
+    "deleteSite_description": "This action is irreversible. The site <strong>{subdomain}</strong>, along with all its campaigns and data, will be permanently deleted.",
+    "deleteSite_confirmButton": "Yes, delete site",
+    "deleteCampaign_title": "Delete Campaign?",
+    "deleteCampaign_description": "This action is irreversible. The campaign <strong>{campaignName}</strong> will be permanently deleted.",
+    "deleteCampaign_confirmButton": "Yes, delete",
+    "generic_cancelButton": "Cancel"
   },
   "AdminDashboard": {
     "headerTitle": "Site Management",
     "welcomeMessage": "Welcome, {username}",
     "signOutButton": "Sign Out",
     "noSubdomains": "No sites have been created yet.",
-    "visitSubdomain": "Visit Site →",
+    "visitSubdomain": "Visit Site",
     "created": "Created"
   },
   "LoginPage": {
-    "title": "Welcome Back",
-    "subtitle": "Sign in or create an account to continue",
+    "metadataTitle": "Sign In | Metashark",
+    "title": "Welcome to Metashark",
+    "subtitle": "Access your account to start transforming your marketing.",
     "emailLabel": "Email address",
     "passwordLabel": "Password",
     "signInButton": "Sign In",
     "signUpButton": "Sign Up",
     "signInWith": "Continue with",
-    "signUpWith": "Continue with",
+    "signUpWith": "Sign up with",
     "alreadyHaveAccount": "Already have an account? Sign In",
     "dontHaveAccount": "Don't have an account? Sign Up",
     "forgotPasswordLink": "Forgot your password?",
@@ -36,7 +85,7 @@
   },
   "ForgotPasswordPage": {
     "title": "Forgot Your Password?",
-    "description": "Enter your email address and we'll send you a link to reset it.",
+    "description": "Enter your email and we'll send you a link to reset it.",
     "emailLabel": "Email Address",
     "submitButton": "Send Reset Link",
     "sendingButton": "Sending..."
@@ -45,20 +94,24 @@
     "title": "Reset Your Password",
     "newPasswordLabel": "New Password",
     "confirmPasswordLabel": "Confirm New Password",
-    "submitButton": "Update Password"
+    "submitButton": "Update Password",
+    "strength_veryWeak": "Very Weak",
+    "strength_weak": "Weak",
+    "strength_medium": "Medium",
+    "strength_strong": "Strong",
+    "strength_veryStrong": "Very Strong"
   },
   "AuthNoticePage": {
-    "confirmation": {
-      "title": "Check your email",
-      "description": "We've sent a confirmation link to your email address."
-    },
-    "reset": {
-      "title": "Check your email",
-      "description": "We've sent a password reset link to your email address."
-    },
-    "default": {
-      "title": "Action Required",
-      "description": "Please check your email for further instructions."
-    }
+    "confirmation_title": "Check your email",
+    "confirmation_description": "We've sent a confirmation link to your email address.",
+    "reset_title": "Check your email",
+    "reset_description": "We've sent a password reset link to your email address.",
+    "default_title": "Action Required",
+    "default_description": "Please check your email for further instructions.",
+    "backToLogin_button": "Back to Sign In",
+    "resend_button": "Resend email",
+    "resend_countdown": "Resend in {seconds}s",
+    "open_email_provider": "Open {provider}"
   }
 }
+

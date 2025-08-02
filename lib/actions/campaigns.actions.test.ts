@@ -8,15 +8,6 @@
  * @version 3.7.0 (Fix: Definitive Context-Aware Mocking & Logic Alignment)
  * @see {@link file://./campaigns.actions.ts} Para el aparato de producción bajo prueba.
  *
- * @section TÁCTICA DE PRUEBA
- * 1.  **Aislamiento de Lógica:** Se utiliza `vi.spyOn(Object, 'fromEntries')` para
- *     alimentar directamente a la acción con un objeto plano.
- * 2.  **Mocks de Alta Fidelidad y Aislados por Prueba:** El cliente de Supabase se simula con
- *     referencias de función estables, pero los valores que resuelven las promesas
- *     (ej. `mockSingle.mockResolvedValue`) se configuran *dentro de cada test*.
- * 3.  **Aserción Lógica Corregida:** La aserción para la creación del slug ahora refleja
- *     fielmente la lógica de transliteración del validador de producción.
- *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar esta suite de pruebas.
  *
@@ -98,6 +89,7 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
       if (result.success) {
         expect(mockInsert).toHaveBeenCalledWith(
           expect.objectContaining({
+            name: "Campaña de Ñandú",
             slug: "campana-de-nandu",
           })
         );
