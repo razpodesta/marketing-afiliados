@@ -14,7 +14,7 @@
  * @description Mejoras incrementales para la capa de acciones de campañas.
  *
  * 1.  **Transacciones Atómicas**: (Vigente) La creación de una campaña y su log de auditoría deberían ocurrir dentro de una transacción de base de datos para garantizar que si una falla, la otra se revierte.
- * 2.  **Manejo de Errores Granular**: (Vigente) Mapear códigos de error específicos de PostgreSQL (ej. violación de clave foránea) a mensajes de error más amigables para el usuario.
+ * 2.  **Manejo de Errores Granular**: (Vigente) Mapear códigos de error específicos de PostgreSQL a mensajes de error más amigables para el usuario.
  * 3.  **Acción de Duplicar Campaña**: (Vigente) Crear una nueva `duplicateCampaignAction(campaignId)` que copie una campaña existente, incluyendo su `content`, para agilizar el flujo de trabajo del usuario.
  */
 "use server";

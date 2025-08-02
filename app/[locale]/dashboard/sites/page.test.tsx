@@ -1,13 +1,13 @@
 // app/[locale]/dashboard/sites/page.test.tsx
 /**
  * @file page.test.tsx
- * @description Arnés de pruebas de alta fidelidad para el Server Component de
- *              la página de Sitios. Valida los flujos de datos y la lógica de
+ * @description Arnés de pruebas de alta fidelidad para la lógica de carga de datos
+ *              de la página de Sitios. Valida los flujos de datos y la lógica de
  *              negocio del `SitesPageLoader` de forma aislada y robusta.
- * @author L.I.A. Legacy & Raz Podestá
+ * @author L.I.A. Legacy & RaZ Podestá
  * @co-author MetaShark
- * @version 4.0.0 (Definitive Isolated Loader Validation)
- * @see {@link file://./page.tsx} Para el aparato de producción bajo prueba.
+ * @version 4.2.0 (Fix: Definitive Test Target Refactoring)
+ * @see {@link file://./sites-page-loader.tsx} Para el aparato de producción bajo prueba.
  *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar esta suite de pruebas.
@@ -22,8 +22,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sites as sitesData } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { SitesPageLoader } from "./page";
-// `SitesClient` se importa solo para que el mock funcione
+// CORRECCIÓN ESTRUCTURAL: La prueba ahora apunta al componente loader aislado.
+import { SitesPageLoader } from "./sites-page-loader";
+import { SitesClient } from "./sites-client";
 
 // --- Simulación de Dependencias ---
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
@@ -39,7 +40,7 @@ vi.mock("./sites-client", () => ({
 const mockUser = { id: "user-123" };
 const mockWorkspaceId = "ws-456";
 
-describe("Arnés de Pruebas Definitivo: app/[locale]/dashboard/sites/page.tsx", () => {
+describe("Arnés de Pruebas Definitivo: Lógica de Carga de `sites`", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createClient).mockReturnValue({

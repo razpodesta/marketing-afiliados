@@ -5,7 +5,7 @@
  *              Valida el ciclo de vida completo con mocks de alta fidelidad y contextualmente conscientes.
  * @author L.I.A Legacy & RaZ Podestá (Validator)
  * @co-author MetaShark
- * @version 3.6.0 (Fix: Definitive Slug Logic & Context-Aware Mocking)
+ * @version 3.6.0 (Fix: Definitive Context-Aware Mocking & Logic Alignment)
  * @see {@link file://./campaigns.actions.ts} Para el aparato de producción bajo prueba.
  * @see {@link file://../validators/index.ts} Para el validador de producción bajo prueba.
  *
@@ -35,10 +35,9 @@ vi.mock("@/lib/logging", () => ({
   logger: { error: vi.fn(), warn: vi.fn() },
 }));
 vi.mock("./_helpers");
-vi.mock("next/cache", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("next/cache")>();
-  return { ...actual, revalidatePath: vi.fn() };
-});
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
 
 describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
   const mockUser = { id: "user-123", email: "test@example.com" };
@@ -107,6 +106,7 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
   describe("Acción: deleteCampaignAction", () => {
     it("Camino Feliz: debe eliminar una campaña existente", async () => {
       // Arrange
+      // CORRECCIÓN ESTRUCTURAL: Se configura el mock contextualmente para esta prueba.
       mockSingle.mockResolvedValue({
         data: {
           id: MOCK_CAMPAIGN_ID,

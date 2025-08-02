@@ -1,10 +1,21 @@
-// Ruta: components/ui/LanguageSwitcher.tsx (CORREGIDO)
+// components/ui/LanguageSwitcher.tsx
 /**
  * @file LanguageSwitcher.tsx
  * @description Componente de cliente para cambiar el idioma de la aplicación.
- *              Ahora establece una cookie de preferencia para persistir la elección del usuario.
+ *              Establece una cookie de preferencia para persistir la elección del usuario,
+ *              mejorando la experiencia en visitas posteriores. Utiliza los hooks de
+ *              navegación de `next-intl` para realizar cambios de ruta seguros y tipados.
  * @author RaZ Podestá & L.I.A Legacy
+ * @co-author MetaShark
  * @version 3.0.0 (Persistent Language Preference)
+ * @see {@link file://./LanguageSwitcher.test.tsx} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar el selector de idioma.
+ *
+ * 1.  **Sincronización con Perfil de Usuario:** (Vigente) Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles`. Al iniciar sesión, la cookie `NEXT_LOCALE_CHOSEN` podría ser establecida desde el servidor basándose en esta preferencia.
+ * 2.  **Traducciones en la Página de Selección:** (Vigente) La página `/choose-language` podría ser refactorizada para usar `getTranslations` y mostrar su contenido en múltiples idiomas.
+ * 3.  **Animaciones de Transición:** (Vigente) Añadir animaciones sutiles con `framer-motion` a la página de selección de idioma para una experiencia de bienvenida más pulida.
  */
 "use client";
 
@@ -49,7 +60,6 @@ export function LanguageSwitcher() {
   );
 
   const handleLocaleChange = (newLocale: AppLocale) => {
-    // CORRECCIÓN: Persistir la elección del usuario en una cookie.
     Cookies.set(COOKIE_NAME, newLocale, { expires: 365, path: "/" });
 
     startTransition(() => {
@@ -107,46 +117,4 @@ export function LanguageSwitcher() {
     </DropdownMenu>
   );
 }
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar el selector de idioma.
- *
- * 1.  **Sincronización con Perfil de Usuario:** Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles`. Al iniciar sesión, la cookie `NEXT_LOCALE_CHOSEN` podría ser establecida desde el servidor basándose en esta preferencia, sincronizando la experiencia a través de diferentes dispositivos.
- * 2.  **Traducciones en la Página de Selección:** La página `/choose-language` actualmente tiene texto estático en inglés. Podría ser refactorizada para usar `getTranslations` y mostrar el texto "Please select your language" en múltiples idiomas.
- * 3.  **Animaciones de Transición:** Añadir animaciones sutiles con `framer-motion` a la página de selección de idioma para una experiencia de bienvenida más pulida y moderna.
- */
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `LanguageSwitcher.tsx` es el componente de cliente para la
- *               internacionalización.
- *
- * @functionality
- * - Orquesta el cambio de idioma de la aplicación.
- * - **Corrección Crítica:** Hemos resuelto una cascada de errores de tipo. El `usePathname`
- *   de `next-intl` ahora devuelve nuestro tipo `AppPathname` específico (gracias a nuestra
- *   refactorización de `lib/navigation.ts`). Al asignar explícitamente este tipo a la
- *   variable `pathname`, satisfacemos el contrato del `router`. Ahora, el router sabe
- *   que la ruta es válida y puede inferir correctamente los `params` necesarios,
- *   eliminando los errores `TS2724` y `TS2322`.
- *
- * @relationships
- * - Depende de `lib/navigation.ts` como la única fuente de verdad para los tipos de ruta.
- *
- * @expectations
- * - Con esta corrección, el componente `LanguageSwitcher` es ahora completamente
- *   seguro en tipos y está alineado con la arquitectura de enrutamiento moderna,
- *   eliminando el riesgo de regresiones en la navegación internacionalizada.
- * =================================================================================================
- */
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar el selector de idioma.
- *
- * 1.  **Persistir Preferencia de Idioma:** (Revalidado) Guardar la preferencia de idioma del usuario en una cookie.
- * 2.  **Accesibilidad de Emojis:** (Implementado) Se ha añadido `role="img"` y `aria-label` a los emojis de banderas.
- */
-// Ruta: components/ui/LanguageSwitcher.tsx
+// components/ui/LanguageSwitcher.tsx

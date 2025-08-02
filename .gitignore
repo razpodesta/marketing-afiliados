@@ -17,6 +17,7 @@
 # testing
 /coverage
 *.test.ts
+*.test.jsx
 
 # next.js
 /.next/

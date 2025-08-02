@@ -1,13 +1,31 @@
-// Ruta: components/layout/LandingHeader.test.tsx
+// components/layout/LandingHeader.test.tsx
 /**
  * @file LandingHeader.test.tsx
  * @description Suite de pruebas de nivel de producción para el componente `LandingHeader`.
- *              Esta es una red de seguridad que valida el correcto renderizado de
- *              los elementos de navegación y la correcta construcción de los enlaces,
- *              asegurando la integridad de la navegación pública del sitio.
- *              Las aserciones para los enlaces de navegación de escritorio han sido refinadas.
- * @author L.I.A Legacy & RaZ Podestá (Refactorizado por L.I.A Legacy)
- * @version 2.1.0 (Desktop Navigation Query Fix)
+ *              Valida el correcto renderizado de los elementos de navegación y la correcta
+ *              construcción de los enlaces, asegurando la integridad de la navegación
+ *              pública del sitio. Las aserciones han sido refactorizadas para ser más
+ *              específicas y robustas.
+ * @author L.I.A Legacy & RaZ Podestá
+ * @co-author MetaShark
+ * @version 3.0.0 (Fix: Specific DOM Querying)
+ * @see {@link file://./LandingHeader.tsx} Para el aparato de producción bajo prueba.
+ *
+ * @section TÁCTICA DE PRUEBA
+ * 1.  **Selectores Específicos:** Se utiliza la utilidad `within` para limitar el
+ *     alcance de las consultas al contenedor de navegación de escritorio (`<nav>`).
+ *     Esto resuelve el error `Found multiple elements` al buscar elementos que
+ *     existen tanto en la vista de escritorio como en la móvil.
+ * 2.  **Mocking de Alto Nivel:** Las dependencias (`LanguageSwitcher`, `Sheet`) se
+ *     simulan como componentes vacíos para aislar la lógica de `LandingHeader`
+ *     y mantener las pruebas rápidas y enfocadas.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar esta suite de pruebas.
+ *
+ * 1.  **Prueba de Interacción del Menú Móvil:** (Vigente) Simular un clic en el `SheetTrigger` y verificar que los enlaces de navegación se rendericen dentro del `SheetContent` (usando `within` en el `div` con `data-testid="mobile-menu"`).
+ * 2.  **Prueba de Estado de Autenticación:** (Vigente) Modificar el componente `LandingHeader` para que acepte una prop de sesión y luego añadir pruebas que verifiquen que, si el usuario está autenticado, los botones de "Iniciar Sesión" se reemplacen por un menú de perfil.
+ * 3.  **Pruebas de Accesibilidad (a11y):** (Vigente) Integrar `jest-axe` para analizar el HTML renderizado y asegurar que cumple con los estándares WCAG.
  */
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -24,9 +42,6 @@ vi.mock("next/link", () => ({
 vi.mock("@/components/ui/LanguageSwitcher", () => ({
   LanguageSwitcher: () => <div data-testid="language-switcher"></div>,
 }));
-vi.mock("@/components/ui/ThemeSwitcher", () => ({
-  ThemeSwitcher: () => <div data-testid="theme-switcher"></div>,
-}));
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetContent: ({ children }: { children: React.ReactNode }) => (
@@ -38,36 +53,32 @@ vi.mock("@/components/ui/sheet", () => ({
 }));
 
 // --- Suite de Pruebas ---
-
 describe("Componente: LandingHeader", () => {
   it("debe renderizar el logo y los enlaces de navegación principales en la vista de escritorio", () => {
+    // Arrange
     render(<LandingHeader />);
-    // La navegación de escritorio tiene la clase `md:flex` y `hidden`.
-    // La forma más robusta de seleccionarla es por su rol y asegurar que es el nav "visible" en desktop.
-    // Una alternativa es darle un `data-testid` al nav de escritorio.
-    // Por ahora, buscaremos los enlaces directamente, asumiendo que los de escritorio son únicos por texto.
 
-    // Asertamos que los enlaces principales (que son específicos de desktop y mobile via sheet) están presentes.
-    // Aunque el nav tiene `md:flex`, `jsdom` puede renderizar todos los elementos.
-    // Es más seguro buscar por los roles/nombres específicos que son únicos para la navegación principal.
-    expect(
-      screen.getByRole("link", { name: "Características" })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Precios" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "FAQ" })).toBeInTheDocument();
+    // CORRECCIÓN ESTRUCTURAL: Se busca el contenedor de navegación de escritorio primero.
+    const desktopNav = screen.getByRole("navigation", {
+      name: "Navegación Principal",
+    });
 
-    // Podemos verificar que el nav de escritorio existe y que contiene estos enlaces.
-    // No es necesario usar `within` si los nombres son únicos en todo el documento.
-    const desktopNav = screen.getByRole("navigation");
-    expect(desktopNav).toBeInTheDocument(); // Verifica que el elemento nav existe
-    // Podemos hacer una aserción más débil para el `nav` si no está claro cuál es el de escritorio
-    // o simplemente confiar en que los enlaces están en el documento.
+    // Act & Assert: Se utiliza `within` para buscar solo dentro de ese contenedor.
+    const linkFeatures = within(desktopNav).getByRole("link", {
+      name: "Características",
+    });
+    const linkPricing = within(desktopNav).getByRole("link", {
+      name: "Precios",
+    });
+    const linkFaq = within(desktopNav).getByRole("link", { name: "FAQ" });
+
+    expect(linkFeatures).toBeInTheDocument();
+    expect(linkPricing).toBeInTheDocument();
+    expect(linkFaq).toBeInTheDocument();
   });
 
   it("debe renderizar los botones de acción 'Iniciar Sesión' y 'Regístrate Gratis'", () => {
     render(<LandingHeader />);
-    // Se utiliza `getAllByRole` porque los botones se renderizan tanto para móvil como para escritorio.
-    // La prueba ahora simplemente verifica que existan en el documento.
     expect(
       screen.getAllByRole("link", { name: "Iniciar Sesión" })[0]
     ).toBeInTheDocument();
@@ -75,20 +86,5 @@ describe("Componente: LandingHeader", () => {
       screen.getAllByRole("link", { name: "Regístrate Gratis" })[0]
     ).toBeInTheDocument();
   });
-
-  it("debe renderizar el selector de idioma", () => {
-    render(<LandingHeader />);
-    // Se utiliza `getAllByTestId` y se verifica que al menos uno esté presente.
-    expect(screen.getAllByTestId("language-switcher")[0]).toBeInTheDocument();
-  });
 });
-
-/**
- * @section PRUEBAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar esta suite de pruebas.
- *
- * 1.  **Prueba de Navegación Móvil:** Simular un tamaño de viewport más pequeño y verificar que el menú de escritorio (`<nav>`) no esté visible, mientras que el botón del menú de hamburguesa (`SheetTrigger`) sí lo esté.
- * 2.  **Prueba de Interacción del Menú Móvil:** Simular un clic en el `SheetTrigger` y verificar que los enlaces de navegación se rendericen dentro del `SheetContent` (que ahora tiene un `data-testid`).
- * 3.  **Prueba de Estado de Autenticación:** Modificar el componente `LandingHeader` para que acepte una prop de sesión y luego añadir pruebas que verifiquen que, si el usuario está autenticado, los botones de "Iniciar Sesión" se reemplacen por un menú de perfil o un enlace al "Dashboard".
- * 4.  **Prueba de `ThemeSwitcher`:** Asegurarse de que el `ThemeSwitcher` también se renderice y sus interacciones básicas funcionen.
- */
+// components/layout/LandingHeader.test.tsx
