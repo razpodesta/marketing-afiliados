@@ -2,11 +2,10 @@
 /**
  * @file store.ts
  * @description Almacén de estado global de Zustand para el constructor. Ha sido refactorizado
- *              con una implementación de historial (undo/redo) manual, simple y de alto
- *              rendimiento para eliminar dependencias externas y garantizar la máxima estabilidad.
+ *              con una implementación de historial (undo/redo) manual y se ha reintroducido
+ *              la acción `updateBlockStyle` para resolver una regresión crítica de build.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 6.1.0 (Manual History Type-Safe Refactor)
- *
+ * @version 6.3.0 (Fix: Reintroduce `updateBlockStyle` to resolve build regression)
  * @see {@link file://./store.test.ts} Para el arnés de pruebas correspondiente.
  *
  * @section MEJORAS FUTURAS
@@ -36,9 +35,11 @@ export interface BuilderState extends HistoryState {
   setCampaignConfig: (config: CampaignConfig) => void;
   setSelectedBlockId: (blockId: string | null) => void;
   updateBlockProp: (blockId: string, propName: string, value: unknown) => void;
+  updateBlockStyle: (blockId: string, styleName: string, value: string) => void; // REINTRODUCIDO
   addBlock: (blockType: string, defaultProps: Record<string, unknown>) => void;
   deleteBlock: (blockId: string) => void;
   moveBlock: (activeId: string, overId: string) => void;
+  moveBlockByStep: (blockId: string, direction: "up" | "down") => void;
   duplicateBlock: (blockId: string) => void;
   setIsSaving: (isSaving: boolean) => void;
   setDevicePreview: (device: DevicePreview) => void;
@@ -54,14 +55,49 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
   pastStates: [],
   futureStates: [],
 
-  // Acciones que NO se registran en el historial
   setCampaignConfig: (config) =>
     set({ campaignConfig: config, pastStates: [], futureStates: [] }),
   setSelectedBlockId: (blockId) => set({ selectedBlockId: blockId }),
   setDevicePreview: (device) => set({ devicePreview: device }),
   setIsSaving: (isSaving) => set({ isSaving }),
 
-  // Acciones que SÍ se registran en el historial
+  updateBlockProp: (blockId, propName, value) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: state.campaignConfig.blocks.map((block) =>
+          block.id === blockId
+            ? { ...block, props: { ...block.props, [propName]: value } }
+            : block
+        ),
+      };
+      return {
+        campaignConfig: newConfig,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
+  // CORRECCIÓN ESTRUCTURAL: Se reintroduce la acción y se integra con el historial
+  updateBlockStyle: (blockId, styleName, value) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: state.campaignConfig.blocks.map((block) =>
+          block.id === blockId
+            ? { ...block, styles: { ...block.styles, [styleName]: value } }
+            : block
+        ),
+      };
+      return {
+        campaignConfig: newConfig,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
   addBlock: (blockType, defaultProps) =>
     set((state) => {
       if (!state.campaignConfig) return {};
@@ -71,8 +107,10 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
         props: defaultProps,
         styles: {},
       };
-      const newBlocks = [...state.campaignConfig.blocks, newBlock];
-      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: [...state.campaignConfig.blocks, newBlock],
+      };
       return {
         campaignConfig: newConfig,
         selectedBlockId: newBlock.id,
@@ -84,30 +122,14 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
   deleteBlock: (blockId) =>
     set((state) => {
       if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.filter(
-        (b) => b.id !== blockId
-      );
-      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: state.campaignConfig.blocks.filter((b) => b.id !== blockId),
+      };
       return {
         campaignConfig: newConfig,
         selectedBlockId:
           state.selectedBlockId === blockId ? null : state.selectedBlockId,
-        pastStates: [...state.pastStates, state.campaignConfig],
-        futureStates: [],
-      };
-    }),
-
-  updateBlockProp: (blockId, propName, value) =>
-    set((state) => {
-      if (!state.campaignConfig) return {};
-      const newBlocks = state.campaignConfig.blocks.map((block) =>
-        block.id === blockId
-          ? { ...block, props: { ...block.props, [propName]: value } }
-          : block
-      );
-      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
-      return {
-        campaignConfig: newConfig,
         pastStates: [...state.pastStates, state.campaignConfig],
         futureStates: [],
       };
@@ -123,12 +145,29 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
         (b) => b.id === overId
       );
       if (oldIndex === -1 || newIndex === -1) return {};
-      const newBlocks = arrayMove(
-        state.campaignConfig.blocks,
-        oldIndex,
-        newIndex
-      );
-      const newConfig = { ...state.campaignConfig, blocks: newBlocks };
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: arrayMove(state.campaignConfig.blocks, oldIndex, newIndex),
+      };
+      return {
+        campaignConfig: newConfig,
+        pastStates: [...state.pastStates, state.campaignConfig],
+        futureStates: [],
+      };
+    }),
+
+  moveBlockByStep: (blockId, direction) =>
+    set((state) => {
+      if (!state.campaignConfig) return {};
+      const { blocks } = state.campaignConfig;
+      const index = blocks.findIndex((b) => b.id === blockId);
+      if (index === -1) return {};
+      const newIndex = direction === "up" ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= blocks.length) return {};
+      const newConfig = {
+        ...state.campaignConfig,
+        blocks: arrayMove(blocks, index, newIndex),
+      };
       return {
         campaignConfig: newConfig,
         pastStates: [...state.pastStates, state.campaignConfig],
@@ -161,18 +200,16 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
       };
     }),
 
-  // Lógica de historial manual
   undo: () =>
     set((state) => {
       const { pastStates, futureStates, campaignConfig } = state;
       if (pastStates.length === 0 || !campaignConfig) return {};
       const previousState = pastStates[pastStates.length - 1];
       const newPastStates = pastStates.slice(0, pastStates.length - 1);
-      const newFutureStates = [campaignConfig, ...futureStates];
       return {
         campaignConfig: previousState,
         pastStates: newPastStates,
-        futureStates: newFutureStates,
+        futureStates: [campaignConfig, ...futureStates],
       };
     }),
 
@@ -182,10 +219,9 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
       if (futureStates.length === 0 || !campaignConfig) return {};
       const nextState = futureStates[0];
       const newFutureStates = futureStates.slice(1);
-      const newPastStates = [...pastStates, campaignConfig];
       return {
         campaignConfig: nextState,
-        pastStates: newPastStates,
+        pastStates: [...pastStates, campaignConfig],
         futureStates: newFutureStates,
       };
     }),

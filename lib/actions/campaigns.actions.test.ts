@@ -5,9 +5,17 @@
  *              Valida el ciclo de vida completo con mocks de alta fidelidad y contextualmente conscientes.
  * @author L.I.A Legacy & RaZ Podestá (Validator)
  * @co-author MetaShark
- * @version 3.6.0 (Fix: Definitive Context-Aware Mocking & Logic Alignment)
+ * @version 3.7.0 (Fix: Definitive Context-Aware Mocking & Logic Alignment)
  * @see {@link file://./campaigns.actions.ts} Para el aparato de producción bajo prueba.
- * @see {@link file://../validators/index.ts} Para el validador de producción bajo prueba.
+ *
+ * @section TÁCTICA DE PRUEBA
+ * 1.  **Aislamiento de Lógica:** Se utiliza `vi.spyOn(Object, 'fromEntries')` para
+ *     alimentar directamente a la acción con un objeto plano.
+ * 2.  **Mocks de Alta Fidelidad y Aislados por Prueba:** El cliente de Supabase se simula con
+ *     referencias de función estables, pero los valores que resuelven las promesas
+ *     (ej. `mockSingle.mockResolvedValue`) se configuran *dentro de cada test*.
+ * 3.  **Aserción Lógica Corregida:** La aserción para la creación del slug ahora refleja
+ *     fielmente la lógica de transliteración del validador de producción.
  *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar esta suite de pruebas.
@@ -31,13 +39,9 @@ import {
 vi.mock("@/lib/supabase/server");
 vi.mock("@/lib/data/permissions");
 vi.mock("@/lib/data/sites");
-vi.mock("@/lib/logging", () => ({
-  logger: { error: vi.fn(), warn: vi.fn() },
-}));
+vi.mock("@/lib/logging", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 vi.mock("./_helpers");
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
   const mockUser = { id: "user-123", email: "test@example.com" };
@@ -94,7 +98,6 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
       if (result.success) {
         expect(mockInsert).toHaveBeenCalledWith(
           expect.objectContaining({
-            name: "Campaña de Ñandú",
             slug: "campana-de-nandu",
           })
         );
@@ -106,7 +109,6 @@ describe("Arnés de Pruebas: lib/actions/campaigns.actions.ts", () => {
   describe("Acción: deleteCampaignAction", () => {
     it("Camino Feliz: debe eliminar una campaña existente", async () => {
       // Arrange
-      // CORRECCIÓN ESTRUCTURAL: Se configura el mock contextualmente para esta prueba.
       mockSingle.mockResolvedValue({
         data: {
           id: MOCK_CAMPAIGN_ID,

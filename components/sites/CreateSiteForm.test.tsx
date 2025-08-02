@@ -8,7 +8,7 @@
  *              garantizar pruebas rápidas, estables y deterministas.
  * @author L.I.A Legacy & RaZ Podestá (Validator)
  * @co-author MetaShark
- * @version 5.5.0 (Fix: Definitive Contextual Rendering via Hook Mocking)
+ * @version 6.0.0 (Fix: Definitive Contextual Rendering via Hook Mocking)
  * @see {@link file://./CreateSiteForm.tsx} Para el aparato de producción bajo prueba.
  *
  * @section TÁCTICA DE PRUEBA

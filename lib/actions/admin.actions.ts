@@ -1,10 +1,19 @@
-// Ruta: lib/actions/admin.actions.ts
+// lib/actions/admin.actions.ts
 /**
  * @file lib/actions/admin.actions.ts
  * @description Contiene Server Actions restringidas a roles administrativos ('admin', 'developer').
  *              Estas acciones son sensibles y exigen verficación rigurosa de permisos.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 2.5.0 (Action Result Contract Alignment)
+ * @co-author MetaShark
+ * @version 2.6.0 (Fix: Definitive Action Result Contract Alignment)
+ * @see {@link file://./admin.actions.test.ts} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para robustecer las acciones administrativas.
+ *
+ * 1.  **Transacciones de Base de Datos:** (Vigente) Para operaciones que involucran múltiples escrituras, envolverlas en una transacción (RPC) para garantizar la atomicidad.
+ * 2.  **Protección Contra Auto-Modificación Crítica:** (Vigente) Implementar lógica para impedir que el último administrador/desarrollador sea degradado de rol.
+ * 3.  **Mensajes de Error Específicos:** (Vigente) Mapear códigos de error de Supabase a mensajes amigables para el usuario.
  */
 "use server";
 
@@ -18,14 +27,6 @@ import { type ActionResult } from "@/lib/validators";
 
 import { createAuditLog } from "./_helpers";
 
-/**
- * @async
- * @function impersonateUserAction
- * @description Gera um link de login mágico para personificar um usuário.
- *              Restrito ao role 'developer'.
- * @param {string} userId - O ID do usuário a ser personificado.
- * @returns {Promise<ActionResult<{ signInLink: string }>>} O resultado com o link de login.
- */
 export async function impersonateUserAction(
   userId: string
 ): Promise<ActionResult<{ signInLink: string }>> {
@@ -78,11 +79,6 @@ export async function impersonateUserAction(
   return { success: true, data: { signInLink } };
 }
 
-/**
- * @description Exclui um site da plataforma.
- * @param {FormData} formData - Deve conter o 'subdomain' a ser excluído.
- * @returns {Promise<ActionResult<{ message: string }>>} O resultado da operação.
- */
 export async function deleteSiteAsAdminAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
@@ -123,16 +119,10 @@ export async function deleteSiteAsAdminAction(
   };
 }
 
-/**
- * @description Atualiza o role de um usuário. Ação restrita ao role 'developer'.
- * @param {string} userId - O UUID do usuário a ser modificado.
- * @param {Database["public"]["Enums"]["app_role"]} newRole - O novo role a ser atribuído.
- * @returns {Promise<ActionResult>} O resultado da operação.
- */
 export async function updateUserRoleAction(
   userId: string,
   newRole: Database["public"]["Enums"]["app_role"]
-): Promise<ActionResult> {
+): Promise<ActionResult<void>> {
   const roleCheck = await requireAppRole(["developer"]);
   if (!roleCheck.success) {
     return { success: false, error: roleCheck.error };
@@ -165,36 +155,6 @@ export async function updateUserRoleAction(
     metadata: { newRole },
   });
 
-  // CORRECCIÓN: Se omite el campo `data` para cumplir con el tipo `ActionResult<void>`.
-  return { success: true };
+  return { success: true, data: undefined };
 }
-
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para robustecer las acciones administrativas.
- *
- * 1.  **Mensajes de Error Específicos:** (Revalidado) Para algunas fallas de base de datos, las mensajes de error pueden ser más específicos, usando un mapeo de códigos de error de Supabase a mensajes amigables para el usuario.
- * 2.  **Protección Contra Auto-Modificación Crítica:** (Revalidado) Implementar lógica para impedir que el último administrador/desarrollador sea rebaixado de rol o excluido, garantizando que siempre haya acceso administrativo a la plataforma.
- * 3.  **Transacciones de Base de Datos:** Para operaciones que involucran múltiples escrituras (ej. crear una entidad y luego un log de auditoría), envolverlas en una transacción de base de datos (usando una función RPC de PostgreSQL) para garantizar la atomicidad. Si una parte falla, todo se revierte.
- */
-
-/**
- * @fileoverview El aparato `admin.actions.ts` contiene Server Actions de alta sensibilidad.
- * @functionality
- * - Proporciona funcionalidades que solo los roles de `admin` o `developer` pueden ejecutar.
- * - Cada acción comienza con una llamada al Guardián de Permisos (`requireAppRole`) como primera línea de defensa.
- * - Implementa operaciones que eluden las políticas de RLS utilizando un cliente de Supabase con privilegios de administrador (`createAdminClient`).
- * - Realiza un logging de auditoría detallado para cada operación exitosa.
- * @relationships
- * - Es consumido por los componentes de cliente en el área de administración (`app/[locale]/admin/`) y en la consola de desarrollador (`app/[locale]/dev-console/`).
- * - Depende críticamente del `lib/auth/user-permissions.ts` para la autorización.
- * - Utiliza `lib/supabase/server.ts` para crear el cliente de administrador.
- * @expectations
- * - Se espera que este aparato sea el más seguro y vigilado del sistema. Cada nueva acción añadida aquí debe tener una justificación de seguridad clara y una comprobación de permisos explícita. El manejo de errores debe ser robusto para no exponer detalles de implementación del servidor al cliente.
- */
-// Ruta: lib/actions/admin.actions.ts
-/* Melhorias Futuras Detectadas (Existentes Revalidadas e Novas Incrementadas)
- * 1. Logging de Auditoria Detalhado: Implementação completa de `createAuditLog` para todas as ações críticas, incluindo IDs de entidade e metadados relevantes. (Implementado).
- * 2. Mensagens de Erro Específicas: Para algumas falhas de DB, as mensagens de erro podem ser mais específicas, talvez usando um mapeamento de códigos de erro Supabase para mensagens amigáveis.
- * 3. Proteção Contra Exclusão/Rebaixamento de Administrador Mestre: Implementar lógica para impedir que o último administrador/desenvolvedor seja rebaixado de role ou excluído, garantindo que sempre haja acesso administrativo à plataforma. (Mantido como melhoria futura).
- */
+// lib/actions/admin.actions.ts
