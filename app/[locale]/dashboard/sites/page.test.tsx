@@ -7,6 +7,14 @@
  * @author L.I.A. Legacy & Raz Podestá
  * @co-author MetaShark
  * @version 4.0.0 (Definitive Isolated Loader Validation)
+ * @see {@link file://./page.tsx} Para el aparato de producción bajo prueba.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras para evolucionar esta suite de pruebas.
+ *
+ * 1.  **Pruebas de Escenario de `DEV_MODE`**: (Vigente) Añadir una prueba que establezca `process.env.DEV_MODE_ENABLED` a `"true"` y verifique que `SitesClient` es llamado con los datos de `mockSites`.
+ * 2.  **Pruebas de Autenticación y Contexto**: (Vigente) Añadir pruebas para los casos en que `getUser` devuelve `null` o la cookie de `workspaceId` no está presente, y verificar que `redirect` es llamada.
+ * 3.  **Factoría de Mocks**: (Vigente) Mover la configuración repetitiva de mocks a una función `setupMocks()` para mantener las pruebas más limpias.
  */
 import { render, screen } from "@testing-library/react";
 import { cookies } from "next/headers";
@@ -16,14 +24,12 @@ import { sites as sitesData } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { SitesPageLoader } from "./page";
 // `SitesClient` se importa solo para que el mock funcione
-import { SitesClient } from "./sites-client";
 
 // --- Simulación de Dependencias ---
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/headers");
 vi.mock("@/lib/supabase/server");
 vi.mock("@/lib/data");
-// Se mockea el componente cliente para aislar completamente el loader del servidor.
 vi.mock("./sites-client", () => ({
   SitesClient: vi.fn((props) => (
     <div data-testid="mock-sites-client" data-props={JSON.stringify(props)} />
@@ -109,13 +115,4 @@ describe("Arnés de Pruebas Definitivo: app/[locale]/dashboard/sites/page.tsx", 
     expect(errorTitle).toBeInTheDocument();
   });
 });
-
-/**
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar esta suite de pruebas.
- *
- * 1.  **Pruebas de Escenario de `DEV_MODE`**: (Vigente) Añadir una prueba que establezca `process.env.DEV_MODE_ENABLED` a `"true"` y verifique que `SitesClient` es llamado con los datos de `mockSites`, validando el bypass de desarrollo.
- * 2.  **Pruebas de Autenticación y Contexto**: (Vigente) Añadir pruebas para los casos en que `getUser` devuelve `null` o la cookie de `workspaceId` no está presente, y verificar que la función `redirect` es llamada con la URL correcta.
- * 3.  **Factoría de Mocks**: (Vigente) Mover la configuración repetitiva de mocks a una función `setupMocks()` o a un archivo de utilidades para mantener las pruebas más limpias.
- */
 // app/[locale]/dashboard/sites/page.test.tsx

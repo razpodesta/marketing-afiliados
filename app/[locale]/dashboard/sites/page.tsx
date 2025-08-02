@@ -1,11 +1,22 @@
 // app/[locale]/dashboard/sites/page.tsx
 /**
  * @file page.tsx
- * @description Página de servidor para "Mis Sitios". Corregida para exportar
- *              su componente de lógica para poder ser probado de forma aislada.
+ * @description Página de servidor para "Mis Sitios". Ha sido refactorizada para
+ *              cumplir con el contrato de exportación de Next.js, separando la
+ *              lógica de carga de datos en un componente exportado (`SitesPageLoader`)
+ *              para permitir pruebas aisladas, mientras que la exportación por
+ *              defecto renderiza el componente dentro de un Suspense boundary.
  * @author L.I.A Legacy & Raz Podestá
  * @co-author MetaShark
- * @version 5.1.0 (Testability Export Fix)
+ * @version 5.2.0 (Fix: Next.js Page Export Contract)
+ * @see {@link file://./page.test.tsx} Para el arnés de pruebas correspondiente.
+ *
+ * @section MEJORAS FUTURAS
+ * @description Mejoras incrementales para la página de gestión de sitios.
+ *
+ * 1.  **Cacheo de Datos del Servidor**: (Vigente) Envolver la llamada a `getSitesByWorkspaceId` con `unstable_cache` de Next.js.
+ * 2.  **Esqueleto de Carga Específico**: (Implementado) Se ha creado un `SitesPageSkeleton` para mejorar la experiencia de usuario percibida.
+ * 3.  **Ordenamiento en Servidor**: (Vigente) Expandir la funcionalidad para aceptar `searchParams` de ordenamiento y pasarlos a la capa de datos.
  */
 import { AlertTriangle } from "lucide-react";
 import { cookies } from "next/headers";
@@ -42,7 +53,6 @@ const SitesPageSkeleton = () => (
   </div>
 );
 
-// CORRECCIÓN: Se exporta la función para que el test pueda importarla.
 export async function SitesPageLoader({
   searchParams,
 }: {
@@ -107,7 +117,8 @@ export async function SitesPageLoader({
   }
 }
 
-export default async function SitesPage({
+// CORRECCIÓN ESTRUCTURAL: Se mantiene la exportación por defecto que Next.js espera.
+export default function SitesPage({
   searchParams,
 }: {
   searchParams: { page?: string; q?: string };
@@ -118,13 +129,4 @@ export default async function SitesPage({
     </Suspense>
   );
 }
-
-/**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la página de gestión de sitios.
- *
- * 1.  **Cacheo de Datos del Servidor**: (Vigente) Envolver la llamada a `getSitesByWorkspaceId` con `unstable_cache` de Next.js, usando `page` y `q` como parte de la clave de caché, para mejorar el rendimiento en navegaciones repetidas. La caché se invalidaría con `revalidatePath` en las Server Actions.
- * 2.  **Esqueleto de Carga Específico**: (Implementado) Se ha creado un `SitesPageSkeleton` para mejorar la experiencia de usuario percibida (LCP y CLS) mientras se ejecutan las consultas asíncronas en este componente.
- * 3.  **Ordenamiento en Servidor**: (Vigente) Expandir la funcionalidad para aceptar `searchParams` de ordenamiento (ej. `?sort=name_asc`) y pasarlos a la capa de datos para que el ordenamiento se realice eficientemente en la base de datos.
- */
 // app/[locale]/dashboard/sites/page.tsx
