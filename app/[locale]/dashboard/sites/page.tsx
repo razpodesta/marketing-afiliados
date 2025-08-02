@@ -6,7 +6,7 @@
  *              lógica de carga de datos en un componente exportado (`SitesPageLoader`)
  *              para permitir pruebas aisladas, mientras que la exportación por
  *              defecto renderiza el componente dentro de un Suspense boundary.
- * @author L.I.A Legacy & Raz Podestá
+ * @author L.I.A Legacy & RaZ Podestá
  * @co-author MetaShark
  * @version 5.2.0 (Fix: Next.js Page Export Contract)
  * @see {@link file://./page.test.tsx} Para el arnés de pruebas correspondiente.

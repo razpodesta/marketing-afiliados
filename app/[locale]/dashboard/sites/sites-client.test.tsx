@@ -1,132 +1,119 @@
-// app/[locale]/dashboard/sites/sites-client.test.tsx
+// app/[locale]/dashboard/sites/page.test.tsx
 /**
- * @file sites-client.test.tsx
- * @description Arnés de pruebas de producción para el componente orquestador SitesClient.
- *              Este arnés valida que el componente pase correctamente las props a sus
- *              componentes hijos y maneje los estados de la UI. La estrategia de prueba
- *              ha sido refactorizada para usar espías (`vi.spyOn`) en lugar de
- *              serialización de props, garantizando una validación fiable de las
- *              funciones de callback.
- * @author L.I.A. Legacy
- * @version 2.0.0 (Direct Prop Spy & High-Fidelity Mocking)
- */
-import { render, screen } from "@testing-library/react";
-import React from "react";
-import { describe, expect, it, vi } from "vitest";
-
-import * as SitesHeaderModule from "@/components/sites/SitesHeader";
-import { useDashboard } from "@/lib/context/DashboardContext";
-import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { useSitesManagement } from "@/lib/hooks/useSitesManagement";
-import { SitesClient } from "./sites-client";
-
-// --- Simulación de Dependencias ---
-// Mockear los componentes hijos que no son el objetivo principal de la prueba.
-vi.mock("@/components/sites/SitesGrid", () => ({
-  SitesGrid: () => <div data-testid="mock-sites-grid" />,
-}));
-vi.mock("@/components/sites/PaginationControls", () => ({
-  PaginationControls: () => <div data-testid="mock-pagination-controls" />,
-}));
-
-// Mockear los hooks de los que depende el componente.
-vi.mock("@/lib/context/DashboardContext");
-vi.mock("@/lib/hooks/useSitesManagement");
-
-// --- Datos de Prueba de Alta Fidelidad ---
-const mockSitesData: SiteWithCampaignsCount[] = [
-  {
-    id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    name: "Sitio de Prueba Alfa",
-    subdomain: "alfa-test",
-    description: "Descripción del sitio de prueba Alfa.",
-    icon: "🧪",
-    created_at: new Date().toISOString(),
-    updated_at: null,
-    workspace_id: "ws-123",
-    owner_id: "user-456",
-    custom_domain: null,
-    campaigns: [{ count: 5 }],
-  },
-];
-const mockActiveWorkspace = { id: "ws-123", name: "Test Workspace" };
-
-describe("Arnés de Pruebas: SitesClient Orchestrator", () => {
-  it("debe pasar todas las props correctas a sus componentes hijos", () => {
-    // Arrange
-    // Se crea un espía en el componente SitesHeader antes de cada prueba.
-    const sitesHeaderSpy = vi
-      .spyOn(SitesHeaderModule, "SitesHeader")
-      .mockImplementation(() => <div data-testid="mock-sites-header" />);
-
-    vi.mocked(useDashboard).mockReturnValue({
-      activeWorkspace: mockActiveWorkspace,
-    } as any);
-
-    const mockHandleSearch = vi.fn();
-    vi.mocked(useSitesManagement).mockReturnValue({
-      sites: mockSitesData,
-      isCreateDialogOpen: false,
-      setCreateDialogOpen: vi.fn(),
-      handleDelete: vi.fn(),
-      isPending: false,
-      deletingSiteId: null,
-      handleSearch: mockHandleSearch,
-    });
-
-    const props = {
-      initialSites: mockSitesData,
-      totalCount: 1,
-      page: 1,
-      limit: 9,
-      searchQuery: "test",
-    };
-
-    // Act
-    render(<SitesClient {...props} />);
-
-    // Assert: Verificar que el componente espiado fue llamado
-    expect(sitesHeaderSpy).toHaveBeenCalledTimes(1);
-
-    // Assert: Inspeccionar las props pasadas al componente espiado
-    const passedProps = sitesHeaderSpy.mock.calls[0][0];
-    expect(passedProps.searchQuery).toBe("test");
-    expect(passedProps.workspaceId).toBe("ws-123");
-    expect(passedProps.onSearchChange).toBe(mockHandleSearch);
-    expect(passedProps.onSearchChange).toBeInstanceOf(Function);
-
-    // Limpiar el espía después de la prueba
-    sitesHeaderSpy.mockRestore();
-  });
-
-  it("no debe renderizar nada si no hay un workspace activo", () => {
-    // Arrange
-    vi.mocked(useDashboard).mockReturnValue({
-      activeWorkspace: null,
-    } as any);
-    vi.mocked(useSitesManagement).mockReturnValue({} as any);
-
-    // Act
-    const { container } = render(
-      <SitesClient
-        initialSites={[]}
-        totalCount={0}
-        page={1}
-        limit={9}
-        searchQuery=""
-      />
-    );
-
-    // Assert
-    expect(container.firstChild).toBeNull();
-  });
-});
-
-/**
+ * @file page.test.tsx
+ * @description Arnés de pruebas de alta fidelidad para el Server Component de
+ *              la página de Sitios. Valida los flujos de datos y la lógica de
+ *              negocio del `SitesPageLoader` de forma aislada y robusta.
+ * @author L.I.A. Legacy & Raz Podestá
+ * @co-author MetaShark
+ * @version 4.0.0 (Definitive Isolated Loader Validation)
+ * @see {@link file://./page.tsx} Para el aparato de producción bajo prueba.
+ *
  * @section MEJORAS FUTURAS
  * @description Mejoras para evolucionar esta suite de pruebas.
  *
- * 1.  **Factoría de Mocks**: Mover la configuración de los mocks (`mockSitesData`, `mockActiveWorkspace`) a funciones de utilidad para mantener las pruebas más limpias y reutilizables.
- * 2.  **Pruebas de Accesibilidad (a11y)**: Integrar `jest-axe` para analizar el HTML renderizado y asegurar que cumple con los estándares básicos de accesibilidad, incluso con los componentes hijos mockeados.
+ * 1.  **Pruebas de Escenario de `DEV_MODE`**: (Vigente) Añadir una prueba que establezca `process.env.DEV_MODE_ENABLED` a `"true"` y verifique que `SitesClient` es llamado con los datos de `mockSites`.
+ * 2.  **Pruebas de Autenticación y Contexto**: (Vigente) Añadir pruebas para los casos en que `getUser` devuelve `null` o la cookie de `workspaceId` no está presente, y verificar que `redirect` es llamada.
+ * 3.  **Factoría de Mocks**: (Vigente) Mover la configuración repetitiva de mocks a una función `setupMocks()` para mantener las pruebas más limpias.
  */
-// app/[locale]/dashboard/sites/sites-client.test.tsx
+import { render, screen } from "@testing-library/react";
+import { cookies } from "next/headers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { sites as sitesData } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
+import { SitesPageLoader } from "./page";
+// `SitesClient` se importa solo para que el mock funcione
+import { SitesClient } from "./sites-client";
+
+// --- Simulación de Dependencias ---
+vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/headers");
+vi.mock("@/lib/supabase/server");
+vi.mock("@/lib/data");
+vi.mock("./sites-client", () => ({
+  SitesClient: vi.fn((props) => (
+    <div data-testid="mock-sites-client" data-props={JSON.stringify(props)} />
+  )),
+}));
+
+const mockUser = { id: "user-123" };
+const mockWorkspaceId = "ws-456";
+
+describe("Arnés de Pruebas Definitivo: app/[locale]/dashboard/sites/page.tsx", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createClient).mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }),
+      },
+    } as any);
+    vi.mocked(cookies).mockReturnValue({
+      get: (name: string) =>
+        name === "active_workspace_id" ? { value: mockWorkspaceId } : undefined,
+    } as any);
+    vi.mocked(sitesData.getSitesByWorkspaceId).mockResolvedValue({
+      sites: [],
+      totalCount: 0,
+    });
+  });
+
+  it("Prueba de Paginación: debe pasar el parámetro `page` a la capa de datos", async () => {
+    const LoaderComponent = await SitesPageLoader({
+      searchParams: { page: "3" },
+    });
+    render(LoaderComponent);
+
+    expect(sitesData.getSitesByWorkspaceId).toHaveBeenCalledWith(
+      mockWorkspaceId,
+      expect.objectContaining({ page: 3 })
+    );
+  });
+
+  it("Prueba de Búsqueda: debe pasar el parámetro `q` a la capa de datos", async () => {
+    const searchQuery = "mi-busqueda";
+    const LoaderComponent = await SitesPageLoader({
+      searchParams: { q: searchQuery },
+    });
+    render(LoaderComponent);
+
+    expect(sitesData.getSitesByWorkspaceId).toHaveBeenCalledWith(
+      mockWorkspaceId,
+      expect.objectContaining({ query: searchQuery })
+    );
+  });
+
+  it("Validación de Props del Cliente: debe pasar todas las props correctas a SitesClient", async () => {
+    const mockResponse = { sites: [{ id: "site-1" }] as any, totalCount: 1 };
+    vi.mocked(sitesData.getSitesByWorkspaceId).mockResolvedValue(mockResponse);
+    const searchQuery = "mi-busqueda";
+    const page = 2;
+
+    const LoaderComponent = await SitesPageLoader({
+      searchParams: { q: searchQuery, page: String(page) },
+    });
+    render(LoaderComponent);
+
+    const clientProps = JSON.parse(
+      screen.getByTestId("mock-sites-client").dataset.props!
+    );
+
+    expect(clientProps.initialSites).toEqual(mockResponse.sites);
+    expect(clientProps.totalCount).toBe(mockResponse.totalCount);
+    expect(clientProps.page).toBe(page);
+    expect(clientProps.searchQuery).toBe(searchQuery);
+  });
+
+  it("Prueba de Flujo de Error: debe renderizar el componente de error si la capa de datos falla", async () => {
+    vi.mocked(sitesData.getSitesByWorkspaceId).mockRejectedValue(
+      new Error("DB Error")
+    );
+
+    const LoaderComponent = await SitesPageLoader({ searchParams: {} });
+    render(LoaderComponent);
+
+    const errorTitle = await screen.findByText("Error al Cargar Sitios");
+    expect(errorTitle).toBeInTheDocument();
+  });
+});
+// app/[locale]/dashboard/sites/page.test.tsx
