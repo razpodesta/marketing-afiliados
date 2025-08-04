@@ -1,58 +1,66 @@
 // app/[locale]/choose-language/page.tsx
 /**
  * @file page.tsx
- * @description Página de fallback para que los visitantes seleccionen su idioma
- *              cuando no puede ser determinado automáticamente. Ha sido refactorizada
- *              para cumplir con los nuevos requisitos de temporizador y idioma por defecto.
+ * @description Página de fallback para que los visitantes seleccionen su idioma.
+ *              Ha sido refactorizada a una arquitectura atómica, delegando su
+ *              lógica de temporizador al hook especializado `useCountdownRedirect`.
+ *              Ahora, este componente es una capa de presentación pura, más simple,
+ *              robusta y inherentemente testable.
  * @author L.I.A Legacy
- * @version 2.0.0 (Intelligent Fallback Alignment)
- * @see {@link file://./page.test.tsx} Para el arnés de pruebas correspondiente.
+ * @version 3.0.0 (Atomic Architecture)
+ * @see {@link file://../../../lib/hooks/useCountdownRedirect.ts} Para la lógica de negocio.
+ * @see {@link file://../../../tests/app/[locale]/choose-language/page.test.tsx} Para el arnés de pruebas correspondiente.
  */
 "use client";
 
+import Cookies from "js-cookie";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import Cookies from "js-cookie";
+import { useCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Separator } from "@/components/ui/separator";
+import { useCountdownRedirect } from "@/lib/hooks/useCountdownRedirect";
 
 const languages = [
   { code: "es-ES", name: "Español", flag: "🇪🇸" },
   { code: "en-US", name: "English", flag: "🇺🇸" },
   { code: "pt-BR", name: "Português", flag: "🇧🇷" },
 ];
-// CORRECCIÓN: Ajustado a los nuevos requisitos.
+
 const DEFAULT_LOCALE = "es-ES";
 const REDIRECT_TIMEOUT_SECONDS = 15;
 const COOKIE_NAME = "NEXT_LOCALE_CHOSEN";
 
 export default function ChooseLanguagePage() {
   const router = useRouter();
-  const [countdown, setCountdown] = useState(REDIRECT_TIMEOUT_SECONDS);
-
-  useEffect(() => {
-    if (countdown <= 0) {
-      handleLanguageSelect(DEFAULT_LOCALE);
-      return;
-    }
-    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown, router]); // Se añade router a las dependencias por completitud.
 
   /**
    * @function handleLanguageSelect
-   * @description Establece la cookie de preferencia de idioma y redirige al usuario.
+   * @description Callback memoizado que encapsula la lógica de selección de idioma.
+   *              Establece la cookie de preferencia y redirige al usuario.
    * @param {string} locale - El código del idioma seleccionado.
    */
-  const handleLanguageSelect = (locale: string) => {
-    Cookies.set(COOKIE_NAME, locale, { expires: 365, path: "/" });
-    router.replace(`/${locale}`);
-  };
+  const handleLanguageSelect = useCallback(
+    (locale: string) => {
+      Cookies.set(COOKIE_NAME, locale, { expires: 365, path: "/" });
+      router.replace(`/${locale}`);
+    },
+    [router]
+  );
 
+  /**
+   * @description Hook que gestiona la cuenta regresiva.
+   *              Cuando el contador llega a cero, invoca `handleLanguageSelect`
+   *              con el idioma por defecto.
+   */
+  const { countdown } = useCountdownRedirect(REDIRECT_TIMEOUT_SECONDS, () =>
+    handleLanguageSelect(DEFAULT_LOCALE)
+  );
+
+  // Formatea el contador para mostrarlo siempre con dos dígitos.
   const seconds = countdown.toString().padStart(2, "0");
 
   return (
@@ -72,9 +80,7 @@ export default function ChooseLanguagePage() {
           height={64}
           priority
         />
-        <h1 className="mt-4 text-3xl font-bold">Welcome to Metashark</h1>
       </div>
-
       <Card className="w-full max-w-lg border-border/60 bg-card/50 backdrop-blur-lg">
         <CardHeader>
           <CardTitle className="text-center">
@@ -96,7 +102,6 @@ export default function ChooseLanguagePage() {
             ))}
           </div>
           <Separator />
-          {/* REFACTORIZACIÓN: Se añade el LanguageSwitcher para permitir cambio si el idioma detectado es incorrecto */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-muted-foreground">
               O selecciona de la lista completa:
@@ -111,13 +116,16 @@ export default function ChooseLanguagePage() {
     </main>
   );
 }
+
 /**
  * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar la página de selección de idioma.
  *
- * @subsection Mejoras Adicionadas
- * 1. **Traducción del Contenido de la Página**: (Vigente) El texto de esta página ("Please Select Your Language") está codificado en inglés. Debería ser internacionalizado para que se muestre en el idioma que el middleware detectó en el navegador, proporcionando una experiencia más nativa incluso en esta página de fallback.
- * 2. **Detección de País como Sugerencia**: (Vigente) Podríamos leer la información de geolocalización de Vercel en el `middleware` y pasarla como un parámetro de búsqueda a esta página. La página podría entonces resaltar visualmente el idioma sugerido basado en el país del usuario (ej. un borde de color primario en el botón de Español si el país es 'CL').
- * 3. **Animación de la Cuenta Regresiva**: (Vigente) Añadir una animación sutil a la cuenta regresiva (ej. un pulso o un cambio de color a medida que se acerca a cero) para llamar la atención del usuario sobre la redirección automática inminente.
+ * @subsection Mejoras Futuras
+ * 1. **Traducción del Contenido de la Página**: ((Vigente)) El texto de esta página ("Please Select Your Language") está codificado en inglés. Debería ser internacionalizado para que se muestre en el idioma que el middleware detectó en el navegador.
+ * 2. **Detección de País como Sugerencia**: ((Vigente)) Se podría pasar la información de geolocalización de Vercel como un parámetro de búsqueda a esta página para resaltar visualmente el idioma sugerido.
+ *
+ * @subsection Mejoras Implementadas
+ * 1. **Arquitectura Atómica**: ((Implementada)) Toda la lógica compleja del temporizador ha sido extraída al hook reutilizable `useCountdownRedirect`, haciendo este componente significativamente más simple, declarativo y fácil de mantener.
+ * 2. **Optimización de `useCallback`**: ((Implementada)) La función `handleLanguageSelect` está ahora memoizada, mejorando la estabilidad del componente.
  */
 // app/[locale]/choose-language/page.tsx

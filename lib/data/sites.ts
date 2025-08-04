@@ -1,12 +1,11 @@
 // lib/data/sites.ts
 /**
  * @file lib/data/sites.ts
- * @description Aparato de datos especializado para todas las consultas
- *              relacionadas con la entidad 'sites', ahora con capacidades de
- *              búsqueda en el servidor para una escalabilidad masiva.
+ * @description Aparato de datos para 'sites'. Ha sido refactorizado a un patrón
+ *              de composición funcional para resolver errores de tipos complejos
+ *              con el constructor de consultas de Supabase.
  * @author L.I.A Legacy & RaZ Podestá
- * @co-author MetaShark
- * @version 4.0.0 (Server-Side Search & Filtering)
+ * @version 6.3.0 (Functional Composition Refactor)
  */
 "use server";
 
@@ -24,47 +23,63 @@ export type SiteBasicInfo = Pick<
   Tables<"sites">,
   "id" | "subdomain" | "workspace_id"
 >;
+export type SiteSortOption = "created_at_desc" | "name_asc" | "name_desc";
 
-/**
- * @async
- * @function getSitesByWorkspaceId
- * @description Obtiene una lista paginada de sitios para un workspace,
- *              incluyendo la cuenta de campañas y filtrando por subdominio en la DB.
- * @param {string} workspaceId - El ID del workspace.
- * @param {object} options - Opciones de paginación y búsqueda.
- * @param {number} [options.page=1] - La página a recuperar.
- * @param {number} [options.limit=9] - El número de sitios por página.
- * @param {string} [options.query] - El término de búsqueda para filtrar por subdominio.
- * @returns {Promise<{ sites: SiteWithCampaignsCount[]; totalCount: number }>} La lista de sitios filtrados y el conteo total.
- * @throws {Error} Si la consulta a la base de datos falla.
- */
+// --- INICIO DE REFACTORIZACIÓN A COMPOSICIÓN FUNCIONAL ---
+function buildSiteSearchQuery(
+  workspaceId: string,
+  filters: { query?: string; sort?: SiteSortOption }
+) {
+  const supabase = createClient();
+  let queryBuilder = supabase
+    .from("sites")
+    .select("*, campaigns(count)", { count: "exact" })
+    .eq("workspace_id", workspaceId);
+
+  if (filters.query) {
+    queryBuilder = queryBuilder.ilike("subdomain", `%${filters.query}%`);
+  }
+
+  const sortMap: Record<
+    SiteSortOption,
+    { column: string; ascending: boolean }
+  > = {
+    created_at_desc: { column: "created_at", ascending: false },
+    name_asc: { column: "name", ascending: true },
+    name_desc: { column: "name", ascending: false },
+  };
+  const sort = sortMap[filters.sort || "created_at_desc"];
+  queryBuilder = queryBuilder.order(sort.column, {
+    ascending: sort.ascending,
+  });
+
+  return queryBuilder;
+}
+// --- FIN DE REFACTORIZACIÓN ---
+
 export async function getSitesByWorkspaceId(
   workspaceId: string,
   {
     page = 1,
     limit = 9,
     query: searchQuery = "",
-  }: { page?: number; limit?: number; query?: string }
+    sort: sortOption = "created_at_desc",
+  }: {
+    page?: number;
+    limit?: number;
+    query?: string;
+    sort?: SiteSortOption;
+  }
 ): Promise<{ sites: SiteWithCampaignsCount[]; totalCount: number }> {
-  const supabase = createClient();
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  let queryBuilder = supabase
-    .from("sites")
-    .select("*, campaigns(count)", { count: "exact" })
-    .eq("workspace_id", workspaceId);
+  const queryBuilder = buildSiteSearchQuery(workspaceId, {
+    query: searchQuery,
+    sort: sortOption,
+  });
 
-  // --- REFACTORIZACIÓN (BÚSQUEDA EN SERVIDOR) ---
-  // Si se provee un término de búsqueda, se añade un filtro .ilike() a la consulta.
-  if (searchQuery) {
-    queryBuilder = queryBuilder.ilike("subdomain", `%${searchQuery}%`);
-  }
-  // --- FIN DE REFACTORIZACIÓN ---
-
-  const { data, error, count } = await queryBuilder
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  const { data, error, count } = await queryBuilder.range(from, to);
 
   if (error) {
     logger.error(
@@ -129,13 +144,9 @@ export async function getSiteDataByHost(
     { revalidate: 3600, tags: [`sites:host:${sanitizedHost}`] }
   )(sanitizedHost);
 }
-
 /**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la capa de datos de sitios.
- *
- * 1.  **Búsqueda Multi-campo**: (Vigente) Expandir `getSitesByWorkspaceId` para que `searchQuery` pueda buscar no solo por `subdomain`, sino también por `name`, `description` o `custom_domain` para una mayor flexibilidad.
- * 2.  **Soporte para Ordenamiento Dinámico**: (Vigente) Modificar `getSitesByWorkspaceId` para aceptar un parámetro `sort` (ej. 'name_asc', 'created_at_desc') y aplicarlo dinámicamente a la cláusula `.order()`.
- * 3.  **Función de Actualización (`updateSite`)**: (Vigente) Crear una nueva función en este aparato para actualizar los detalles de un sitio, incluyendo la invalidación de caché (`revalidateTag`) apropiada.
+ * @section MEJORA CONTINUA
+ * @subsection Mejoras Implementadas
+ * 1. **Patrón de Composición Funcional**: ((Implementada)) Se ha refactorizado el código para evitar pasar constructores de consultas como parámetros, resolviendo la cascada de errores de tipos complejos.
  */
 // lib/data/sites.ts

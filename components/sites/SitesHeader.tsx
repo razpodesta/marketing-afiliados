@@ -1,21 +1,12 @@
 // components/sites/SitesHeader.tsx
 /**
  * @file SitesHeader.tsx
- * @description Encabezado para la página "Mis Sitios". Este aparato ha sido refactorizado a un
- *              componente controlado, recibiendo el estado de la búsqueda y los manejadores de
- *              eventos como props. Encapsula la UI para el título, la barra de búsqueda y el
- *              disparador del modal de creación, alineándose con la arquitectura de búsqueda en servidor.
- * @author Metashark (Refactorizado por L.I.A Legacy & RaZ Podestá)
- * @version 5.0.0 (Server-Side Search & Controlled Component Pattern)
- *
- * @see {@link file://./SitesHeader.test.tsx} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para el encabezado de la página de sitios.
- *
- * 1.  **Dropdown de Ordenamiento**: (Vigente) Añadir un componente `<Select>` junto a la barra de búsqueda para permitir al usuario ordenar los sitios por "Fecha de Creación" o "Nombre", pasando el valor seleccionado a un nuevo manejador de eventos `onSortChange`.
- * 2.  **Selector de Vista (Cuadrícula/Lista)**: (Vigente) Incorporar un interruptor o grupo de botones para que el usuario pueda alternar entre una vista de cuadrícula (`<SitesGrid>`) y una vista de tabla (`<SitesTable>`), mejorando la accesibilidad y la densidad de información para usuarios avanzados.
- * 3.  **Animaciones de Layout con Framer Motion**: (Vigente) Envolver los elementos del encabezado en `motion.div` para añadir animaciones de entrada sutiles, mejorando la estética y la percepción de fluidez al cargar la página.
+ * @description Encabezado para la página "Mis Sitios". Compone la UI para
+ *              el título, la búsqueda con debounce y el diálogo de creación.
+ *              Su contrato de props ha sido alineado para recibir el estado
+ *              de carga desde el orquestador padre.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 8.0.0
  */
 "use client";
 
@@ -32,7 +23,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
 import { CreateSiteForm } from "./CreateSiteForm";
 
 interface SitesHeaderProps {
@@ -41,6 +31,8 @@ interface SitesHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   workspaceId: string;
+  onCreate: (formData: FormData) => void;
+  isPending: boolean;
 }
 
 export function SitesHeader({
@@ -49,11 +41,9 @@ export function SitesHeader({
   searchQuery,
   onSearchChange,
   workspaceId,
+  onCreate,
+  isPending,
 }: SitesHeaderProps) {
-  const handleCreateSuccess = () => {
-    setCreateDialogOpen(false);
-  };
-
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
       <div>
@@ -63,7 +53,6 @@ export function SitesHeader({
           campañas.
         </p>
       </div>
-
       <div className="flex w-full md:w-auto items-center gap-2">
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -107,7 +96,8 @@ export function SitesHeader({
             </DialogHeader>
             <CreateSiteForm
               workspaceId={workspaceId}
-              onSuccess={handleCreateSuccess}
+              onSuccess={onCreate}
+              isPending={isPending}
             />
           </DialogContent>
         </Dialog>
@@ -115,4 +105,3 @@ export function SitesHeader({
     </div>
   );
 }
-// components/sites/SitesHeader.tsx

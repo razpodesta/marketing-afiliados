@@ -1,12 +1,13 @@
 // components/layout/LandingHeader.tsx
 /**
  * @file LandingHeader.tsx
- * @description Encabezado principal de la landing page pública. Ha sido actualizado
- *              para incluir el `LanguageSwitcher`, permitiendo a los visitantes
- *              cambiar su idioma preferido directamente desde la página de inicio.
+ * @description Encabezado principal de la landing page pública. Ha sido refactorizado
+ *              para corregir un anidamiento de DOM inválido (`<button>` dentro de `<button>`),
+ *              resolviendo la advertencia `validateDOMNesting` y garantizando un HTML semántico
+ *              y accesible.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.0.0 (Global Language Switching)
- * @see {@link file://./LandingHeader.test.tsx} Para el arnés de pruebas correspondiente.
+ * @version 7.1.0 (DOM Nesting Fix)
+ * @see {@link file://../../../tests/components/layout/LandingHeader.test.tsx} Para el arnés de pruebas correspondiente.
  */
 "use client";
 
@@ -60,9 +61,7 @@ export function LandingHeader() {
 
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-2">
-            {/* --- INTEGRACIÓN --- */}
             <LanguageSwitcher />
-            {/* --- FIN DE INTEGRACIÓN --- */}
             <Button variant="ghost" asChild>
               <Link href="/login">Iniciar Sesión</Link>
             </Button>
@@ -74,10 +73,14 @@ export function LandingHeader() {
           <div className="md:hidden">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
+                {/* --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
+                {/* La prop `asChild` se pasa al Button, no al Trigger. */}
+                {/* Button ahora renderizará el elemento que SheetTrigger espera. */}
                 <Button variant="outline" size="icon">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Abrir menú</span>
                 </Button>
+                {/* --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
               </SheetTrigger>
               <SheetContent side="right">
                 <nav
@@ -96,9 +99,7 @@ export function LandingHeader() {
                   ))}
                 </nav>
                 <div className="mt-8 pt-8 border-t border-border/40 flex flex-col gap-4">
-                  {/* --- INTEGRACIÓN --- */}
                   <LanguageSwitcher />
-                  {/* --- FIN DE INTEGRACIÓN --- */}
                   <Button variant="ghost" asChild>
                     <Link href="/login">Iniciar Sesión</Link>
                   </Button>
@@ -114,13 +115,16 @@ export function LandingHeader() {
     </header>
   );
 }
+
 /**
  * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar el encabezado de la landing page.
  *
  * @subsection Mejoras Futuras
- * 1. **Animación al Hacer Scroll:** (Vigente) Implementar una animación que reduzca sutilmente la altura del header cuando el usuario hace scroll.
- * 2. **Estado de Autenticación Dinámico:** (Vigente) Este componente debería recibir la sesión del usuario como prop. Si el usuario está autenticado, los botones de login se reemplazarían por un menú de avatar.
- * 3. **Resaltado de Sección Activa:** (Vigente) Utilizar un "Intersection Observer" para detectar qué sección está en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente.
+ * 1. **Animación al Hacer Scroll:** ((Vigente)) Implementar una animación que reduzca sutilmente la altura del header cuando el usuario hace scroll.
+ * 2. **Estado de Autenticación Dinámico:** ((Vigente)) Este componente debería recibir la sesión del usuario como prop. Si el usuario está autenticado, los botones de login se reemplazarían por un menú de avatar.
+ * 3. **Resaltado de Sección Activa:** ((Vigente)) Utilizar un "Intersection Observer" para detectar qué sección está en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente.
+ *
+ * @subsection Mejoras Implementadas
+ * 1. **Anidamiento de DOM Corregido**: ((Implementada)) Se ha corregido la composición de `SheetTrigger` y `Button`, eliminando la advertencia `validateDOMNesting` y asegurando un HTML semántico y válido.
  */
 // components/layout/LandingHeader.tsx

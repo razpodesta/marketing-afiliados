@@ -1,19 +1,11 @@
 // middleware/handlers/auth/index.ts
 /**
  * @file middleware/handlers/auth/index.ts
- * @description Manejador de middleware para autenticación y protección de rutas.
- *              Valida las URLs de redirección para prevenir vulnerabilidades de Open Redirect.
- * @author L.I.A Legacy & RaZ Podestá
- * @co-author MetaShark
- * @version 9.1.0 (Security Hardening: Open Redirect Prevention)
- * @see {@link file://../../tests/auth.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar la seguridad y el flujo del manejador de autenticación.
- *
- * 1.  **Lista Blanca de Redirección (Allow-list):** (Vigente) Para una seguridad aún más estricta, en lugar de solo verificar si la ruta es relativa, se podría mantener una lista blanca explícita de dominios a los que se permite redirigir.
- * 2.  **Tokens de Redirección de un Solo Uso:** (Vigente) Implementar un sistema donde el servidor genere un token de un solo uso que represente la URL de redirección segura.
- * 3.  **Refactorización de Lógica de Redirección:** (Vigente) La lógica de redirección segura se repite. Podría abstraerse a una función de utilidad `createSafeRedirectUrl` para adherirse al principio DRY.
+ * @description Manejador de middleware para autenticación. Ha sido refactorizado
+ *              a una arquitectura de máquina de estados declarativa para máxima
+ *              claridad, mantenibilidad y robustez.
+ * @author L.I.A Legacy
+ * @version 11.0.0 (State Machine Architecture)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -26,56 +18,57 @@ import { logger } from "@/lib/logging";
 import { ROUTE_DEFINITIONS } from "@/lib/routing-manifest";
 import { createClient } from "@/lib/supabase/middleware";
 
-export async function handleAuth(
-  request: NextRequest,
-  response: NextResponse
-): Promise<NextResponse> {
-  const locale = response.headers.get("x-app-locale") || "pt-BR";
-  const { pathname, origin, searchParams } = request.nextUrl;
-  const pathnameWithoutLocale = pathname.startsWith(`/${locale}`)
-    ? pathname.slice(`/${locale}`.length) || "/"
-    : pathname;
+type UserStatus =
+  | { state: "UNAUTHENTICATED" }
+  | { state: "AUTHENTICATED"; authData: UserAuthData; needsOnboarding: boolean }
+  | { state: "DEV_MODE" };
 
+async function getUserSessionStatus(request: NextRequest): Promise<UserStatus> {
   if (process.env.DEV_MODE_ENABLED === "true") {
-    return response;
+    return { state: "DEV_MODE" };
   }
 
-  const { response: supabaseResponse } = await createClient(request);
-
-  let authData: UserAuthData | null = null;
-  try {
-    authData = await getAuthenticatedUserAuthData();
-  } catch (error) {
-    logger.error(
-      "[AUTH_HANDLER] Fallo crítico al obtener datos de autenticación:",
-      error
-    );
-    authData = null;
+  const authData = await getAuthenticatedUserAuthData();
+  if (!authData) {
+    return { state: "UNAUTHENTICATED" };
   }
 
+  if (authData.activeWorkspaceId) {
+    return { state: "AUTHENTICATED", authData, needsOnboarding: false };
+  }
+
+  const firstWorkspace = await getFirstWorkspaceForUser(authData.user.id);
+  return { state: "AUTHENTICATED", authData, needsOnboarding: !firstWorkspace };
+}
+
+function handleUnauthenticatedUser(
+  request: NextRequest,
+  pathnameWithoutLocale: string,
+  locale: string
+): NextResponse | null {
   const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
     pathnameWithoutLocale.startsWith(r)
   );
 
-  if (!authData) {
-    if (isProtectedRoute) {
-      const loginUrl = new URL(`/${locale}/login`, origin);
-
-      const nextPath = pathname;
-      if (nextPath.startsWith("/")) {
-        loginUrl.searchParams.set("next", nextPath);
-      } else {
-        logger.warn(
-          { attemptedRedirect: nextPath },
-          "[SECURITY] Intento de Open Redirect bloqueado."
-        );
-      }
-
-      return NextResponse.redirect(loginUrl);
+  if (isProtectedRoute) {
+    const loginUrl = new URL(`/${locale}/login`, request.nextUrl.origin);
+    if (request.nextUrl.pathname.startsWith("/")) {
+      loginUrl.searchParams.set("next", request.nextUrl.pathname);
     }
-    return supabaseResponse;
+    return NextResponse.redirect(loginUrl);
   }
 
+  return null;
+}
+
+function handleAuthenticatedUser(
+  request: NextRequest,
+  authData: UserAuthData,
+  needsOnboarding: boolean,
+  pathnameWithoutLocale: string,
+  locale: string
+): NextResponse | null {
+  const { origin, searchParams } = request.nextUrl;
   const isAuthRoute = ROUTE_DEFINITIONS.auth.some((r) =>
     pathnameWithoutLocale.startsWith(r)
   );
@@ -84,64 +77,78 @@ export async function handleAuth(
     if (nextUrlParam && nextUrlParam.startsWith("/")) {
       return NextResponse.redirect(new URL(nextUrlParam, origin));
     }
-
     return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
   }
 
-  if (pathnameWithoutLocale === "/welcome") {
-    const userHasWorkspace =
-      authData.activeWorkspaceId ||
-      (await getFirstWorkspaceForUser(authData.user.id));
-    if (userHasWorkspace) {
-      return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
-    }
-    return supabaseResponse;
+  if (needsOnboarding && pathnameWithoutLocale !== "/welcome") {
+    return NextResponse.redirect(new URL(`/${locale}/welcome`, origin));
   }
 
-  const isAdminDevRoute = [...ROUTE_DEFINITIONS.protected].some(
-    (route) =>
-      pathnameWithoutLocale.startsWith(route) &&
-      (route === "/admin" || route === "/dev-console")
-  );
-
-  if (isAdminDevRoute) {
-    const isDeveloper = authData.appRole === "developer";
-    if (pathnameWithoutLocale.startsWith("/dev-console") && !isDeveloper) {
-      return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
-    }
-    if (
-      pathnameWithoutLocale.startsWith("/admin") &&
-      !["admin", "developer"].includes(authData.appRole)
-    ) {
-      return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
-    }
-    return supabaseResponse;
+  if (!needsOnboarding && pathnameWithoutLocale === "/welcome") {
+    return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
   }
 
-  if (authData.activeWorkspaceId) {
-    return supabaseResponse;
+  // Role-based checks
+  if (
+    pathnameWithoutLocale.startsWith("/dev-console") &&
+    authData.appRole !== "developer"
+  ) {
+    return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
   }
+  if (
+    pathnameWithoutLocale.startsWith("/admin") &&
+    !["admin", "developer"].includes(authData.appRole)
+  ) {
+    return NextResponse.redirect(new URL(`/${locale}/dashboard`, origin));
+  }
+
+  return null;
+}
+
+export async function handleAuth(
+  request: NextRequest,
+  response: NextResponse
+): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+  const locale = response.headers.get("x-app-locale") || "pt-BR";
+  const pathnameWithoutLocale =
+    pathname.replace(new RegExp(`^/${locale}`), "") || "/";
+
+  const { response: supabaseResponse } = await createClient(request);
+  let userStatus: UserStatus;
 
   try {
-    const firstWorkspace = await getFirstWorkspaceForUser(authData.user.id);
-    if (firstWorkspace) {
-      supabaseResponse.cookies.set("active_workspace_id", firstWorkspace.id, {
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-      });
-      return NextResponse.redirect(request.url, {
-        headers: supabaseResponse.headers,
-      });
-    } else {
-      return NextResponse.redirect(new URL(`/${locale}/welcome`, origin));
-    }
+    userStatus = await getUserSessionStatus(request);
   } catch (error) {
     logger.error(
-      "[AUTH_HANDLER] Fallo en la capa de datos durante el onboarding:",
+      "[AUTH_HANDLER] Fallo crítico al obtener estado de sesión:",
       error
     );
-    return supabaseResponse;
+    userStatus = { state: "UNAUTHENTICATED" };
   }
+
+  let resultResponse: NextResponse | null = null;
+
+  switch (userStatus.state) {
+    case "DEV_MODE":
+      return response; // Bypass
+    case "UNAUTHENTICATED":
+      resultResponse = handleUnauthenticatedUser(
+        request,
+        pathnameWithoutLocale,
+        locale
+      );
+      break;
+    case "AUTHENTICATED":
+      resultResponse = handleAuthenticatedUser(
+        request,
+        userStatus.authData,
+        userStatus.needsOnboarding,
+        pathnameWithoutLocale,
+        locale
+      );
+      break;
+  }
+
+  return resultResponse || supabaseResponse;
 }
-// middleware/handlers/auth/index.ts

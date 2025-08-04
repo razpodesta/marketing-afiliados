@@ -5,15 +5,8 @@
  *              con validación de permisos de seguridad, logging de auditoría y
  *              un contrato de retorno de datos robusto y tipado.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.3.0 (Fix: Definitive Action Result Contract Alignment)
- * @see {@link file://./builder.actions.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la gestión de contenido de campañas.
- *
- * 1.  **Validación de Contenido con Zod:** (Vigente) Antes de guardar, el objeto `content` debe ser validado contra un `CampaignConfigSchema` de Zod para prevenir la corrupción de datos.
- * 2.  **Versionado de Campañas:** (Vigente) En lugar de sobrescribir el campo `content`, se podría guardar un historial de versiones en una tabla separada (`campaign_versions`).
- * 3.  **Bloqueo de Edición en Tiempo Real:** (Vigente) Implementar un sistema (usando Supabase Realtime) que impida que dos usuarios editen la misma campaña simultáneamente.
+ * @version 3.0.0 (Explicit ActionResult Contract & Enhanced Security)
+ * @see {@link file://./tests/lib/actions/builder.actions.test.ts} Para el arnés de pruebas correspondiente.
  */
 "use server";
 
@@ -28,6 +21,15 @@ import { type ActionResult } from "@/lib/validators";
 
 import { createAuditLog } from "./_helpers";
 
+/**
+ * @async
+ * @function updateCampaignContentAction
+ * @description Actualiza el contenido JSON de una campaña específica. Valida que el
+ *              usuario tenga permisos para editar la campaña antes de proceder.
+ * @param {string} campaignId - El ID de la campaña a actualizar.
+ * @param {CampaignConfig} content - El nuevo objeto de configuración de la campaña.
+ * @returns {Promise<ActionResult<void>>} El resultado de la operación, que puede ser un éxito o un fallo con un mensaje de error.
+ */
 export async function updateCampaignContentAction(
   campaignId: string,
   content: CampaignConfig
@@ -36,7 +38,9 @@ export async function updateCampaignContentAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado." };
+  if (!user) {
+    return { success: false, error: "No autenticado." };
+  }
 
   const campaignData = await campaignsData.getCampaignContentById(
     campaignId,
@@ -75,8 +79,15 @@ export async function updateCampaignContentAction(
 
   revalidatePath(`/builder/${campaignId}`);
 
-  // CORRECCIÓN ESTRUCTURAL: Se incluye explícitamente la propiedad `data` para
-  // cumplir con el contrato de tipo `ActionResult<void>`.
   return { success: true, data: undefined };
 }
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Validación de Contenido con Zod**: ((Vigente)) Antes de guardar, el objeto `content` debe ser validado contra un `CampaignConfigSchema` de Zod para asegurar la integridad de la estructura JSON.
+ * 2. **Versionado de Campañas**: ((Vigente)) En lugar de sobrescribir el campo `content`, se podría guardar un historial de versiones en una tabla `campaign_versions`, permitiendo al usuario revertir a estados anteriores.
+ * 3. **Bloqueo de Edición en Tiempo Real**: ((Vigente)) Implementar un sistema (usando Supabase Realtime) que impida que dos usuarios editen la misma campaña simultáneamente para prevenir conflictos de datos.
+ */
 // lib/actions/builder.actions.ts

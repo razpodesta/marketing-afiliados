@@ -1,12 +1,31 @@
+// tailwind.config.mjs (Refactorizado)
 /**
  * @file tailwind.config.mjs
- * @description Configuración de Tailwind CSS. Este archivo define el tema,
- *              plugins y rutas de contenido, ahora utilizando la sintaxis de Módulos ES.
+ * @description Configuración de Tailwind CSS. Ahora consume la Única Fuente de Verdad
+ *              desde `styles/theme.ts` para una consistencia garantizada.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (ES Module Syntax)
+ * @version 5.0.0 (Single Source of Truth)
  */
 import defaultTheme from "tailwindcss/defaultTheme";
 import tailwindcssAnimate from "tailwindcss-animate";
+import { themeConfig } from "./styles/theme.ts";
+
+function toKebabCase(str) {
+  return str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2").toLowerCase();
+}
+
+function generateTailwindColors(theme) {
+  const colors = {};
+  for (const key in theme) {
+    if (key.endsWith("Foreground")) continue;
+    const foregroundKey = `${key}Foreground`;
+    colors[toKebabCase(key)] = {
+      DEFAULT: `hsl(var(--${toKebabCase(key)}))`,
+      foreground: `hsl(var(--${toKebabCase(foregroundKey)}))`,
+    };
+  }
+  return colors;
+}
 
 /** @type {import('tailwindcss').Config} */
 const config = {
@@ -15,51 +34,16 @@ const config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/**/*.{ts,tsx,mdx}",
   ],
   theme: {
     container: {
       center: true,
       padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
+      screens: { "2xl": "1400px" },
     },
     extend: {
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
+        ...generateTailwindColors(themeConfig.dark),
       },
       borderRadius: {
         lg: "var(--radius)",

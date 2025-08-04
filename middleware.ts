@@ -1,72 +1,93 @@
 // middleware.ts
 /**
  * @file middleware.ts
- * @description Orquestador del pipeline de middleware. Refactorizado para
- *              utilizar manejadores atómicos y un pipeline declarativo.
- * @author L.I.A Legacy & RaZ Podestá
- * @version 12.1.0 (Atomic Handler Pipeline)
+ * @description Orquestador del pipeline de middleware. Ha sido refactorizado
+ *              para usar un logger específico y un matcher más permisivo,
+ *              resolviendo el error 404 y restaurando la navegabilidad.
+ * @author L.I.A Legacy
+ * @version 17.0.0 (Routing & Logging Fix)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { logger } from "./lib/logging";
-import { ROUTE_DEFINITIONS } from "./lib/routing-manifest";
+// --- INICIO DE CORRECCIÓN ---
+import { middlewareLogger as logger } from "@/lib/logging";
+// --- FIN DE CORRECCIÓN ---
+import { ROUTE_DEFINITIONS } from "@/lib/routing-manifest";
 import {
   handleAuth,
   handleI18n,
-  handleLocaleFallback, // <-- NUEVO
+  handleLocaleFallback,
   handleMaintenance,
   handleMultitenancy,
   handleRedirects,
-  handleTelemetry, // <-- NUEVO
-} from "./middleware/handlers"; // <-- ACTUALIZADO
+  handleTelemetry,
+} from "@/middleware/handlers";
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const earlyExitResponse =
-    handleMaintenance(request) || handleRedirects(request);
-  if (earlyExitResponse) return earlyExitResponse;
-
-  let response = handleI18n(request);
-
-  // El registro de telemetría es no bloqueante y se ejecuta para casi todas las peticiones.
-  await handleTelemetry(request, response);
-
-  // La lógica de fallback de idioma solo se ejecuta para nuevos usuarios.
-  const localeFallbackResponse = handleLocaleFallback(request, response);
-  if (localeFallbackResponse) return localeFallbackResponse;
-
-  const detectedLocale = response.headers.get("x-app-locale") || "en-US";
-  const pathnameWithoutLocale =
-    request.nextUrl.pathname.replace(new RegExp(`^/${detectedLocale}`), "") ||
-    "/";
-  const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
-    pathnameWithoutLocale.startsWith(r)
+  const startTime = performance.now();
+  logger.trace(
+    { path: request.nextUrl.pathname },
+    "[MIDDLEWARE] Pipeline execution started."
   );
 
-  // Pipeline principal de lógica de negocio
-  if (isProtectedRoute) {
-    response = await handleMultitenancy(request, response);
+  try {
+    const earlyExitResponse =
+      handleRedirects(request) || handleMaintenance(request);
+    if (earlyExitResponse) return earlyExitResponse;
+
+    let response = handleI18n(request);
+    await handleTelemetry(request, response);
+
+    const localeFallbackResponse = handleLocaleFallback(request, response);
+    if (localeFallbackResponse) return localeFallbackResponse;
+
+    const detectedLocale = response.headers.get("x-app-locale") || "en-US";
+    const pathname = request.nextUrl.pathname;
+    const pathnameWithoutLocale =
+      pathname.replace(new RegExp(`^/${detectedLocale}`), "") || "/";
+
+    const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
+      pathnameWithoutLocale.startsWith(r)
+    );
+
+    let businessLogicResponse = response;
+    if (isProtectedRoute) {
+      businessLogicResponse = await handleMultitenancy(
+        request,
+        businessLogicResponse
+      );
+    }
+    businessLogicResponse = await handleAuth(request, businessLogicResponse);
+
+    return businessLogicResponse;
+  } catch (error) {
+    logger.error(
+      { error, pathname: request.nextUrl.pathname },
+      "[MIDDLEWARE] Error no capturado."
+    );
+    return new NextResponse("Internal Server Error", { status: 500 });
+  } finally {
+    const duration = Math.round(performance.now() - startTime);
+    logger.trace(
+      { duration_ms: duration, path: request.nextUrl.pathname },
+      "[MIDDLEWARE] Pipeline execution finished."
+    );
   }
-
-  response = await handleAuth(request, response);
-
-  return response;
 }
 
+// --- INICIO DE CORRECCIÓN ---
+// Simplificamos el matcher para asegurar que se ejecute en TODAS las rutas de página,
+// pero siga excluyendo los assets estáticos.
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|images|icons|favicon.ico|maintenance.html|browserconfig.xml|manifest.json).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };
-
-/**
- * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar la inteligencia y performance del middleware.
- * @subsection Mejoras Futuras
- * 1. **Cacheo de Búsqueda de Sitios:** (Vigente)
- * 2. **Manejo de Dominios Personalizados:** (Vigente)
- * 3. **Página de Subdominio Inválido:** (Vigente)
- * @subsection Mejoras Adicionadas
- * 1. **Integración de Fingerprint del Cliente:** (Vigente)
- * 2. **Procesamiento Asíncrono de Logs:** (Vigente)
- */
-// middleware.ts
+// --- FIN DE CORRECCIÓN ---

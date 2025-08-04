@@ -1,11 +1,10 @@
 // lib/types/database/tables/visitor_logs.ts
 /**
  * @file visitor_logs.ts
- * @description Define el contrato de datos atómico para la tabla `visitor_logs`.
- *              Esta tabla es la base para la inteligencia de visitante y la prevención
- *              de fraude, registrando información clave de cada sesión.
+ * @description Define el contrato de datos para `visitor_logs`. Ha sido enriquecido
+ *              para incluir datos de atribución, contexto y seguridad.
  * @author L.I.A Legacy
- * @version 1.0.0
+ * @version 3.0.0 (Enriched Telemetry)
  */
 import { type Json } from "../_shared";
 
@@ -20,6 +19,11 @@ export type VisitorLogs = {
     user_agent: string | null;
     utm_params: Json | null;
     created_at: string;
+    referrer: string | null;
+    landing_page: string | null;
+    browser_context: Json | null;
+    is_bot: boolean;
+    is_known_abuser: boolean;
   };
   Insert: {
     id?: string;
@@ -31,8 +35,13 @@ export type VisitorLogs = {
     user_agent?: string | null;
     utm_params?: Json | null;
     created_at?: string;
+    referrer?: string | null;
+    landing_page?: string | null;
+    browser_context?: Json | null;
+    is_bot?: boolean;
+    is_known_abuser?: boolean;
   };
-  Update: never; // Los logs son inmutables (append-only).
+  Update: never;
   Relationships: [
     {
       foreignKeyName: "visitor_logs_user_id_fkey";
@@ -43,14 +52,3 @@ export type VisitorLogs = {
     },
   ];
 };
-
-/**
- * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar la inteligencia de visitante.
- *
- * @subsection Mejoras Adicionadas
- * 1. **Detección de Bots**: Añadir un campo `is_bot: boolean` que podría ser poblado analizando el `user_agent`. Esto permitiría filtrar el tráfico de bots de los análisis de comportamiento.
- * 2. **Seguimiento de Referencia (Referrer)**: Incluir un campo `referrer_url: string | null` para almacenar la URL desde la cual el visitante llegó al sitio, proporcionando datos valiosos sobre las fuentes de tráfico.
- * 3. **Página de Aterrizaje (Landing Page)**: Añadir un campo `landing_page: string` para registrar la primera URL que el visitante vio en su sesión. Esto es clave para entender qué páginas son las puertas de entrada más efectivas.
- */
-// lib/types/database/tables/visitor_logs.ts

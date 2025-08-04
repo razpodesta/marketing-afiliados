@@ -1,28 +1,23 @@
 // app/[locale]/admin/admin-client.tsx
 /**
  * @file admin-client.tsx
- * @description Componente de cliente para el Dashboard de Administración. Ha sido
- *              refactorizado para utilizar el componente canónico `ConfirmationDialog`,
- *              aumentando la reutilización de código y la consistencia de la UI.
+ * @description Componente de cliente para el Dashboard de Administración.
+ *              Ha sido refactorizado para una gestión de estado simplificada y
+ *              robusta, unificando el estado de carga en una única variable
+ *              para eliminar condiciones de carrera y mejorar la testabilidad.
  * @author L.I.A. Legacy & Raz Podestá
  * @co-author MetaShark
- * @version 11.0.0 (Canonical Dialog Integration)
+ * @version 14.0.0 (Simplified State Management)
  */
 "use client";
 
 import type { User } from "@supabase/supabase-js";
-import {
-  ExternalLink,
-  Loader2,
-  LogOut,
-  ShieldAlert,
-  Trash2,
-} from "lucide-react";
+import { ExternalLink, LogOut, ShieldAlert, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 import toast from "react-hot-toast";
 
-import { PaginationControls } from "@/components/sites/PaginationControls";
+import { PaginationControls } from "@/components/sites";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,7 +29,6 @@ import {
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { admin, session } from "@/lib/actions";
 import { protocol, rootDomain } from "@/lib/utils";
-import { type ActionResult } from "@/lib/validators";
 
 type TransformedSite = {
   subdomain: string;
@@ -45,6 +39,12 @@ type TransformedSite = {
 const DashboardHeader = ({ user }: { user: User }) => {
   const t = useTranslations("AdminDashboard");
   const username = user.user_metadata?.full_name || user.email || "Admin";
+
+  const handleSignOut = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    session.signOutAction();
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
       <div>
@@ -57,7 +57,7 @@ const DashboardHeader = ({ user }: { user: User }) => {
         <span className="text-sm text-muted-foreground">
           {t("welcomeMessage", { username })}
         </span>
-        <form action={session.signOutAction}>
+        <form onSubmit={handleSignOut}>
           <Button variant="outline" size="sm" type="submit">
             <LogOut className="mr-2 h-4 w-4" />
             {t("signOutButton")}
@@ -81,36 +81,28 @@ export function AdminClient({
   page: number;
   limit: number;
 }) {
-  const [isPending, startTransition] = React.useTransition();
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
   const [deletingSiteId, setDeletingSiteId] = React.useState<string | null>(
     null
   );
   const format = useFormatter();
   const t = useTranslations("AdminDashboard");
 
-  const handleDelete = (formData: FormData) => {
+  const handleDelete = async (formData: FormData) => {
     const subdomain = formData.get("subdomain") as string;
     if (!subdomain) return;
 
     setDeletingSiteId(subdomain);
 
-    startTransition(() => {
-      admin
-        .deleteSiteAsAdminAction(formData)
-        .then((result: ActionResult<{ message: string }>) => {
-          if (result.success) {
-            toast.success(result.data.message);
-          } else {
-            toast.error(result.error);
-          }
-        })
-        .finally(() => {
-          // El estado de `isPending` se resetea automáticamente al final de la transición,
-          // por lo que solo necesitamos resetear nuestro ID de seguimiento.
-          setDeletingSiteId(null);
-        });
-    });
+    const result = await admin.deleteSiteAsAdminAction(formData);
+    if (result.success) {
+      toast.success(result.data.message);
+    } else {
+      toast.error(result.error);
+    }
+    setDeletingSiteId(null);
   };
+  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
   return (
     <div className="p-4 md:p-8">
@@ -122,6 +114,7 @@ export function AdminClient({
               {sites.map((site) => (
                 <Card key={site.subdomain}>
                   <CardHeader>
+                    {/* ... (contenido del CardHeader sin cambios) ... */}
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle>{site.subdomain}</CardTitle>
@@ -144,8 +137,6 @@ export function AdminClient({
                         {t("visitSubdomain")}
                       </a>
                     </Button>
-                    {/* --- INICIO DE REFACTORIZACIÓN --- */}
-                    {/* Se reemplaza el diálogo local por el componente canónico. */}
                     <ConfirmationDialog
                       triggerButton={
                         <Button
@@ -172,10 +163,9 @@ export function AdminClient({
                       confirmButtonText="Sí, eliminar sitio"
                       confirmButtonVariant="destructive"
                       onConfirm={handleDelete}
-                      isPending={isPending && deletingSiteId === site.subdomain}
+                      isPending={deletingSiteId === site.subdomain}
                       hiddenInputs={{ subdomain: site.subdomain }}
                     />
-                    {/* --- FIN DE REFACTORIZACIÓN --- */}
                   </CardFooter>
                 </Card>
               ))}
@@ -201,11 +191,9 @@ export function AdminClient({
 }
 
 /**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para evolucionar el dashboard de administración.
+ * @section MEJORA CONTINUA
  *
- * 1.  **Búsqueda y Filtros en el Servidor**: (Vigente) La mejora de mayor impacto ahora es añadir un campo de búsqueda en el `DashboardHeader` para que la función `getAllSites` en `admin/page.tsx` pueda filtrar los resultados directamente en la base de datos.
- * 2.  **Acciones Administrativas Adicionales**: (Vigente) Añadir nuevos controles para realizar otras acciones administrativas, como "Suspender Sitio" (que lo pondría en un estado inactivo sin eliminarlo) o "Ver Detalles del Propietario".
- * 3.  **Acciones en Lote (Bulk Actions)**: (Nueva) Implementar una UI que permita seleccionar múltiples sitios (con checkboxes en cada `Card`) y ejecutar acciones en lote, como "Eliminar Seleccionados" o "Suspender Seleccionados", mejorando drásticamente la eficiencia para los administradores.
+ * @subsection Mejoras Implementadas
+ * 1. **Gestión de Estado Simplificada**: ((Implementada)) Se ha eliminado `useTransition` y se ha unificado el estado de carga en la variable `deletingSiteId`, resultando en un código más simple y predecible.
  */
 // app/[locale]/admin/admin-client.tsx

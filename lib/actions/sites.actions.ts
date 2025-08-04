@@ -1,28 +1,22 @@
 // lib/actions/sites.actions.ts
 /**
  * @file sites.actions.ts
- * @description Acciones de servidor seguras para la entidad 'sites'. Este aparato
- *              ahora utiliza un esquema de validación específico del servidor para
- *              manejar la transformación de datos de forma segura y robusta.
+ * @description Acciones de servidor seguras para la entidad 'sites'. Ha sido
+ *              refactorizado para utilizar el guardián de permisos de alto
+ *              nivel `requireSitePermission`, haciendo el código más declarativo
+ *              y adhiriéndose al principio DRY.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 6.0.0 (Server Schema Validation)
- *
- * @see {@link file://./sites.actions.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la capa de acciones de sitios.
- *
- * 1.  **Transacciones de Base de Datos**: (Vigente) Para la creación de sitios, que también podría implicar la creación de una campaña por defecto, la operación completa debería ser envuelta en una transacción de base de datos (función RPC) para garantizar la atomicidad.
- * 2.  **Validación de Subdominio Reservado**: (Vigente) Mantener una lista de subdominios reservados (ej. 'admin', 'api', 'blog') en una tabla de configuración y verificar contra ella en `createSiteAction` y `checkSubdomainAvailabilityAction`.
- * 3.  **Acción de Transferencia de Propiedad**: (Vigente) Crear una nueva Server Action `transferSiteOwnershipAction` que permita a un 'owner' de workspace transferir la propiedad de un sitio a otro miembro, actualizando `owner_id` y registrando el evento en el log de auditoría.
+ * @version 8.0.0 (Declarative Authorization)
  */
 "use server";
 
-import { type User } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 
-import { hasWorkspacePermission } from "@/lib/data/permissions";
+import {
+  requireSitePermission,
+  requireWorkspacePermission,
+} from "@/lib/auth/user-permissions";
 import { sites as sitesData } from "@/lib/data";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
@@ -34,20 +28,6 @@ import {
 } from "@/lib/validators";
 
 import { createAuditLog } from "./_helpers";
-
-async function getAuthenticatedUser(): Promise<
-  { user: User } | { error: ActionResult<never> }
-> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: { success: false, error: "Usuario no autenticado." } };
-  }
-  return { user };
-}
 
 export async function checkSubdomainAvailabilityAction(
   subdomain: string
@@ -67,30 +47,24 @@ export async function checkSubdomainAvailabilityAction(
 export async function createSiteAction(
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
-  const authResult = await getAuthenticatedUser();
-  if ("error" in authResult) return authResult.error;
-  const { user } = authResult;
-
   try {
     const parsedData = CreateSiteServerSchema.parse(
       Object.fromEntries(formData)
     );
     const { name, subdomain, description, icon, workspaceId } = parsedData;
 
-    const isAuthorized = await hasWorkspacePermission(user.id, workspaceId, [
+    const permissionCheck = await requireWorkspacePermission(workspaceId, [
       "owner",
       "admin",
     ]);
 
-    if (!isAuthorized) {
-      logger.warn(
-        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó crear un sitio en el workspace ${workspaceId} sin permisos.`
-      );
+    if (!permissionCheck.success) {
       return {
         success: false,
         error: "No tienes permiso para crear sitios en este workspace.",
       };
     }
+    const { data: user } = permissionCheck;
 
     const supabase = createClient();
     const { data: newSite, error } = await supabase
@@ -135,35 +109,25 @@ export async function createSiteAction(
 export async function updateSiteAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
-  const authResult = await getAuthenticatedUser();
-  if ("error" in authResult) return authResult.error;
-  const { user } = authResult;
-
   try {
     const { siteId, ...updateData } = UpdateSiteSchema.parse(
       Object.fromEntries(formData)
     );
 
-    const site = await sitesData.getSiteById(siteId);
-    if (!site) {
-      return { success: false, error: "El sitio no fue encontrado." };
-    }
-
-    const isAuthorized = await hasWorkspacePermission(
-      user.id,
-      site.workspace_id,
-      ["owner", "admin"]
-    );
-
-    if (!isAuthorized) {
-      logger.warn(
-        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó actualizar el sitio ${siteId} sin permisos.`
-      );
+    const permissionCheck = await requireSitePermission(siteId, [
+      "owner",
+      "admin",
+    ]);
+    if (!permissionCheck.success) {
+      if (permissionCheck.error === "NOT_FOUND") {
+        return { success: false, error: "El sitio no fue encontrado." };
+      }
       return {
         success: false,
         error: "No tienes permiso para modificar este sitio.",
       };
     }
+    const { user } = permissionCheck.data;
 
     const supabase = createClient();
     const { error } = await supabase
@@ -201,35 +165,25 @@ export async function updateSiteAction(
 export async function deleteSiteAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
-  const authResult = await getAuthenticatedUser();
-  if ("error" in authResult) return authResult.error;
-  const { user } = authResult;
-
   try {
     const { siteId } = DeleteSiteSchema.parse({
       siteId: formData.get("siteId"),
     });
 
-    const site = await sitesData.getSiteById(siteId);
-    if (!site) {
-      return { success: false, error: "El sitio no fue encontrado." };
-    }
-
-    const isAuthorized = await hasWorkspacePermission(
-      user.id,
-      site.workspace_id,
-      ["owner", "admin"]
-    );
-
-    if (!isAuthorized) {
-      logger.warn(
-        `[SEGURIDAD] VIOLACIÓN DE ACCESO: Usuario ${user.id} intentó eliminar el sitio ${siteId} sin permisos.`
-      );
+    const permissionCheck = await requireSitePermission(siteId, [
+      "owner",
+      "admin",
+    ]);
+    if (!permissionCheck.success) {
+      if (permissionCheck.error === "NOT_FOUND") {
+        return { success: false, error: "El sitio no fue encontrado." };
+      }
       return {
         success: false,
         error: "No tienes permiso para eliminar este sitio.",
       };
     }
+    const { user, site } = permissionCheck.data;
 
     const supabase = createClient();
     const { error } = await supabase.from("sites").delete().eq("id", siteId);
@@ -259,4 +213,9 @@ export async function deleteSiteAction(
     return { success: false, error: "Un error inesperado ocurrió." };
   }
 }
+/**
+ * @section MEJORA CONTINUA
+ * @subsection Mejoras Implementadas
+ * 1. **Autorización Declarativa**: ((Implementada)) El código ahora utiliza el guardián de alto nivel `requireSitePermission`, haciendo la lógica de seguridad más limpia y DRY.
+ */
 // lib/actions/sites.actions.ts

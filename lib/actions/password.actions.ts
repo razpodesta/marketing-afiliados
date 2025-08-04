@@ -2,11 +2,10 @@
 /**
  * @file lib/actions/password.actions.ts
  * @description Aparato canónico y Única Fuente de Verdad para las Server Actions
- *              del flujo de recuperación y reseteo de contraseñas. Corregido para
- *              manejar de forma segura el contrato de tipos de ActionResult.
+ *              del flujo de recuperación y reseteo de contraseñas.
  * @author L.I.A. Legacy & Raz Podestá
  * @co-author MetaShark
- * @version 2.1.0 (Type-Safe Error Handling)
+ * @version 3.0.0 (Canonical & Secure Implementation)
  */
 "use server";
 
@@ -39,10 +38,10 @@ type UpdatePasswordFormState = { error: string | null; success: boolean };
  * @function requestPasswordResetAction
  * @description Inicia el flujo de reseteo de contraseña. Incluye rate limiting,
  *              auditoría y es agnóstico a la existencia del email para prevenir
- *              enumeración de usuarios.
- * @param {RequestPasswordResetState} prevState - El estado anterior del formulario.
+ *              la enumeración de usuarios, una práctica de seguridad crítica.
+ * @param {RequestPasswordResetState} prevState - El estado anterior del formulario, compatible con `useFormState`.
  * @param {FormData} formData - Datos del formulario, debe contener 'email'.
- * @returns {Promise<RequestPasswordResetState>} El nuevo estado del formulario.
+ * @returns {Promise<RequestPasswordResetState>} El nuevo estado del formulario o una redirección.
  */
 export async function requestPasswordResetAction(
   prevState: RequestPasswordResetState,
@@ -51,15 +50,10 @@ export async function requestPasswordResetAction(
   const ip = headers().get("x-forwarded-for") ?? "127.0.0.1";
   const limit = await rateLimiter.check(ip, "password_reset");
   if (!limit.success) {
-    // --- INICIO DE CORRECCIÓN (TS2322) ---
-    // Se añade un fallback para asegurar que el valor nunca sea `undefined`,
-    // cumpliendo así con el contrato de `RequestPasswordResetState['error']`
-    // que espera `string | null`.
     return {
       error:
         limit.error || "Demasiadas solicitudes. Intente nuevamente más tarde.",
     };
-    // --- FIN DE CORRECCIÓN ---
   }
 
   const email = formData.get("email");
@@ -119,8 +113,10 @@ export async function requestPasswordResetAction(
  * @async
  * @function updatePasswordAction
  * @description Actualiza la contraseña del usuario autenticado en un flujo de recuperación.
+ *              Valida la nueva contraseña y, en caso de éxito, invalida todas las demás
+ *              sesiones activas del usuario como medida de seguridad.
  * @param {UpdatePasswordFormState} prevState - El estado anterior del formulario.
- * @param {FormData} formData - Datos del formulario.
+ * @param {FormData} formData - Datos del formulario con la nueva contraseña y su confirmación.
  * @returns {Promise<UpdatePasswordFormState>} El nuevo estado del formulario.
  */
 export async function updatePasswordAction(
@@ -181,11 +177,12 @@ export async function updatePasswordAction(
 }
 
 /**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para el sistema de gestión de contraseñas.
+ * @section MEJORA CONTINUA
+ * @description Mejoras para evolucionar el sistema de gestión de contraseñas.
  *
- * 1.  **Implementación Real de `rateLimiter` y `EmailService`**: Reemplazar las simulaciones actuales por clientes reales (ej. Upstash Redis para rate limiting, Resend para emails), configurando las variables de entorno y manejando sus respuestas de API de forma robusta.
- * 2.  **Prevención de Reutilización de Contraseña**: Para seguridad de nivel empresarial, la `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario (si se almacenan de forma segura) para prevenir la reutilización de contraseñas recientes.
- * 3.  **Internacionalización de Mensajes de Error de Zod**: Integrar `zod-i18n` para que los mensajes de error del esquema de validación (ej. "Las contraseñas no coinciden") se traduzcan automáticamente según el idioma del usuario.
+ * @subsection Mejoras Futuras
+ * 1. **Implementación Real de `rateLimiter` y `EmailService`**: ((Vigente)) Reemplazar las simulaciones actuales por clientes reales (ej. Upstash Redis para rate limiting, Resend para emails).
+ * 2. **Prevención de Reutilización de Contraseña**: ((Vigente)) Para seguridad de nivel empresarial, `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario para prevenir la reutilización.
+ * 3. **Internacionalización de Mensajes de Error de Zod**: ((Vigente)) Integrar `zod-i18n` para que los mensajes de error del esquema de validación se traduzcan automáticamente según el idioma del usuario.
  */
 // lib/actions/password.actions.ts

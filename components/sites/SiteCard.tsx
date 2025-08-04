@@ -2,20 +2,10 @@
 /**
  * @file SiteCard.tsx
  * @description Componente de UI que renderiza una tarjeta individual para un sitio.
- *              Este aparato muestra información clave como el subdominio y el número de campañas,
- *              y proporciona acciones contextuales como la navegación a la gestión de campañas,
- *              la visita al sitio público y la iniciación del flujo de eliminación.
- *              Está diseñado para ser interactivo, mostrando detalles adicionales en un Popover
- *              al pasar el cursor, y delega la lógica de estado y las acciones a su
- *              componente padre a través de props.
+ *              Ha sido refactorizado para una delegación de eventos robusta y
+ *              una accesibilidad completa.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.3.0 (Holistic Accessibility & Event Delegation Fix)
- * @param {object} props - Las propiedades del componente.
- * @param {SiteWithCampaignsCount} props.site - El objeto de datos del sitio a renderizar, incluyendo la cuenta de campañas.
- * @param {(formData: FormData) => void} props.onDelete - Callback que se ejecuta cuando se confirma la eliminación del sitio.
- * @param {boolean} props.isPending - Estado de carga para la acción de eliminación.
- * @param {string | null} props.deletingSiteId - El ID del sitio que se está eliminando actualmente.
- * @returns {JSX.Element} Un componente de tarjeta de sitio interactivo y completamente funcional.
+ * @version 5.3.0
  */
 "use client";
 
@@ -38,7 +28,6 @@ import {
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { Link } from "@/lib/navigation";
 import { protocol, rootDomain } from "@/lib/utils";
-
 import { DeleteSiteDialog } from "./DeleteSiteDialog";
 
 export function SiteCard({
@@ -55,7 +44,6 @@ export function SiteCard({
   const getCampaignCount = (currentSite: SiteWithCampaignsCount): number => {
     return currentSite.campaigns?.[0]?.count ?? 0;
   };
-
   const campaignCount = getCampaignCount(site);
 
   return (
@@ -118,4 +106,3 @@ export function SiteCard({
     </Popover>
   );
 }
-// components/sites/SiteCard.tsx

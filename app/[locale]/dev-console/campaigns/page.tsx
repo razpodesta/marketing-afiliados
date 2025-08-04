@@ -1,60 +1,57 @@
-/* Ruta: app/[locale]/dev-console/campaigns/page.tsx */
+// app/[locale]/dev-console/campaigns/page.tsx
+/**
+ * @file page.tsx
+ * @description Página del Visor de Campañas. Ha sido refactorizada para
+ *              consumir la capa de datos canónica, eliminando consultas directas
+ *              y aserciones de tipo inseguras (`as any`).
+ * @author L.I.A Legacy
+ * @version 2.0.0 (Data Layer Abstraction)
+ */
+import { AlertTriangle } from "lucide-react";
 
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
+import { Card } from "@/components/ui/card";
+import { admin as adminData } from "@/lib/data";
 
 import { CampaignViewerTable } from "../components/CampaignViewerTable";
 
-/**
- * @file page.tsx
- * @description Página del Visor de Campañas para el `dev-console`.
- * Carga todas las campañas de la plataforma para su supervisión.
- *
- * @author Metashark
- * @version 1.0.0
- */
 export default async function CampaignsPage() {
-  const supabase = createClient();
-  const { data: campaigns, error } = await supabase
-    .from("campaigns")
-    .select(
-      `
-            id,
-            name,
-            created_at,
-            updated_at,
-            slug,
-            content,
-            site:sites (
-                subdomain
-            )
-        `
-    )
-    .order("created_at", { ascending: false });
+  try {
+    // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+    // La consulta directa ha sido reemplazada por una llamada a la capa de datos.
+    const campaigns = await adminData.getAllCampaignsWithSiteInfo();
+    // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
-  if (error) {
     return (
-      <p className="text-destructive">
-        Error al cargar las campañas: {error.message}
-      </p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Visor de Campañas</h1>
+          <p className="text-muted-foreground">
+            Supervisa todas las campañas creadas en la plataforma.
+          </p>
+        </div>
+        <CampaignViewerTable campaigns={campaigns} />
+      </div>
+    );
+  } catch (error) {
+    return (
+      <Card className="flex flex-col items-center justify-center h-full p-8 text-center bg-destructive/10 border-destructive/50">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-bold text-destructive-foreground">
+          Error al Cargar Campañas
+        </h2>
+        <p className="text-muted-foreground mt-2">
+          No se pudo obtener la información desde la capa de datos.
+        </p>
+      </Card>
     );
   }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Visor de Campañas</h1>
-        <p className="text-muted-foreground">
-          Supervisa todas las campañas creadas en la plataforma.
-        </p>
-      </div>
-      <CampaignViewerTable campaigns={campaigns as any} />
-    </div>
-  );
 }
-/* Ruta: app/[locale]/dev-console/campaigns/page.tsx */
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Implementadas
+ * 1. **Abstracción de Capa de Datos**: ((Implementada)) Se ha eliminado la consulta directa a Supabase.
+ * 2. **Seguridad de Tipos**: ((Implementada)) Se ha eliminado la aserción `as any`, y el componente ahora recibe datos fuertemente tipados.
+ */
+// app/[locale]/dev-console/campaigns/page.tsx

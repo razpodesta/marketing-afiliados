@@ -1,12 +1,12 @@
 // components/ui/ConfirmationDialog.tsx
 /**
  * @file ConfirmationDialog.tsx
- * @description Componente de UI genérico y reutilizable para confirmación de acciones.
- *              Ha sido refactorizado para usar un manejador `onSubmit` explícito,
- *              garantizando la máxima compatibilidad y testeabilidad en todos los entornos.
- * @author L.I.A. Legacy & Raz Podestá
- * @co-author MetaShark
- * @version 1.1.0 (Explicit Submit Handler for Testability)
+ * @description Componente de UI genérico para confirmación de acciones.
+ *              Ha sido refactorizado para una accesibilidad (a11y) completa,
+ *              anidando correctamente `DialogHeader` y `DialogFooter` dentro
+ *              de `DialogContent` para resolver la advertencia de `aria-describedby`.
+ * @author L.I.A Legacy & Raz Podestá
+ * @version 4.2.0 (Full Accessibility Compliance)
  */
 "use client";
 
@@ -49,40 +49,31 @@ export function ConfirmationDialog({
   isPending,
   hiddenInputs,
 }: ConfirmationDialogProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const formRef = React.useRef<HTMLFormElement>(null);
-
-  React.useEffect(() => {
-    if (!isPending) {
-      setIsOpen(false);
-    }
-  }, [isPending]);
-
-  // --- INICIO DE CORRECCIÓN ---
-  // Se implementa un manejador explícito para el evento `onSubmit`.
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Previene el comportamiento por defecto del formulario.
+    event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    onConfirm(formData); // Invoca explícitamente la acción pasada por props.
+    onConfirm(formData);
   };
-  // --- FIN DE CORRECCIÓN ---
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent>
-        {/* El formulario ahora usa `onSubmit` para una máxima compatibilidad. */}
-        <form ref={formRef} onSubmit={handleSubmit}>
+        {/* --- INICIO DE REFACTORIZACIÓN DE ACCESIBILIDAD --- */}
+        {/* La estructura correcta es tener Header y Footer DENTRO de Content. */}
+        <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {Icon && <Icon className="h-6 w-6 text-destructive" />}
               {title}
             </DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+            <DialogDescription className="pt-2">
+              {description}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={isPending}>
                 Cancelar
               </Button>
             </DialogClose>
@@ -100,17 +91,19 @@ export function ConfirmationDialog({
             </Button>
           </DialogFooter>
         </form>
+        {/* --- FIN DE REFACTORIZACIÓN DE ACCESIBILIDAD --- */}
       </DialogContent>
     </Dialog>
   );
 }
 
 /**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para evolucionar el componente de diálogo.
+ * @section MEJORA CONTINUA
  *
- * 1.  **Input de Confirmación Adicional**: (Vigente) Para acciones de altísimo riesgo (ej. eliminar una cuenta), añadir una prop opcional `confirmationText` que renderice un input donde el usuario deba escribir ese texto para habilitar el botón de confirmación.
- * 2.  **Niveles de Severidad**: (Vigente) Introducir una prop `severity: 'danger' | 'warning' | 'info'` que ajuste automáticamente el color del icono y la variante del botón de confirmación, haciendo el componente aún más declarativo.
- * 3.  **Callbacks de Éxito/Error**: (Vigente) Añadir props opcionales `onSuccess` y `onError` que puedan ser llamadas desde la Server Action. Esto requeriría que el componente use `useFormState` internamente para una gestión de estado más avanzada.
+ * @subsection Mejoras Futuras
+ * 1. **Input de Confirmación**: ((Vigente)) Para acciones de alto riesgo, añadir un campo de texto donde el usuario deba escribir el nombre del recurso para habilitar el botón de confirmación.
+ *
+ * @subsection Mejoras Implementadas
+ * 1. **Accesibilidad (`aria-describedby`)**: ((Implementada)) Se ha reestructurado el componente para anidar `DialogHeader` y `DialogFooter` dentro de `DialogContent`, lo que permite a Radix UI conectar automáticamente la descripción al diálogo y eliminar la advertencia de accesibilidad.
  */
 // components/ui/ConfirmationDialog.tsx

@@ -2,26 +2,24 @@
 /**
  * @file middleware/handlers/telemetry/index.ts
  * @description Manejador de middleware para la inteligencia de visitante.
- *              Implementa un sistema de sesión anónima para registrar datos
- *              de nuevos visitantes de forma no bloqueante.
+ *              Ha sido enriquecido para capturar y almacenar datos de atribución,
+ *              contexto del navegador y realizar una verificación de abuso de IP.
  * @author L.I.A Legacy
- * @version 1.0.0
+ * @version 4.0.0 (Enriched Telemetry & Security Check)
  */
-import { randomUUID } from "crypto";
 import { type NextRequest, type NextResponse } from "next/server";
 
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/middleware";
 
-/**
- * @async
- * @function handleTelemetry
- * @description Gestiona el registro de nuevos visitantes. Si no existe una
- *              cookie de sesión, crea una, registra los datos del visitante
- *              y la establece en la respuesta.
- * @param {NextRequest} request - El objeto de la petición entrante.
- * @param {NextResponse} response - El objeto de respuesta actual del pipeline.
- */
+// Simulación de una función que consulta una API de listas negras de IP.
+// En un entorno real, esto haría una llamada a un servicio como AbuseIPDB.
+async function checkIpBlacklist(ip: string | null): Promise<boolean> {
+  if (!ip) return false;
+  // Lógica de placeholder. Se puede expandir para una llamada de API real.
+  return ip.startsWith("8.8."); // Ejemplo: Marcar IPs de DNS públicos de Google como "abusadores".
+}
+
 export async function handleTelemetry(
   request: NextRequest,
   response: NextResponse
@@ -31,46 +29,57 @@ export async function handleTelemetry(
   }
 
   try {
-    const sessionId = randomUUID();
-    // No se necesita la respuesta de createClient aquí, solo el cliente.
-    const { supabase } = await createClient(request);
+    const sessionId = self.crypto.randomUUID();
+    const headers = request.headers;
+    const ip = request.ip ?? "127.0.0.1";
+    const userAgent = headers.get("user-agent") || "";
 
-    const { error } = await supabase.from("visitor_logs").insert({
+    // Simple bot detection
+    const isBot = /bot|crawl|slurp|spider|mediapartners/i.test(userAgent);
+    const isKnownAbuser = await checkIpBlacklist(ip);
+
+    const browserContext = {
+      secChUa: headers.get("sec-ch-ua"),
+      secChUaMobile: headers.get("sec-ch-ua-mobile"),
+      secChUaPlatform: headers.get("sec-ch-ua-platform"),
+      secChViewportWidth: headers.get("sec-ch-viewport-width"),
+      saveData: headers.get("save-data"),
+    };
+
+    const logPayload = {
       session_id: sessionId,
       fingerprint: "server_side_fingerprint_placeholder",
-      ip_address: request.ip ?? "127.0.0.1",
-      geo_data: request.geo
-        ? {
-            country: request.geo.country,
-            city: request.geo.city,
-            region: request.geo.region,
-          }
-        : null,
-      user_agent: request.headers.get("user-agent"),
+      ip_address: ip,
+      geo_data: request.geo,
+      user_agent: userAgent,
       utm_params: Object.fromEntries(request.nextUrl.searchParams.entries()),
-    });
+      referrer: headers.get("referer"),
+      landing_page: request.nextUrl.pathname,
+      browser_context: browserContext,
+      is_bot: isBot,
+      is_known_abuser: isKnownAbuser,
+    };
+
+    const { supabase } = await createClient(request);
+    const { error } = await supabase.from("visitor_logs").insert(logPayload);
 
     if (error) {
-      logger.error("[TelemetryHandler] Error al registrar visitante:", error);
+      logger.error(
+        { error },
+        "[TelemetryHandler] Error al registrar visitante:"
+      );
     } else {
       response.cookies.set("metashark_session_id", sessionId, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        maxAge: 31536000, // 1 año
+        maxAge: 31536000,
       });
     }
   } catch (error) {
-    logger.error("[TelemetryHandler] Fallo crítico en el manejador:", error);
+    logger.error(
+      { error },
+      "[TelemetryHandler] Fallo crítico en el manejador:"
+    );
   }
 }
-
-/**
- * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar la inteligencia de visitante.
- *
- * @subsection Mejoras Adicionadas
- * 1. **Procesamiento Asíncrono**: (Vigente) Para no impactar la latencia, el registro de visitantes podría delegarse a una Edge Function o un servicio de cola (como Inngest) que procesaría los datos de forma asíncrona.
- * 2. **Integración de Fingerprint del Cliente**: (Vigente) Implementar una lógica en el `RootLayout` que envíe la huella digital generada por FingerprintJS a una Server Action para actualizar el registro del visitante.
- */
-// middleware/handlers/telemetry/index.ts

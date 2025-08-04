@@ -2,29 +2,21 @@
 /**
  * @file useCampaignsManagement.ts
  * @description Hook de estado especializado para la página de gestión de campañas.
- *              Este aparato ha sido refactorizado para implementar una UI optimista
- *              completa, tanto para la creación como para la eliminación de campañas,
- *              proporcionando una experiencia de usuario instantánea y fluida.
+ *              Ha sido refactorizado para utilizar el hook genérico reutilizable
+ *              `useOptimisticResourceManagement`, eliminando la duplicación de código
+ *              y adhiriéndose a la filosofía arquitectónica "Lego".
  * @author RaZ Podestá & L.I.A Legacy
- * @version 3.0.0 (Optimistic Create Implementation)
- *
- * @see {@link file://./useCampaignsManagement.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la gestión de campañas en la UI.
- *
- * 1.  **Abstracción a un Hook Genérico**: (Vigente) La lógica de estado para `initial`, `optimistic update`, `server call`, `rollback` es un patrón reutilizable. Se podría crear un hook genérico `useOptimisticResourceManagement` para ser reutilizado en `sites`, `campaigns`, `members`, etc., reduciendo la duplicación de código.
- * 2.  **Manejo de Errores Más Granular**: (Vigente) En lugar de un toast genérico, se podrían manejar códigos de error específicos devueltos por la Server Action para mostrar mensajes más contextuales al usuario (ej. "No se puede eliminar una campaña publicada").
- * 3.  **Generación de Slug en Cliente**: (Nueva) Para una previsualización más precisa en la UI optimista, la lógica de generación de slugs del esquema Zod podría replicarse en una función de utilidad del lado del cliente y usarse aquí para crear el `slug` del `phantomCampaign`.
+ * @version 4.0.0 (Atomic Architecture Refactor)
+ * @see {@link file://./useOptimisticResourceManagement.ts} Para la lógica de negocio subyacente.
  */
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import toast from "react-hot-toast";
+import { useState } from "react";
 
 import { campaigns as campaignActions } from "@/lib/actions";
-import { useRouter } from "@/lib/navigation";
-import type { Tables } from "@/lib/types/database";
+import { type Tables } from "@/lib/types/database";
+
+import { useOptimisticResourceManagement } from "./useOptimisticResourceManagement";
 
 type Campaign = Tables<"campaigns">;
 
@@ -32,78 +24,83 @@ export function useCampaignsManagement(
   initialCampaigns: Campaign[],
   siteId: string
 ) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [mutatingId, setMutatingId] = useState<string | null>(null);
-  const router = useRouter();
 
-  useEffect(() => {
-    setCampaigns(initialCampaigns);
-  }, [initialCampaigns]);
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+  // Se delega toda la lógica de estado compleja al hook genérico.
+  const {
+    items: campaigns,
+    isPending,
+    mutatingId,
+    handleCreate: genericHandleCreate,
+    handleDelete: genericHandleDelete,
+  } = useOptimisticResourceManagement<Campaign>({
+    initialItems: initialCampaigns,
+    entityName: "Campaña",
+    createAction: campaignActions.createCampaignAction,
+    deleteAction: campaignActions.deleteCampaignAction,
+  });
 
+  /**
+   * @function handleCreate
+   * @description Envoltura (Wrapper) para la función de creación.
+   *              Adapta la firma de la función para construir el ítem optimista
+   *              específico de una campaña antes de llamar a la lógica genérica.
+   */
   const handleCreate = (formData: FormData) => {
     const name = formData.get("name") as string;
     if (!name) return;
 
-    const phantomCampaign: Campaign = {
-      id: `optimistic-${Date.now()}`,
+    // Se construye el "ítem fantasma" que se mostrará en la UI inmediatamente.
+    const optimisticCampaign = {
       name,
       site_id: siteId,
       slug: name.toLowerCase().replace(/\s+/g, "-"), // Slug temporal
       content: {},
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      affiliate_url: null,
     };
 
-    const previousCampaigns = campaigns;
-    setCampaigns((current) => [...current, phantomCampaign]);
+    genericHandleCreate(formData, optimisticCampaign);
     setCreateDialogOpen(false);
-    setMutatingId(phantomCampaign.id);
-
-    startTransition(async () => {
-      const result = await campaignActions.createCampaignAction(formData);
-      if (result.success) {
-        toast.success("Campaña creada con éxito.");
-        router.refresh();
-      } else {
-        toast.error(result.error || "No se pudo crear la campaña.");
-        setCampaigns(previousCampaigns);
-      }
-      setMutatingId(null);
-    });
   };
 
+  /**
+   * @function handleDelete
+   * @description Envoltura (Wrapper) para la función de eliminación.
+   *              Adapta el nombre del campo ID de 'campaignId' a 'id' para
+   *              cumplir con el contrato del hook genérico.
+   */
   const handleDelete = (formData: FormData) => {
-    const campaignId = formData.get("campaignId") as string;
-    if (!campaignId) return;
-
-    const previousCampaigns = campaigns;
-    setCampaigns((current) => current.filter((c) => c.id !== campaignId));
-    setMutatingId(campaignId);
-
-    startTransition(async () => {
-      const result = await campaignActions.deleteCampaignAction(formData);
-      if (result.success) {
-        toast.success("Campaña eliminada.");
-        router.refresh();
-      } else {
-        toast.error(result.error || "No se pudo eliminar la campaña.");
-        setCampaigns(previousCampaigns);
-      }
-      setMutatingId(null);
-    });
+    const campaignId = formData.get("campaignId");
+    if (campaignId) {
+      const genericFormData = new FormData();
+      genericFormData.append("id", campaignId as string);
+      genericHandleDelete(genericFormData);
+    }
   };
+  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
   return {
     campaigns,
     isCreateDialogOpen,
     setCreateDialogOpen,
     isPending,
-    deletingId: mutatingId, // Alias para compatibilidad, aunque ahora es genérico
     mutatingId,
     handleDelete,
     handleCreate,
   };
 }
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Estandarización de ID**: ((Vigente)) Estandarizar el nombre del campo ID a 'id' en todos los formularios y Server Actions para eliminar la necesidad del "adapter" en `handleDelete`.
+ *
+ * @subsection Mejoras Implementadas
+ * 1. **Arquitectura Atómica**: ((Implementada)) Toda la lógica de UI optimista ha sido abstraída al hook `useOptimisticResourceManagement`, resultando en un código más corto, limpio y mantenible.
+ * 2. **Patrón Adaptador**: ((Implementada)) Se utilizan funciones "wrapper" para adaptar las necesidades específicas de la UI de campañas al contrato genérico del hook, demostrando un patrón de diseño limpio.
+ */
 // lib/hooks/useCampaignsManagement.ts

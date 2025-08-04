@@ -1,11 +1,10 @@
-// Ruta: components/campaigns/index.ts
+// components/campaigns/index.ts
 /**
  * @file components/campaigns/index.ts
- * @description Archivo barril para exportar componentes reutilizables relacionados
- *              con la gestión de campañas.
- *
+ * @description Archivo barril para exportar componentes reutilizables de campañas.
  * @author L.I.A Legacy
- * @version 1.0.0 (Initial Creation)
+ * @version 3.0.0 (CampaignsHeader Integration)
  */
-
+export * from "./CampaignsHeader";
+export * from "./CampaignsTable";
 export * from "./CreateCampaignForm";

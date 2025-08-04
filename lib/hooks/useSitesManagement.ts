@@ -2,40 +2,46 @@
 /**
  * @file useSitesManagement.ts
  * @description Hook de estado especializado para la página "Mis Sitios".
- *              Refactorizado para una arquitectura de búsqueda en servidor.
- *              Ahora gestiona la navegación para iniciar nuevas búsquedas
- *              y mantiene la lógica de eliminación optimista.
- * @author L.I.A Legacy & Raz Podestá
+ *              Ha sido refactorizado para utilizar el hook genérico reutilizable
+ *              `useOptimisticResourceManagement`, unificando la lógica de creación
+ *              y eliminación en un único patrón arquitectónico.
+ * @author L.I.A Legacy & RaZ Podestá
  * @co-author MetaShark
- * @version 5.0.0 (Server-Side Search Navigation)
+ * @version 8.0.0 (Atomic Architecture Refactor)
+ * @see {@link file://./useOptimisticResourceManagement.ts} Para la lógica de negocio subyacente.
  */
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import { sites as sitesActions } from "@/lib/actions";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { debounce } from "@/lib/utils";
+import { useOptimisticResourceManagement } from "./useOptimisticResourceManagement";
 
-/**
- * @function useSitesManagement
- * @description Hook que gestiona el estado y las interacciones para la lista de sitios.
- * @param {SiteWithCampaignsCount[]} initialSites - La lista inicial de sitios (ya filtrada) del servidor.
- * @returns {object} Un objeto con el estado y los manejadores necesarios para la UI.
- */
-export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
-  const [sites, setSites] = useState<SiteWithCampaignsCount[]>(initialSites);
+export function useSitesManagement(
+  initialSites: SiteWithCampaignsCount[],
+  workspaceId: string
+) {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [deletingSiteId, setDeletingSiteId] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    setSites(initialSites);
-  }, [initialSites]);
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+  const {
+    items: sites,
+    isPending,
+    mutatingId,
+    handleCreate: genericHandleCreate,
+    handleDelete: genericHandleDelete,
+  } = useOptimisticResourceManagement<SiteWithCampaignsCount>({
+    initialItems: initialSites,
+    entityName: "Sitio",
+    createAction: sitesActions.createSiteAction,
+    deleteAction: sitesActions.deleteSiteAction,
+  });
 
   const handleSearch = useCallback(
     debounce((query: string) => {
@@ -45,51 +51,54 @@ export function useSitesManagement(initialSites: SiteWithCampaignsCount[]) {
       } else {
         params.delete("q");
       }
-      params.delete("page");
-      // @ts-ignore - pathname es del tipo AppPathname, compatible con el router
-      router.push(`${pathname}?${params.toString()}`);
+      params.delete("page"); // Reset page on new search
+      router.push(`${pathname}?${params.toString()}` as any);
     }, 500),
     [pathname, router]
   );
 
-  const handleDelete = (formData: FormData) => {
-    const siteId = formData.get("siteId") as string;
-    if (!siteId) return;
+  const handleCreate = (formData: FormData) => {
+    const name = formData.get("name") as string;
+    const subdomain = formData.get("subdomain") as string;
 
-    const previousSites = sites;
-    setSites((current) => current.filter((s) => s.id !== siteId));
-    setDeletingSiteId(siteId);
+    const optimisticSite = {
+      name,
+      subdomain,
+      workspace_id: workspaceId,
+      // Proporcionar valores por defecto para el estado optimista
+      id: `optimistic-${Date.now()}`,
+      description: (formData.get("description") as string) || null,
+      icon: "🌐",
+      created_at: new Date().toISOString(),
+      updated_at: null,
+      owner_id: "optimistic-user", // Placeholder
+      custom_domain: null,
+      campaigns: [{ count: 0 }],
+    };
 
-    startTransition(async () => {
-      const result = await sitesActions.deleteSiteAction(formData);
-      if (result.success) {
-        toast.success("Sitio eliminado con éxito.");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-        setSites(previousSites);
-      }
-      setDeletingSiteId(null);
-    });
+    genericHandleCreate(formData, optimisticSite);
+    setCreateDialogOpen(false);
   };
+
+  const handleDelete = (formData: FormData) => {
+    const siteId = formData.get("siteId");
+    if (siteId) {
+      const genericFormData = new FormData();
+      genericFormData.append("id", siteId as string);
+      genericHandleDelete(genericFormData);
+    }
+  };
+  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
   return {
     sites,
     isCreateDialogOpen,
     setCreateDialogOpen,
-    handleDelete,
     isPending,
-    deletingSiteId,
+    // Renombrado para consistencia semántica
+    mutatingId,
     handleSearch,
+    handleCreate,
+    handleDelete,
   };
 }
-
-/**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la lógica de estado de la UI de sitios.
- *
- * 1.  **Abstracción a un Hook Genérico**: (Vigente) La lógica de estado para `initial`, `optimistic update`, `server call`, `rollback` es un patrón reutilizable. Se podría crear un hook genérico `useOptimisticResourceManagement` para ser reutilizado en `sites`, `campaigns`, `members`, etc.
- * 2.  **Sincronización de URL sin Recarga Completa**: (Implementado parcialmente con `router.push`) Para una experiencia de SPA más fluida, se podría explorar el uso de `router.replace` en lugar de `router.push` para la búsqueda, de modo que no se añada al historial del navegador.
- * 3.  **Cancelación de Peticiones de Navegación**: (Vigente) Para una UX muy refinada, si el usuario escribe rápidamente, las navegaciones podrían cancelarse si una nueva es iniciada. Esto es un patrón avanzado que podría requerir lógica adicional.
- */
-// lib/hooks/useSitesManagement.ts

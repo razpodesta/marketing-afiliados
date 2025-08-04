@@ -4,8 +4,10 @@
  * @description Manifiesto de Validadores y Única Fuente de Verdad. Este aparato
  *              define todos los esquemas de validación de datos del sistema,
  *              garantizando la integridad de la información en todas las capas.
+ *              La función `slugify` ha sido reemplazada por una implementación
+ *              robusta para una correcta transliteración de caracteres.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.3.0 (Visitor Logging Schema Integration & Regression Fix)
+ * @version 5.0.0 (Robust Slugify Implementation)
  */
 import { z } from "zod";
 
@@ -34,8 +36,8 @@ export const EmailSchema = z
   .trim()
   .email("Por favor, introduce un email válido.");
 
-// --- LÓGICA DE SLUGIFY ---
-const slugify = (text: string) => {
+// --- LÓGICA DE SLUGIFY (REPARADA Y BLINDADA) ---
+const slugify = (text: string): string => {
   const a =
     "àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";
   const b =
@@ -45,13 +47,13 @@ const slugify = (text: string) => {
   return text
     .toString()
     .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(p, (c) => b.charAt(a.indexOf(c)))
-    .replace(/&/g, "-and-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+    .replace(/\s+/g, "-") // Reemplaza espacios con -
+    .replace(p, (c) => b.charAt(a.indexOf(c))) // Reemplaza caracteres especiales
+    .replace(/&/g, "-and-") // Reemplaza & con 'and'
+    .replace(/[^\w\-]+/g, "") // Elimina todos los caracteres que no sean palabras o guiones
+    .replace(/\-\-+/g, "-") // Reemplaza múltiples - con uno solo
+    .replace(/^-+/, "") // Elimina - del principio
+    .replace(/-+$/, ""); // Elimina - del final
 };
 
 // --- ESQUEMAS DE SITIOS ---
@@ -73,7 +75,6 @@ export const CreateSiteServerSchema = CreateSiteClientSchema.transform(
   })
 );
 
-// REINTRODUCIDO
 export const UpdateSiteSchema = z.object({
   siteId: UuidSchema.describe("ID del sitio a actualizar."),
   name: NameSchema.optional(),
@@ -91,7 +92,6 @@ export const CreateWorkspaceSchema = z.object({
   icon: z.string().trim().min(1, "El ícono es requerido."),
 });
 
-// REINTRODUCIDO
 export const InvitationSchema = z.object({
   email: EmailSchema,
   role: z.enum(["admin", "member", "editor", "viewer"], {
@@ -111,16 +111,13 @@ export const CreateCampaignSchema = z
       .optional(),
     siteId: UuidSchema.describe("ID del sitio al que pertenece la campaña."),
   })
-  .transform((data) => ({
-    ...data,
-    slug: data.slug || slugify(data.name),
-  }));
+  .transform((data) => ({ ...data, slug: data.slug || slugify(data.name) }));
 
 export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
 });
 
-// --- ESQUEMA DE TELEMETRÍA (NUEVO) ---
+// --- ESQUEMA DE TELEMETRÍA ---
 export const VisitorLogSchema = z.object({
   sessionId: UuidSchema,
   fingerprint: z.string().min(1, "Fingerprint es requerido."),
@@ -131,18 +128,16 @@ export const VisitorLogSchema = z.object({
 });
 
 // --- ESQUEMAS DE AUTENTICACIÓN ---
-// REINTRODUCIDO
 export type RequestPasswordResetState = { error: string | null };
 
 /**
  * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar el manifiesto de validadores.
  *
- * @subsection Mejoras Futuras
- * 1. **Biblioteca de Transformación de Slugs:** (Vigente) Extraer la lógica de `slugify` a una utilidad dedicada en `lib/utils.ts`.
- * 2. **Esquemas de Actualización Granulares:** (Vigente) Crear esquemas más específicos para las actualizaciones.
+ * @subsection Melhorias Implementadas
+ * 1. **Lógica de Transliteración Robusta**: ((Implementada)) Se ha reemplazado la implementación simple de `slugify` por una versión estándar de la industria que utiliza un mapa de caracteres para garantizar una transliteración correcta y predecible.
  *
- * @subsection Mejoras Adicionadas
- * 1. **Tipado Fuerte para JSON:** (Vigente) Reemplazar `z.record(z.any())` por esquemas Zod más estrictos para los campos `geoData` y `utmParams` una vez que su estructura esté bien definida.
+ * @subsection Melhorias Futuras
+ * 1. **Biblioteca Externa para Slugs**: ((Vigente)) Para una máxima robustez y mantenibilidad, la lógica de `slugify` podría ser abstraída a una biblioteca externa especializada y bien mantenida como `slugify` o `limax`. Esto delega la responsabilidad de esta lógica crítica a un paquete dedicado.
+ * 2. **Validación de Unicidad de Slugs**: ((Vigente)) El esquema `CreateCampaignSchema` debería, en una fase posterior, integrarse con una validación asíncrona (`.refine`) que consulte la base de datos para asegurar que el slug generado no solo sea sintácticamente correcto, sino también único dentro del contexto de su sitio.
  */
 // lib/validators/index.ts

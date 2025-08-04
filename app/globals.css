@@ -1,86 +1,16 @@
-/* Ruta: app/globals.css */
-
+/* app/globals.css (Refactorizado) */
 /**
  * @file globals.css
- * @description Estilos globales y definición de temas (claro/oscuro).
- * Se ha consolidado la identidad de marca en este archivo, estableciendo un tema
- * oscuro sofisticado como predeterminado, con el verde lima fluorescente
- * (#ADFF2F) como color primario, alineado con la identidad visual del logo.
- *
- * @author Metashark
- * @version 8.0.0 (Brand Identity Foundation)
+ * @description Estilos globales. Ahora importa las variables de tema generadas
+ *              automáticamente, manteniendo este archivo limpio y enfocado.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 9.0.0 (Programmatic Theme)
  */
+@import "./theme-variables.css"; /* <-- Importamos el archivo generado */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@layer base {
-  /* TEMA OSCURO (POR DEFECTO) */
-  :root {
-    --background: 224 71% 4%; /* #010816 - Un azul muy oscuro y profundo */
-    --foreground: 210 40% 98%; /* #FAFAFA - Blanco (Zinc 50) */
-
-    --card: 224 71% 8%; /* #0B1120 - Un poco más claro que el fondo */
-    --card-foreground: 210 40% 98%;
-
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 40% 98%;
-
-    /* Color primario del logo: Verde Lima Fluorescente */
-    --primary: 74 92% 56%; /* #ADFF2F */
-    --primary-foreground: 222 84% 4%; /* Texto oscuro para alto contraste */
-
-    /* Color secundario del logo: Azul */
-    --secondary: 226 78% 58%; /* #4287f5 */
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 223 47% 11%; /* #111827 - Gris azulado oscuro */
-    --muted-foreground: 215 20% 65%; /* #9CA3AF - Gris claro */
-
-    --accent: 223 47% 11%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 63% 31%; /* #B91C1C - Rojo para acciones destructivas */
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 223 47% 15%; /* #1c253e - Borde azulado sutil */
-    --input: 223 47% 15%;
-    --ring: 74 92% 56%; /* Verde lima para focus rings */
-
-    --radius: 0.5rem;
-  }
-
-  /* TEMA CLARO (SE APLICA CUANDO LA CLASE .light ESTÁ PRESENTE) */
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 222 84% 4%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222 84% 4%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 84% 4%;
-
-    --primary: 74 80% 45%; /* #8EE000 - Verde un poco más oscuro para legibilidad */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 226 90% 96%; /* #EFF6FF - Azul muy claro */
-    --secondary-foreground: 226 78% 40%; /* #3B82F6 */
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 74 80% 45%;
-  }
-}
 
 @layer base {
   * {
@@ -93,23 +23,3 @@
       "calt" 1;
   }
 }
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Definición de Variables de Fuentes: Para una gestión aún más centralizada, las familias de fuentes (`--font-geist-sans`) se podrían definir aquí en el bloque `:root`, en lugar de depender únicamente de la clase inyectada por `next/font` en el layout. Esto permitiría a la configuración de Tailwind (`tailwind.config.js`) referenciarlas directamente.
- * 2. Variables para Espaciado y Radios: Para un sistema de diseño aún más estricto, se podrían definir variables CSS para el espaciado y los radios de borde (ej. `--spacing-1: 0.25rem;`, `--radius-md: 0.5rem;`) y luego usarlas en la configuración de Tailwind. Esto asegura una consistencia absoluta en el espaciado y las formas en toda la UI.
- * 3. Animaciones y Transiciones como Variables: Las duraciones y funciones de easing para las animaciones y transiciones también pueden ser definidas como variables CSS (ej. `--transition-duration-fast: 150ms;`). Esto permite mantener la "sensación" del movimiento de la UI consistente en todos los componentes.
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
-1.  **Implementación de Tema Claro:** Usar un selector como `[data-theme='light']` para sobreescribir las variables de CSS y soportar un tema claro.
-2.  **Organización de Variables:** A medida que el tema crezca, organizar las variables dentro de `@theme` con comentarios por secciones.
-3.  **Fuentes como Variables:** Definir las familias de fuentes (ej. `--font-sans`) dentro de `@theme`.
-1.  **Implementación de Tema Claro:** Para soportar un tema claro, se puede usar un selector de datos
- *    como `[data-theme='light']` o la clase `.light` en el `<html>` y definir un bloque `@theme`
- *    anidado para sobreescribir las variables de color.
-2.  **Organización de Variables:** A medida que el tema crezca, las variables dentro de `@theme` se pueden
- *    organizar con comentarios por secciones (Colores, Espaciado, Tipografía, Radios) para mejorar
- *    la mantenibilidad.
-3.  **Fuentes como Variables:** Definir las familias de fuentes (ej. `--font-sans`, `--font-mono`) dentro
- *    de `@theme` para una gestión centralizada de la tipografía.
-1.  **Lógica de Chat Funcional:** Implementar la lógica para enviar mensajes a una API de IA (ej. Vercel AI SDK) y mostrar las respuestas en un estado de React.
-2.  **Streaming de Respuestas:** Hacer que la respuesta de L.I.A. aparezca palabra por palabra (streaming) para una mejor experiencia de usuario.
-3.  **Historial de Chat:** Guardar las conversaciones en la base de datos de Supabase para que el usuario pueda continuarlas más tarde.
-*/

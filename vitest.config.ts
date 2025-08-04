@@ -1,32 +1,23 @@
-// Ruta: vitest.config.ts
+// vitest.config.ts
 /**
  * @file vitest.config.ts
- * @description Configuración principal para el corredor de pruebas Vitest.
- *              Este aparato construye un "simulador de vuelo" para nuestro código,
- *              creando un entorno que imita al navegador para ejecutar pruebas
- *              de forma segura y predecible.
- * @author L.I.A Legacy & Validator
- * @version 4.0.0 (CI/CD Optimized & Critical Coverage Fix)
+ * @description Configuración de Vitest BASE y canónica.
+ * @author L.I.A. Legacy
+ * @version 28.0.0 (Holistic Vision Restoration)
  */
 import react from "@vitejs/plugin-react";
-import path from "path";
-import { type ConfigEnv, defineConfig, loadEnv } from "vite";
-import type { UserConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
+import tsconfigPaths from "vite-tsconfig-paths";
 
-const vitestConfig: UserConfig = {
+export default defineConfig({
+  plugins: [react(), tsconfigPaths()],
   test: {
     globals: true,
-    environment: "jsdom",
-    setupFiles: "./vitest.setup.ts",
-    alias: {
-      "@": path.resolve(__dirname, "./"),
-    },
+    environment: "happy-dom",
+    setupFiles: "vitest.setup.ts",
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      // CORRECCIÓN DE FIABILIDAD: El middleware es una pieza de lógica crítica
-      // y debe estar incluido en el informe de cobertura de pruebas para
-      // garantizar que está siendo testeado adecuadamente.
       exclude: [
         "**/*.config.{js,ts,mjs}",
         "**/*.d.ts",
@@ -37,24 +28,17 @@ const vitestConfig: UserConfig = {
         "**/.next/**",
         "**/coverage/**",
         "**/.*rc.{js,json}",
-        // "**/middleware.ts", // <-- ELIMINADO DE LA EXCLUSIÓN
+        "**/templates/**",
+        "**/types/database/**",
+        "**/tests/**",
       ],
     },
+    exclude: [
+      "node_modules/**",
+      "dist/**",
+      ".idea/**",
+      ".git/**",
+      "coverage/**",
+    ],
   },
-};
-
-export default defineConfig(({ mode }: ConfigEnv) => {
-  const env = loadEnv(mode, process.cwd(), "");
-
-  return {
-    plugins: [react()],
-    ...vitestConfig,
-    define: Object.keys(env).reduce((prev: Record<string, string>, key) => {
-      if (key.startsWith("NEXT_PUBLIC_")) {
-        prev[`process.env.${key}`] = JSON.stringify(env[key]);
-      }
-      return prev;
-    }, {}),
-  };
 });
-// Ruta: vitest.config.ts

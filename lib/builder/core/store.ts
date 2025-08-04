@@ -1,19 +1,25 @@
 // lib/builder/core/store.ts
 /**
  * @file store.ts
- * @description Almacén de estado global de Zustand para el constructor. Ha sido refactorizado
- *              con una implementación de historial (undo/redo) manual y se ha reintroducido
- *              la acción `updateBlockStyle` para resolver una regresión crítica de build.
+ * @description Almacén de estado global de Zustand para el constructor. Es la "máquina de estado"
+ *              central que gestiona la configuración de la campaña, la selección de bloques,
+ *              y el historial de cambios (undo/redo).
  * @author RaZ Podestá & L.I.A Legacy
  * @version 6.3.0 (Fix: Reintroduce `updateBlockStyle` to resolve build regression)
- * @see {@link file://./store.test.ts} Para el arnés de pruebas correspondiente.
  *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para el store del constructor.
+ * @functionality
+ * - **Estado Centralizado**: Mantiene un único objeto de estado (`BuilderState`) para toda la UI del constructor.
+ * - **Acciones Inmutables**: Proporciona acciones (ej. `updateBlockProp`, `addBlock`) que modifican el estado
+ *   de forma inmutable, creando una nueva versión del estado en cada cambio.
+ * - **Gestión de Historial**: Implementa una lógica de historial manual (`pastStates`, `futureStates`)
+ *   que permite las funcionalidades de deshacer y rehacer.
+ * - **Desacoplamiento**: Permite que los componentes de React (Canvas, SettingsPanel, etc.) se
+ *   suscriban al estado y reaccionen a los cambios sin necesidad de comunicación directa entre ellos.
  *
- * 1.  **Middleware de Persistencia en `localStorage`**: (Vigente) Integrar el middleware `persist` de Zustand para guardar `campaignConfig`.
- * 2.  **Uso de Immer para Mutaciones Inmutables**: (Vigente) Integrar el middleware `immer` para simplificar las actualizaciones de estado anidado.
- * 3.  **Límites de Historial**: (Vigente) Añadir lógica para limitar el tamaño de los arrays `pastStates` y `futureStates` para optimizar el uso de memoria.
+ * @relationships
+ * - Es importado y utilizado por todos los componentes dentro de `app/[locale]/builder`.
+ * - Sus tipos de datos (`CampaignConfig`, `PageBlock`) provienen de `lib/builder/types.d.ts`.
+ * - Es hidratado con datos iniciales en `app/[locale]/builder/[campaignId]/page.tsx`.
  */
 import { arrayMove } from "@dnd-kit/sortable";
 import { create, type StateCreator } from "zustand";
@@ -35,7 +41,7 @@ export interface BuilderState extends HistoryState {
   setCampaignConfig: (config: CampaignConfig) => void;
   setSelectedBlockId: (blockId: string | null) => void;
   updateBlockProp: (blockId: string, propName: string, value: unknown) => void;
-  updateBlockStyle: (blockId: string, styleName: string, value: string) => void; // REINTRODUCIDO
+  updateBlockStyle: (blockId: string, styleName: string, value: string) => void;
   addBlock: (blockType: string, defaultProps: Record<string, unknown>) => void;
   deleteBlock: (blockId: string) => void;
   moveBlock: (activeId: string, overId: string) => void;
@@ -79,7 +85,6 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
       };
     }),
 
-  // CORRECCIÓN ESTRUCTURAL: Se reintroduce la acción y se integra con el historial
   updateBlockStyle: (blockId, styleName, value) =>
     set((state) => {
       if (!state.campaignConfig) return {};
@@ -228,4 +233,12 @@ const createBuilderSlice: StateCreator<BuilderState, [], []> = (set) => ({
 });
 
 export const useBuilderStore = create<BuilderState>()(createBuilderSlice);
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Middleware de Persistencia en `localStorage`**: ((Vigente)) Integrar el middleware `persist` de Zustand para guardar `campaignConfig` y proteger el trabajo del usuario.
+ * 2. **Uso de Immer para Mutaciones Inmutables**: ((Vigente)) Integrar el middleware `immer` para simplificar las actualizaciones de estado anidado, haciendo el código de las acciones más legible.
+ * 3. **Límites de Historial**: ((Vigente)) Añadir lógica para limitar el tamaño de los arrays `pastStates` y `futureStates` para optimizar el uso de memoria en sesiones de edición muy largas.
+ */
 // lib/builder/core/store.ts

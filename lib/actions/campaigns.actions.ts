@@ -7,15 +7,7 @@
  * @author RaZ Podestá & L.I.A Legacy
  * @co-author MetaShark
  * @version 4.0.0 (High Cohesion & DRY Refactoring)
- *
- * @see {@link file://./campaigns.actions.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la capa de acciones de campañas.
- *
- * 1.  **Transacciones Atómicas**: (Vigente) La creación de una campaña y su log de auditoría deberían ocurrir dentro de una transacción de base de datos para garantizar que si una falla, la otra se revierte.
- * 2.  **Manejo de Errores Granular**: (Vigente) Mapear códigos de error específicos de PostgreSQL a mensajes de error más amigables para el usuario.
- * 3.  **Acción de Duplicar Campaña**: (Vigente) Crear una nueva `duplicateCampaignAction(campaignId)` que copie una campaña existente, incluyendo su `content`, para agilizar el flujo de trabajo del usuario.
+ * @see {@link file://./tests/lib/actions/campaigns.actions.test.ts} Para el arnés de pruebas correspondiente.
  */
 "use server";
 
@@ -35,6 +27,13 @@ import {
 
 import { createAuditLog } from "./_helpers";
 
+/**
+ * @private
+ * @async
+ * @function getAuthenticatedUser
+ * @description Helper interno para obtener el usuario autenticado.
+ * @returns {Promise<{ user: User } | { error: ActionResult<never> }>} El objeto de usuario o un objeto de error si no está autenticado.
+ */
 async function getAuthenticatedUser(): Promise<
   { user: User } | { error: ActionResult<never> }
 > {
@@ -49,6 +48,13 @@ async function getAuthenticatedUser(): Promise<
   return { user };
 }
 
+/**
+ * @async
+ * @function createCampaignAction
+ * @description Crea una nueva campaña, validando los datos y los permisos del usuario.
+ * @param {FormData} formData - Los datos del formulario que deben cumplir con `CreateCampaignSchema`.
+ * @returns {Promise<ActionResult<{ id: string }>>} El resultado de la operación, conteniendo el ID de la nueva campaña en caso de éxito.
+ */
 export async function createCampaignAction(
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
@@ -111,6 +117,13 @@ export async function createCampaignAction(
   }
 }
 
+/**
+ * @async
+ * @function deleteCampaignAction
+ * @description Elimina una campaña, validando que el usuario tiene permisos sobre el workspace contenedor.
+ * @param {FormData} formData - Los datos del formulario que deben cumplir con `DeleteCampaignSchema`.
+ * @returns {Promise<ActionResult<{ message: string }>>} El resultado de la operación.
+ */
 export async function deleteCampaignAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
@@ -185,4 +198,13 @@ export async function deleteCampaignAction(
     return { success: false, error: "Un error inesperado ocurrió." };
   }
 }
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Transacciones Atómicas**: ((Vigente)) La creación de una campaña y su log de auditoría deberían ocurrir dentro de una transacción de base de datos (RPC) para garantizar la atomicidad.
+ * 2. **Manejo de Errores Granular**: ((Vigente)) Mapear códigos de error específicos de PostgreSQL (ej. `23505` para duplicados) a mensajes de error más amigables para el usuario.
+ * 3. **Acción de Duplicar Campaña**: ((Vigente)) Crear una nueva `duplicateCampaignAction(campaignId)` que copie una campaña existente, incluyendo su contenido `jsonb`.
+ */
 // lib/actions/campaigns.actions.ts

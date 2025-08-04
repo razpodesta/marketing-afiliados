@@ -1,50 +1,26 @@
-// Ruta: tsconfig.json
-/**
- * @file tsconfig.json
- * @description Manifiesto de configuración del compilador de TypeScript.
- *              Esta es la única fuente de verdad para las reglas de compilación,
- *              verificación de tipos y resolución de módulos del proyecto.
- *              Ha sido refactorizado para corregir el alias de ruta crítico y
- *              endurecer las reglas de verificación de tipos.
- * @author RaZ Podestá & L.I.A Legacy
- * @version 2.0.0 (Path Alias Correction & Stricter Rules)
- */
+// tsconfig.json
 {
   "compilerOptions": {
-    // --- Verificación de Tipos Estricta ---
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"],
-
-    // --- Módulos ---
+    "types": ["vitest/globals", "@testing-library/jest-dom", "node"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-
-    // --- Lenguaje y Entorno ---
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "jsx": "preserve",
-
-    // --- Opciones del Proyecto ---
     "allowJs": true,
     "skipLibCheck": true,
     "noEmit": true,
     "incremental": true,
     "isolatedModules": true,
-
-    // --- Alias de Rutas ---
     "baseUrl": ".",
     "paths": {
-      // CORRECCIÓN CRÍTICA: El alias debe apuntar a la raíz del proyecto ("./*")
-      // ya que no se está utilizando una estructura de directorio "src".
-      // Este error impedía la correcta resolución de todos los módulos.
       "@/*": ["./*"]
     },
-
-    // --- Plugin de Next.js ---
     "plugins": [
       {
         "name": "next"
@@ -52,12 +28,5 @@
     ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": [
-    "node_modules",
-    "vitest.config.ts",
-    "postcss.config.cjs",
-    "tailwind.config.mjs",
-    "eslint.config.mjs"
-  ]
+  "exclude": ["node_modules"]
 }
-// Ruta: tsconfig.json

@@ -1,22 +1,13 @@
 // lib/data/notifications.ts
 /**
  * @file notifications.ts
- * @description Aparato de datos canónico y especializado para todas las consultas
- *              relacionadas con la entidad 'notifications'. Esta es la ÚNICA fuente
- *              de verdad para acceder a los datos de notificaciones, garantizando
- *              seguridad, rendimiento y consistencia arquitectónica.
- * @author L.I.A. Legacy & RaZ Podestá
+ * @description Aparato de datos canónico para notificaciones e invitaciones.
+ *              Ha sido refactorizado para encapsular la lógica de obtención
+ *              de invitaciones pendientes, desacoplando esta complejidad del
+ *              DashboardLayout y mejorando la arquitectura general del sistema.
+ * @author L.I.A Legacy & RaZ Podestá
  * @co-author MetaShark
- * @version 1.0.0 (Initial Data Layer Creation)
- *
- * @see {@link file://./notifications.test.ts} Para el arnés de pruebas correspondiente.
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la capa de datos de notificaciones.
- *
- * 1.  **Paginación**: La función actual obtiene todas las notificaciones no leídas. Para usuarios con un gran volumen de actividad, implementar paginación (`getPaginatedUnreadNotifications`) será crucial para el rendimiento del panel de notificaciones.
- * 2.  **Función de Archivo**: Crear una función `archiveReadNotifications(userId)` que mueva las notificaciones leídas más antiguas de X días a una tabla de archivo para mantener la tabla principal optimizada.
- * 3.  **Optimización de Consultas con Joins**: Enriquecer la consulta para que, en un solo viaje a la base de datos, obtenga datos del 'actor' (como `full_name` y `avatar_url` desde la tabla `profiles`), previniendo "waterfalls" de peticiones en la capa de UI.
+ * @version 2.0.0 (Invitation Logic Abstraction)
  */
 "use server";
 
@@ -26,20 +17,78 @@ import { type Tables } from "@/lib/types/database";
 
 export type Notification = Tables<"notifications">;
 
+// --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+
+// Tipo interno para la forma cruda de los datos de la invitación desde Supabase.
+type RawInvitationData = {
+  id: string;
+  status: string;
+  workspaces:
+    | { name: string; icon: string | null }
+    | { name: string; icon: string | null }[]
+    | null;
+};
+
+// Tipo público que representa el contrato de datos limpio que la UI consumirá.
+export type Invitation = {
+  id: string;
+  status: string;
+  workspaces: { name: string; icon: string | null } | null;
+};
+
+/**
+ * @async
+ * @function getPendingInvitationsByEmail
+ * @description Obtiene y transforma todas las invitaciones pendientes para un email de usuario.
+ * @param {string} userEmail - El email del usuario.
+ * @returns {Promise<Invitation[]>} Una promesa que resuelve a un array de invitaciones limpias.
+ * @throws {Error} Si la consulta falla.
+ */
+export async function getPendingInvitationsByEmail(
+  userEmail: string
+): Promise<Invitation[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invitations")
+    .select("id, status, workspaces (name, icon)")
+    .eq("invitee_email", userEmail)
+    .eq("status", "pending");
+
+  if (error) {
+    logger.error(
+      `[DataLayer:Notifications] Error al obtener invitaciones para ${userEmail}:`,
+      error
+    );
+    throw new Error("No se pudieron cargar las invitaciones.");
+  }
+
+  // Transforma los datos crudos a la forma limpia que espera la UI.
+  const pendingInvitations: Invitation[] =
+    (data as RawInvitationData[])?.map((inv) => ({
+      id: inv.id,
+      status: inv.status,
+      workspaces: Array.isArray(inv.workspaces)
+        ? inv.workspaces[0] || null
+        : inv.workspaces,
+    })) || [];
+
+  return pendingInvitations;
+}
+
+// --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+
 /**
  * @async
  * @function getUnreadNotificationsByUserId
- * @description Obtiene todas las notificaciones no leídas para un usuario específico,
- *              ordenadas por las más recientes primero.
- * @param {string} userId - El UUID del usuario para el cual se obtienen las notificaciones.
+ * @description Obtiene todas las notificaciones no leídas para un usuario.
+ * @param {string} userId - El UUID del usuario.
  * @returns {Promise<Notification[]>} Una promesa que resuelve a un array de notificaciones.
- * @throws {Error} Si la consulta a la base de datos falla.
+ * @throws {Error} Si la consulta falla.
  */
 export async function getUnreadNotificationsByUserId(
   userId: string
 ): Promise<Notification[]> {
   const supabase = createClient();
-
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
@@ -49,7 +98,7 @@ export async function getUnreadNotificationsByUserId(
 
   if (error) {
     logger.error(
-      `[DataLayer:Notifications] Error al obtener notificaciones para el usuario ${userId}:`,
+      `[DataLayer:Notifications] Error al obtener notificaciones para ${userId}:`,
       error
     );
     throw new Error("No se pudieron obtener las notificaciones.");
@@ -57,4 +106,14 @@ export async function getUnreadNotificationsByUserId(
 
   return data || [];
 }
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Mejoras Futuras
+ * 1. **Paginación**: ((Vigente)) Implementar paginación para `getUnreadNotificationsByUserId`.
+ *
+ * @subsection Mejoras Adicionadas
+ * 1. **Abstracción de Lógica de Invitaciones**: ((Implementada)) Se ha movido la lógica para obtener y transformar invitaciones pendientes a este módulo, mejorando la cohesión y la separación de responsabilidades.
+ */
 // lib/data/notifications.ts

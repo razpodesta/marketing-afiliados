@@ -1,10 +1,10 @@
 // components/sites/SitesGrid.tsx
 /**
  * @file SitesGrid.tsx
- * @description Componente responsable de renderizar la cuadrícula de sitios
- *              o un estado vacío si no existen sitios.
+ * @description Componente de presentación puro responsable de renderizar la
+ *              cuadrícula de sitios con animaciones o un estado vacío.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0 (Type-Safe & Animated)
+ * @version 3.0.0
  */
 "use client";
 
@@ -12,7 +12,6 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Card } from "@/components/ui/card";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-
 import { SiteCard } from "./SiteCard";
 
 interface SitesGridProps {
@@ -63,9 +62,3 @@ export function SitesGrid({
     </div>
   );
 }
-
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Virtualización de la Cuadrícula: Para usuarios con cientos de sitios, renderizar todas las tarjetas puede afectar el rendimiento. Se podría implementar una librería como `TanStack Virtual` para renderizar solo los elementos visibles en la pantalla, mejorando el uso de memoria y la velocidad de renderizado.
- * 2. Ordenamiento de la Cuadrícula: Añadir controles en `SitesHeader` para permitir al usuario ordenar la cuadrícula por fecha de creación, nombre de subdominio o número de campañas, pasando el estado de ordenamiento a este componente para renderizar la lista en consecuencia.
- * 3. Esqueleto de Carga (Skeleton): Integrar un estado de carga que muestre una versión esquelética de la cuadrícula mientras se obtienen los datos iniciales, mejorando la experiencia de usuario percibida (LCP).
- */
