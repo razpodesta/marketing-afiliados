@@ -1,19 +1,20 @@
 // components/layout/LandingHeader.tsx
 /**
  * @file LandingHeader.tsx
- * @description Encabezado principal de la landing page pública. Ha sido refactorizado
- *              para corregir un anidamiento de DOM inválido (`<button>` dentro de `<button>`),
- *              resolviendo la advertencia `validateDOMNesting` y garantizando un HTML semántico
- *              y accesible.
+ * @description Encabezado de la landing page, ahora "consciente del idioma".
+ *              Ha sido refactorizado para usar el componente <Link> de `next-intl`,
+ *              asegurando que todos los enlaces de navegación incluyan el prefijo
+ *              del `locale` actual.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.1.0 (DOM Nesting Fix)
- * @see {@link file://../../../tests/components/layout/LandingHeader.test.tsx} Para el arnés de pruebas correspondiente.
+ * @version 8.0.0 (i18n-Aware Navigation)
  */
 "use client";
 
 import { Menu } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+// --- INICIO DE REFACTORIZACIÓN I18N ---
+import { Link } from "@/lib/navigation";
+// --- FIN DE REFACTORIZACIÓN I18N ---
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -49,13 +50,13 @@ export function LandingHeader() {
           className="hidden items-center gap-6 text-sm font-medium md:flex"
         >
           {navLinks.map((link) => (
-            <Link
+            <a
               key={link.href}
               href={link.href}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
-            </Link>
+            </a>
           ))}
         </nav>
 
@@ -73,14 +74,10 @@ export function LandingHeader() {
           <div className="md:hidden">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                {/* --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
-                {/* La prop `asChild` se pasa al Button, no al Trigger. */}
-                {/* Button ahora renderizará el elemento que SheetTrigger espera. */}
                 <Button variant="outline" size="icon">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Abrir menú</span>
                 </Button>
-                {/* --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
               </SheetTrigger>
               <SheetContent side="right">
                 <nav
@@ -88,14 +85,14 @@ export function LandingHeader() {
                   className="grid gap-6 text-lg font-medium mt-8"
                 >
                   {navLinks.map((link) => (
-                    <Link
+                    <a
                       key={link.href}
                       href={link.href}
                       onClick={() => setIsSheetOpen(false)}
                       className="text-muted-foreground transition-colors hover:text-foreground"
                     >
                       {link.label}
-                    </Link>
+                    </a>
                   ))}
                 </nav>
                 <div className="mt-8 pt-8 border-t border-border/40 flex flex-col gap-4">
@@ -115,16 +112,4 @@ export function LandingHeader() {
     </header>
   );
 }
-
-/**
- * @section MEJORA CONTINUA
- *
- * @subsection Mejoras Futuras
- * 1. **Animación al Hacer Scroll:** ((Vigente)) Implementar una animación que reduzca sutilmente la altura del header cuando el usuario hace scroll.
- * 2. **Estado de Autenticación Dinámico:** ((Vigente)) Este componente debería recibir la sesión del usuario como prop. Si el usuario está autenticado, los botones de login se reemplazarían por un menú de avatar.
- * 3. **Resaltado de Sección Activa:** ((Vigente)) Utilizar un "Intersection Observer" para detectar qué sección está en el viewport y aplicar un estilo "activo" al enlace de navegación correspondiente.
- *
- * @subsection Mejoras Implementadas
- * 1. **Anidamiento de DOM Corregido**: ((Implementada)) Se ha corregido la composición de `SheetTrigger` y `Button`, eliminando la advertencia `validateDOMNesting` y asegurando un HTML semántico y válido.
- */
 // components/layout/LandingHeader.tsx

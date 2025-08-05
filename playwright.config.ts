@@ -1,17 +1,24 @@
 // playwright.config.ts
 /**
  * @file playwright.config.ts
- * @description Configuración canónica para la suite de pruebas de Extremo a Extremo (E2E) con Playwright.
- *              Define el servidor de desarrollo, los navegadores a probar y las configuraciones
- *              esenciales para un entorno de pruebas E2E robusto y fiable.
+ * @description Configuración canónica para la suite de pruebas E2E.
+ *              Ha sido refactorizada para usar sintaxis de Módulos ES en su totalidad,
+ *              resolviendo el error `require is not defined`.
  * @author L.I.A Legacy
- * @version 1.0.0
+ * @version 3.0.0 (Full ES Module Syntax)
  */
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv"; // --- INICIO DE CORRECCIÓN ---
 import path from "path";
+import { fileURLToPath } from "url";
 
-// Leer las variables de entorno para usarlas en Playwright
-require("dotenv").config({ path: path.resolve(__dirname, ".env.local") });
+// Derivación de __dirname para Módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Cargar las variables de entorno usando la sintaxis de importación
+dotenv.config({ path: path.resolve(__dirname, ".env.local") });
+// --- FIN DE CORRECCIÓN ---
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -30,15 +37,6 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    // Descomentar para probar en otros navegadores
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
   ],
 
   webServer: {

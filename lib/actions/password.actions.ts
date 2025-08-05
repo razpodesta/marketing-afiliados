@@ -3,9 +3,11 @@
  * @file lib/actions/password.actions.ts
  * @description Aparato canónico y Única Fuente de Verdad para las Server Actions
  *              del flujo de recuperación y reseteo de contraseñas.
+ *              **REFACTORIZADO:** Se ha actualizado la llamada a `rateLimiter.check`
+ *              para alinearse con la nueva estructura de exportación.
  * @author L.I.A. Legacy & Raz Podestá
  * @co-author MetaShark
- * @version 3.0.0 (Canonical & Secure Implementation)
+ * @version 4.0.0 (Rate Limiter Call Alignment)
  */
 "use server";
 
@@ -17,7 +19,10 @@ import { logger } from "@/lib/logging";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { EmailSchema, type RequestPasswordResetState } from "@/lib/validators";
 
+// --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+// Se importa el objeto `rateLimiter` (que ahora tiene el método `check`).
 import { createAuditLog, EmailService, rateLimiter } from "./_helpers";
+// --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
 const ResetPasswordSchema = z
   .object({
@@ -48,7 +53,10 @@ export async function requestPasswordResetAction(
   formData: FormData
 ): Promise<RequestPasswordResetState> {
   const ip = headers().get("x-forwarded-for") ?? "127.0.0.1";
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+  // Se llama `rateLimiter.check` directamente.
   const limit = await rateLimiter.check(ip, "password_reset");
+  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
   if (!limit.success) {
     return {
       error:
@@ -180,7 +188,7 @@ export async function updatePasswordAction(
  * @section MEJORA CONTINUA
  * @description Mejoras para evolucionar el sistema de gestión de contraseñas.
  *
- * @subsection Mejoras Futuras
+ * @subsection Melhorias Futuras
  * 1. **Implementación Real de `rateLimiter` y `EmailService`**: ((Vigente)) Reemplazar las simulaciones actuales por clientes reales (ej. Upstash Redis para rate limiting, Resend para emails).
  * 2. **Prevención de Reutilización de Contraseña**: ((Vigente)) Para seguridad de nivel empresarial, `updatePasswordAction` podría consultar un hash de las N contraseñas anteriores del usuario para prevenir la reutilización.
  * 3. **Internacionalización de Mensajes de Error de Zod**: ((Vigente)) Integrar `zod-i18n` para que los mensajes de error del esquema de validación se traduzcan automáticamente según el idioma del usuario.

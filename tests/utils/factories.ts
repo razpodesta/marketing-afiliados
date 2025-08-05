@@ -1,4 +1,4 @@
-// tests/utils/factories.ts
+// tests/utils/factories.ts (NUEVO APARATO)
 /**
  * @file factories.ts
  * @description Módulo de factorías para la creación de datos de prueba consistentes.

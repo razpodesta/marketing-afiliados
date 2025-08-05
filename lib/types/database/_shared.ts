@@ -1,13 +1,13 @@
+// lib/types/database/_shared.ts
 /**
  * @file _shared.ts
- * @description Contiene los tipos y utilidades genéricos generados por Supabase.
- *              Estos tipos son la base para construir las definiciones específicas
- *              de tablas, vistas y funciones.
- * @author Metashark (adaptado de Supabase CLI)
- * @version 1.0.0
+ * @description Contiene los tipos y utilidades genéricos para la base de datos.
+ *              Ha sido corregido para exportar sus tipos, resolviendo el error de
+ *              compilación TS2395 en el ensamblador `index.ts`.
+ * @author Metashark (adaptado de Supabase CLI, corregido por L.I.A Legacy)
+ * @version 2.0.0 (Type Visibility Fix)
  */
-
-import { type Database as DB } from "./index";
+import { type Database as DB } from "./_supabase.generated";
 
 export type Json =
   | string
@@ -17,32 +17,30 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-type DatabaseWithoutInternals = Omit<DB, "__InternalSupabase">;
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof DB, "public">];
+type PublicSchema = DB[Extract<keyof DB, "public">];
 
+// --- INICIO DE CORRECCIÓN CANÓNICA (TS2395) ---
+// Se añade 'export' a todos los tipos genéricos para que sean visibles
+// fuera de este módulo, permitiendo su uso seguro y su re-exportación.
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof DB },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof DB }
+    ? keyof (DB[PublicTableNameOrOptions["schema"]]["Tables"] &
+        DB[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof DB }
+  ? (DB[PublicTableNameOrOptions["schema"]]["Tables"] &
+      DB[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R
@@ -50,24 +48,20 @@ export type Tables<
     : never;
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof DB },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof DB }
+    ? keyof DB[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof DB }
+  ? DB[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I;
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I;
       }
       ? I
@@ -75,24 +69,20 @@ export type TablesInsert<
     : never;
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof DB },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof DB }
+    ? keyof DB[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof DB }
+  ? DB[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U;
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U;
       }
       ? U
@@ -100,18 +90,26 @@ export type TablesUpdate<
     : never;
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof DB },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof DB }
+    ? keyof DB[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals;
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof DB }
+  ? DB[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never;
+// --- FIN DE CORRECCIÓN CANÓNICA ---
+
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Corrección de Visibilidad (TS2395)**: ((Implementada)) Todos los tipos genéricos ahora se exportan, resolviendo el bug de compilación y asegurando una arquitectura de tipos modular y robusta.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Generación Automática**: ((Vigente)) Investigar si futuras versiones de `supabase gen types` pueden generar estos helpers de forma nativa, reduciendo la necesidad de mantenimiento manual.
+ */
+// lib/types/database/_shared.ts

@@ -3,15 +3,16 @@
  * @file login-form.tsx
  * @description Componente de Cliente para el Formulario de Autenticación de Supabase.
  * REFACTORIZACIÓN 360:
- * 1. Se ha implementado el manejo de errores desde la URL para mostrar feedback
- *    al usuario usando un componente de Alerta.
- * 2. Se ha añadido una prop `defaultView` para que el formulario pueda mostrar
- *    "Sign In" o "Sign Up" dinámicamente.
- * 3. Se ha añadido un fallback en la UI para el caso en que la variable de
- *    entorno `NEXT_PUBLIC_SITE_URL` no esté configurada.
- *
+ * 1.  Se ha implementado el manejo de errores desde la URL para mostrar feedback
+ *     al usuario usando un componente de Alerta.
+ * 2.  Se ha añadido una prop `defaultView` para que el formulario pueda mostrar
+ *     "Sign In" o "Sign Up" dinámicamente.
+ * 3.  Se ha añadido un fallback en la UI para el caso en que la variable de
+ *     entorno `NEXT_PUBLIC_SITE_URL` no esté configurada.
+ * 4.  REFACTORIZADO: Ahora acepta y utiliza el parámetro `next` para la
+ *     redirección inteligente post-login.
  * @author Metashark
- * @version 6.0.0 (Robust & Dynamic Auth Form)
+ * @version 7.0.0 (Smart Redirect Integration)
  */
 "use client";
 
@@ -41,7 +42,7 @@ const AlertDescription = ({ children }: { children: React.ReactNode }) => (
  * @returns {Provider[]} Un array de strings de proveedores válidos para Supabase.
  */
 function getOAuthProviders(): Provider[] {
-  const providersEnv = process.env.NEXT_PUBLIC_OAUTH_PROVIDERS || "google";
+  const providersEnv = process.env.NEXT_PUBLIC_OAUTH_PROVIDers || "google";
   const validProviders: Provider[] = [
     "google",
     "github",
@@ -65,15 +66,18 @@ function getOAuthProviders(): Provider[] {
  * @description Propiedades para el componente LoginForm.
  * @property {any} localization - Objeto de localización para los textos.
  * @property {'sign_in' | 'sign_up'} [defaultView] - La vista a mostrar por defecto.
+ * @property {string} [next] - Ruta a redirigir después de un login exitoso.
  */
 interface LoginFormProps {
   localization: any;
   defaultView?: "sign_in" | "sign_up";
+  next?: string; // <-- NUEVA PROP
 }
 
 export function LoginForm({
   localization,
   defaultView = "sign_in",
+  next, // <-- RECIBE LA NUEVA PROP
 }: LoginFormProps) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
@@ -97,7 +101,10 @@ export function LoginForm({
     );
   }
 
-  const redirectUrl = `${siteUrl}/api/auth/callback`;
+  // Si hay un parámetro `next`, lo añadimos a la URL de redirección para Supabase.
+  const redirectUrl = next
+    ? `${siteUrl}/api/auth/callback?next=${encodeURIComponent(next)}`
+    : `${siteUrl}/api/auth/callback`;
 
   return (
     <div className="space-y-4">
@@ -112,7 +119,7 @@ export function LoginForm({
         appearance={{ theme: brandTheme }}
         theme="dark"
         providers={providers}
-        redirectTo={redirectUrl}
+        redirectTo={redirectUrl} // <-- USA LA URL MODIFICADA
         localization={localization}
         socialLayout="horizontal"
         view={defaultView}
@@ -122,42 +129,8 @@ export function LoginForm({
 }
 
 /* MEJORAS FUTURAS DETECTADAS
- * 1. Pasar Parámetro `next` a `redirectTo`: Para implementar la redirección post-login inteligente, este componente debería leer el parámetro `next` de la URL (usando `useSearchParams`) y añadirlo dinámicamente a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
- * 2. Carga Diferida (Lazy Loading): El componente `Auth` de Supabase puede ser relativamente pesado. Podría ser cargado de forma dinámica (`next/dynamic`) para mejorar el LCP (Largest Contentful Paint) de la página de login, mostrando un esqueleto de carga mientras se inicializa.
- * 3. Integración con `react-hook-form`: Para los campos de email/contraseña, se podría reemplazar la gestión de estado interna de `@supabase/auth-ui-react` por `react-hook-form` para una validación en tiempo real más granular y una mejor integración con el resto de los formularios de la aplicación, aunque esto supone una complejidad mayor.
+ * 1. Carga Diferida (Lazy Loading): El componente `Auth` de Supabase puede ser relativamente pesado. Podría ser cargado de forma dinámica (`next/dynamic`) para mejorar el LCP (Largest Contentful Paint) de la página de login, mostrando un esqueleto de carga mientras se inicializa.
+ * 2. Integración con `react-hook-form`: Para los campos de email/contraseña, se podría reemplazar la gestión de estado interna de `@supabase/auth-ui-react` por `react-hook-form` para una validación en tiempo real más granular y una mejor integración con el resto de los formularios de la aplicación, aunque esto supone una complejidad mayor.
+ * 3. Mapeo de Errores de API de Supabase: La UI de SupabaseAuth a veces muestra mensajes de error técnicos (`Error de red`, `Token inválido`). Una mejora sería interceptar los errores de `Auth` (a través de un `onAuthStateChange` listener o similar si se usa una implementación custom del formulario) y mapear sus códigos a mensajes de error traducidos y más amigables con `react-hot-toast`.
  */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=...`) utilizando `useSearchParams` y mostrar un componente `<Alert>` con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
- * 2. Vista por Defecto Dinámica: Añadir una prop `defaultView` al componente para que la página contenedora decida si el formulario debe mostrar "Sign In" o "Sign Up" por defecto (ej. para rutas `/login` vs `/signup`).
- * 3. Fallback de URL Grácil: En lugar de un `console.error`, se podría renderizar un estado de error en la UI si `NEXT_PUBLIC_SITE_URL` no está definida, informando al administrador del sitio de la mala configuración.
- */
-/* Ruta: app/[locale]/login/login-form.tsx */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Manejo de Errores desde la URL: Este componente podría leer los parámetros de error de la URL (ej. `?error=confirmation-failed`) utilizando el hook `useSearchParams`. Si se detecta un error, podría mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback mucho más claro al usuario que una simple redirección.
- * 2. Pasar Parámetro `next` a `redirectTo`: Para implementar la redirección post-login inteligente sugerida en el `page.tsx`, este componente debería leer el parámetro `next` de la URL y añadirlo dinámicamente a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
- * 3. Vista por Defecto Dinámica: Añadir una prop `defaultView` al componente (`"sign_in"` | `"sign_up"`). Esto permitiría a la página contenedora decidir si el formulario debe mostrar "Sign In" o "Sign Up" por defecto, lo que permitiría crear rutas separadas como `/login` y `/signup` que reutilizarían este mismo componente.
- */
-/* MEJORAS PROPUESTAS
- * 1. **Manejo de Errores de la URL:** Este componente podría leer los parámetros de error de la URL (ej. `?error=auth_failed`) y mostrar un componente `<Alert>` de Shadcn/UI con un mensaje de error traducido, proporcionando un feedback más claro al usuario.
- * 2. **Pasar Parámetro `next` a `redirectTo`:** Para implementar la redirección post-login inteligente, se debería leer el parámetro `next` de la URL actual y añadirlo a la URL `redirectTo`, asegurando que Supabase lo preserve a través del flujo de OAuth.
- * 3. **Vista por Defecto Dinámica:** Añadir una prop `defaultView` al componente que permita a la página contenedora decidir si el formulario debe mostrar "Sign In" o "Sign Up" por defecto (ej. `/login` vs `/signup`).
-1.  **Tema Personalizado Completo:** Crear un objeto de tema (`const brandTheme: Theme = { ... }`) y pasarlo a la prop `theme` en lugar de `ThemeSupa` y `variables`. Esto permite un control más granular y limpio sobre la apariencia del componente de autenticación.
-2.  **Validación de Variables de Entorno:** Utilizar Zod para validar las variables de entorno (`NEXT_PUBLIC_ROOT_URL`, `NEXT_PUBLIC_OAUTH_PROVIDERS`) al iniciar la aplicación, previniendo errores de configuración en tiempo de ejecución.
-3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` o similar para mostrar un esqueleto de carga mientras la librería se inicializa, mejorando la percepción de rendimiento.
-1.  **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
-2.  **Validación de Variables de Entorno:** Utilizar Zod para validar `NEXT_PUBLIC_ROOT_DOMAIN` y `NEXT_PUBLIC_ROOT_URL` al iniciar la aplicación, previniendo errores si no están definidos.
-3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga mientras la librería se inicializa.
-1.  **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI.
-2.  **Validación de Variables de Entorno:** Usar Zod para validar `NEXT_PUBLIC_ROOT_DOMAIN`.
-3.  **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga.
- * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI.
- * 2. **Validación de Variables de Entorno:** Utilizar Zod para validar `NEXT_PUBLIC_ROOT_URL` al iniciar la aplicación, previniendo errores si no está definida.
- * 3. **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` para mostrar un esqueleto de carga mientras se inicializa.
- * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
- * 2. **Variables de Entorno Validadas:** Utilizar Zod para validar las variables de entorno al iniciar la aplicación, asegurando que `NEXT_PUBLIC_OAUTH_PROVIDERS` contenga valores válidos y previniendo errores en tiempo de ejecución.
- * 3. **Feedback de Carga:** Envolver el componente `Auth` en un `<Suspense>` o similar para mostrar un esqueleto de carga mientras la librería se inicializa, mejorando la percepción de rendimiento.
- */
-/* MEJORAS PROPUESTAS
- * 1. **Tema Personalizado:** Reemplazar `ThemeSupa` por un tema personalizado que se alinee con los estilos de Shadcn/UI para una experiencia de usuario más cohesiva.
- * 2. **Paso de Clientes:** En lugar de crear un nuevo cliente de Supabase aquí, la página del servidor podría crear la instancia y pasarla como prop para un mejor control.
- */
+// Ruta: app/[locale]/login/login-form.tsx

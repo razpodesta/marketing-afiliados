@@ -19,7 +19,11 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      // REFACTORIZACIÓN: Se añade el alias para `server-only` aquí,
+      // convirtiendo este archivo en la Única Fuente de Verdad para
+      // la resolución de módulos.
+      "server-only": ["./tests/mocks/server-only.ts"]
     },
     "plugins": [
       {
@@ -30,3 +34,4 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
+// tsconfig.json

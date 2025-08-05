@@ -1,17 +1,19 @@
 // lib/auth/user-permissions.ts
 /**
  * @file user-permissions.ts
- * @description Guardián de seguridad centralizado y Única Fuente de Verdad para
- *              el contexto de sesión del usuario. Proporciona funciones de alto
- *              nivel para una autorización declarativa y segura.
+ * @description Guardián de seguridad de élite y Única Fuente de Verdad para la
+ *              autorización y el contexto de sesión en el entorno de SERVIDOR (Node.js).
+ *              Utiliza `React.cache` para memoizar la obtención de la sesión por petición,
+ *              garantizando un rendimiento máximo.
  * @author L.I.A. Legacy
- * @version 6.0.0 (Session Context Enrichment)
+ * @version 7.0.0 (Request-Memoized Session Context)
  */
 "use server";
 import "server-only";
 
 import { type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { hasWorkspacePermission } from "@/lib/data/permissions";
 import { getSiteById, type SiteBasicInfo } from "@/lib/data/sites";
@@ -23,9 +25,9 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];
 
 /**
- * @typedef {object} UserAuthData
- * @description El contrato de datos canónico para el contexto de sesión de un usuario.
- *              Combina la identidad del usuario, su rol global y su contexto de trabajo activo.
+ * @typedef UserAuthData
+ * @description Contrato de datos que representa el contexto de sesión completo
+ *              y memoizado para un usuario autenticado.
  */
 export type UserAuthData = {
   user: User;
@@ -34,9 +36,9 @@ export type UserAuthData = {
 };
 
 /**
- * @typedef {object} AuthResult
- * @description Un tipo de unión discriminada para los resultados de las funciones de autorización.
- *              Garantiza un manejo de errores y éxitos seguro en cuanto a tipos.
+ * @typedef AuthResult<T>
+ * @description Tipo de unión discriminada para los resultados de las funciones de
+ *              autorización. Garantiza un manejo de errores explícito y seguro.
  */
 type AuthResult<T> =
   | { success: true; data: T }
@@ -46,42 +48,49 @@ type AuthResult<T> =
     };
 
 /**
+ * @public
  * @async
  * @function getAuthenticatedUserAuthData
- * @description Obtiene el contexto de sesión completo para el usuario actual.
- *              Es la única función en el sistema responsable de ensamblar este objeto.
- * @returns {Promise<UserAuthData | null>} El objeto de datos de autenticación o null si no hay sesión.
+ * @description Obtiene el contexto de sesión completo del usuario para la petición actual.
+ *              Gracias a `React.cache`, las consultas a la base de datos solo se
+ *              ejecutarán una vez, incluso si esta función es llamada múltiples veces
+ *              durante un único ciclo de renderizado del servidor.
+ * @returns {Promise<UserAuthData | null>} El contexto de sesión memoizado o null.
  */
-export async function getAuthenticatedUserAuthData(): Promise<UserAuthData | null> {
-  const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getAuthenticatedUserAuthData = cache(
+  async (): Promise<UserAuthData | null> => {
+    const supabase = createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return null;
+    if (!user) {
+      return null;
+    }
+
+    const cookieStore = cookies();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("app_role")
+      .eq("id", user.id)
+      .single();
+
+    return {
+      user,
+      appRole: profile?.app_role || "user",
+      activeWorkspaceId: cookieStore.get("active_workspace_id")?.value || null,
+    };
   }
-
-  const cookieStore = cookies();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("app_role")
-    .eq("id", user.id)
-    .single();
-
-  return {
-    user,
-    appRole: profile?.app_role || "user",
-    activeWorkspaceId: cookieStore.get("active_workspace_id")?.value || null,
-  };
-}
+);
 
 /**
+ * @public
  * @async
  * @function requireAppRole
- * @description Guardián de seguridad que exige que el usuario actual tenga uno de los roles de aplicación especificados.
- * @param {AppRole[]} requiredRoles - Un array de roles de aplicación requeridos.
- * @returns {Promise<AuthResult<UserAuthData>>} El resultado de la comprobación de autorización.
+ * @description Guardián de seguridad que verifica si el usuario actual tiene uno
+ *              de los roles de aplicación requeridos.
+ * @param {AppRole[]} requiredRoles - Un array de roles permitidos.
+ * @returns {Promise<AuthResult<UserAuthData>>} El resultado de la autorización.
  */
 export async function requireAppRole(
   requiredRoles: AppRole[]
@@ -100,25 +109,25 @@ export async function requireAppRole(
 }
 
 /**
+ * @public
  * @async
  * @function requireWorkspacePermission
- * @description Guardián de seguridad que exige que el usuario actual tenga uno de los roles de workspace especificados.
- * @param {string} workspaceId - El ID del workspace en el que se requiere el permiso.
- * @param {WorkspaceRole[]} requiredRoles - Un array de roles de workspace requeridos.
- * @returns {Promise<AuthResult<User>>} El resultado de la comprobación de autorización.
+ * @description Guardián de seguridad que verifica si el usuario actual tiene
+ *              permisos específicos dentro de un workspace.
+ * @param {string} workspaceId - El ID del workspace a verificar.
+ * @param {WorkspaceRole[]} requiredRoles - Un array de roles permitidos.
+ * @returns {Promise<AuthResult<User>>} El resultado de la autorización.
  */
 export async function requireWorkspacePermission(
   workspaceId: string,
   requiredRoles: WorkspaceRole[]
 ): Promise<AuthResult<User>> {
-  const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authData = await getAuthenticatedUserAuthData();
 
-  if (!user) {
+  if (!authData) {
     return { success: false, error: "SESSION_NOT_FOUND" };
   }
+  const { user } = authData;
 
   const isAuthorized = await hasWorkspacePermission(
     user.id,
@@ -137,25 +146,26 @@ export async function requireWorkspacePermission(
 }
 
 /**
+ * @public
  * @async
  * @function requireSitePermission
- * @description Guardián de seguridad de alto nivel que exige que el usuario actual tenga permisos sobre un sitio específico.
- * @param {string} siteId - El ID del sitio sobre el que se requiere el permiso.
- * @param {WorkspaceRole[]} requiredRoles - Un array de roles requeridos en el workspace que contiene el sitio.
- * @returns {Promise<AuthResult<{ user: User; site: SiteBasicInfo }>>} El resultado de la comprobación.
+ * @description Guardián de seguridad de alto nivel que verifica si el usuario
+ *              actual tiene permisos sobre un sitio específico, comprobando su
+ *              pertenencia y rol en el workspace padre.
+ * @param {string} siteId - El ID del sitio a verificar.
+ * @param {WorkspaceRole[]} requiredRoles - Un array de roles permitidos en el workspace.
+ * @returns {Promise<AuthResult<{ user: User; site: SiteBasicInfo }>>} El resultado.
  */
 export async function requireSitePermission(
   siteId: string,
   requiredRoles: WorkspaceRole[]
 ): Promise<AuthResult<{ user: User; site: SiteBasicInfo }>> {
-  const supabase = createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authData = await getAuthenticatedUserAuthData();
 
-  if (!user) {
+  if (!authData) {
     return { success: false, error: "SESSION_NOT_FOUND" };
   }
+  const { user } = authData;
 
   const site = await getSiteById(siteId);
   if (!site) {
@@ -181,11 +191,10 @@ export async function requireSitePermission(
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Guardián de Campaña (`requireCampaignPermission`)**: ((Vigente)) Crear un guardián de nivel aún más alto que verifique los permisos a nivel de campaña, componiendo la lógica de `requireSitePermission`.
- * 2. **Cacheo de `getAuthenticatedUserAuthData`**: ((Vigente)) Envolver la lógica de esta función con `unstable_cache` de Next.js, utilizando un tag de caché basado en el `userId`, para optimizar las comprobaciones de permisos repetitivas dentro del mismo ciclo de petición.
+ * @subsection Melhorias Adicionadas
+ * 1. **Cacheo de Sesión por Petición**: ((Implementada)) Se mantiene el uso de `React.cache` para un rendimiento óptimo en el entorno de servidor Node.js.
  *
- * @subsection Mejoras Implementadas
- * 1. **Contexto de Sesión Enriquecido**: ((Implementada)) El tipo `UserAuthData` y la función que lo genera ahora incluyen el `activeWorkspaceId`, creando una fuente de verdad completa para el contexto de sesión y resolviendo el error `TS2339`.
+ * @subsection Melhorias Futuras
+ * 1. **Guardián de Campaña (`requireCampaignPermission`)**: ((Vigente)) Crear un guardián de nivel aún más alto que verifique los permisos a nivel de campaña.
  */
 // lib/auth/user-permissions.ts

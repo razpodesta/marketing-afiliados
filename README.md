@@ -1,3 +1,5 @@
+// README.md
+
 <p align="center">
   <img src="public/images/logo.png" alt="Logo de MetaShark" width="150"/>
 </p>
@@ -5,7 +7,7 @@
 <h1 align="center">MetaShark Suite: Executive Briefing & Technical Vision</h1>
 
 <p align="center">
-  <strong>Versión:</strong> 1.1.0 | <strong>Estado:</strong> En Desarrollo Activo (Fase de Estabilización Concluida)
+  <strong>Versión:</strong> 1.2.0 | <strong>Estado:</strong> En Desarrollo Activo (Arquitectura "Remote-First")
 </p>
 
 > **Nuestra Misión:** Transformar fundamentalmente el marketing de afiliados, pasando de un juego de volumen y conjeturas a una disciplina de precisión, velocidad e inteligencia. MetaShark no es solo una herramienta; es el copiloto estratégico para la próxima generación de marketers.
@@ -68,6 +70,10 @@ L.I.A. (Legacy Intelligence Assistant) es nuestro diferenciador competitivo más
 
 Nuestra visión de producto está respaldada por una arquitectura de software de nivel empresarial, diseñada para la velocidad, la seguridad y la escalabilidad masiva.
 
+<!-- NOTA ARQUITECTÓNICA CANÓNICA -->
+
+> **Filosofía "Remote-First":** Este proyecto opera exclusivamente con entornos de base de datos remotos gestionados por Supabase. **No se utiliza ni se soporta una base de datos local (`supabase start`).** Esta decisión estratégica garantiza la paridad total entre los entornos de desarrollo, pruebas y producción, eliminando una clase entera de bugs de "funciona en mi máquina". Todos los scripts de diagnóstico y gestión están diseñados para operar sobre las instancias remotas.
+
 ```mermaid
 graph TD
     subgraph "Usuario Final"
@@ -88,8 +94,8 @@ graph TD
         F[Capa de Datos Abstraída]
     end
 
-    subgraph "Supabase (Backend as a Service)"
-        G[Base de Datos PostgreSQL]
+    subgraph "Supabase Cloud Platform"
+        G[Base de Datos PostgreSQL Remota]
         H[Autenticación & RLS]
         I[Storage]
         J[Realtime]
@@ -111,65 +117,47 @@ graph TD
     J <--> G
 ```
 
+Markdown
 Escalabilidad Global: Construido sobre Next.js y Vercel, nuestra plataforma se despliega en el borde (Edge), garantizando latencia ultra-baja para usuarios de todo el mundo.
-
-Seguridad Inexpugnable: Utilizamos las políticas de Seguridad a Nivel de Fila (RLS) de Supabase como nuestra base. Cada consulta a la base de datos es inherentemente segura, garantizando que un usuario SÓLO pueda ver o modificar los datos de los workspaces a los que pertenece.
-
-Velocidad de Iteración: El uso de Server Actions y una arquitectura modular nos permite desarrollar y desplegar nuevas características a una velocidad sin precedentes, respondiendo rápidamente a las necesidades del mercado.
-
-Fiabilidad por Diseño: Implementamos una suite completa de pruebas de integración y diagnóstico, junto con un sistema de logging estructurado, que nos permite anticipar y resolver problemas antes de que impacten al usuario.
-
-5. Hoja de Ruta (Roadmap)
-   Nuestra visión es ambiciosa y nuestro plan de ejecución es claro.
-
-6. El Equipo
-   MetaShark es el resultado de la sinergia entre la visión de ingeniería humana y la potencia de la inteligencia artificial.
-   Ingeniero a Cargo de Proyecto: Raz Podestá
-   Co-creadora & IA de Fiabilidad: L.I.A Legacy
-   Un proyecto de MetaShark.
-
-7. Anexo Técnico (Para el CTO/Equipo de Ingeniería)
-   Tech Stack Principal
-   Categoría Tecnología Propósito
-   Framework Next.js 14 (App Router) Renderizado Híbrido, Server Actions, Middleware
-   UI y Estilos React 18, TailwindCSS, Shadcn/UI Interfaz de usuario moderna y componetizable
-   Base de Datos Supabase (PostgreSQL) Persistencia, Autenticación, RLS, Realtime
-   Gestión de Estado Zustand Gestión de estado de cliente simple y potente
-   Validación Zod Validación de esquemas en cliente y servidor
-   Pruebas Vitest & Testing Library Pruebas unitarias y de integración rápidas
-   Guía de Inicio Rápido
-   Clonar el Repositorio:
-
-```bash
+Seguridad Inexpugnable: Utilizamos las políticas de Seguridad a Nivel de Fila (RLS) de Supabase como nuestra base. Cada consulta a la base de datos es inherentemente segura.
+Velocidad de Iteración: El uso de Server Actions y una arquitectura modular nos permite desarrollar y desplegar nuevas características a una velocidad sin precedentes.
+Fiabilidad por Diseño: Implementamos una suite completa de pruebas, diagnóstico remoto y logging estructurado. 5. Anexo Técnico (Para el CTO/Equipo de Ingeniería)
+Tech Stack Principal
+Categoría Tecnología Propósito
+Framework Next.js 14 (App Router) Renderizado Híbrido, Server Actions, Middleware
+UI y Estilos React 18, TailwindCSS, Shadcn/UI Interfaz de usuario moderna y componetizable
+Base de Datos Supabase (PostgreSQL) Persistencia, Autenticación, RLS, Realtime
+Gestión de Estado Zustand Gestión de estado de cliente simple y potente
+Validación Zod Validación de esquemas en cliente y servidor
+Pruebas Vitest & Testing Library Pruebas unitarias y de integración rápidas
+Guía de Inicio Rápido (Entorno Remoto)
+Clonar el Repositorio:
+Generated bash
 git clone https://github.com/razpodesta/marketing-afiliados && cd marketing-afiliados
+
 ```
-
+Bash
 Instalar Dependencias:
-
-```Bash
+Generated bash
 pnpm install
 ```
 
-Configurar el Entorno:
-Copiar .env.local.example a .env.local.
-Rellenar todas las variables de entorno con tus credenciales de Supabase.
-Ejecutar la Aplicación:
-
-```bash
+Bash
+Configurar Entornos Remotos:
+Copia .env.example a .env.local (para tu entorno de desarrollo remoto).
+Copia .env.example a .env.test (para tu entorno de pruebas remoto).
+Rellena las variables de Supabase en ambos archivos con las credenciales de tus respectivos proyectos remotos.
+Ejecutar la Aplicación (conectada a tu BD remota de desarrollo):
+Generated bash
 pnpm dev
+
 ```
-
-Comandos del Proyecto
-Comando Descripción
-
-pnpm dev Inicia el servidor de desarrollo.
-
-pnpm build Compila la aplicación para producción.
-
-pnpm lint:fix Ejecuta el linter y corrige errores automáticamente.
-
-pnpm test:ci Ejecuta la suite completa de pruebas en modo CI.
-
-pnpm gen:types Regenera los tipos de TypeScript desde el esquema de Supabase.
-
-pnpm diag:all (Crítico) Ejecuta la suite completa de diagnóstico del sistema.
+Bash
+Comandos Críticos del Proyecto
+Comando	Descripción
+pnpm dev	Inicia el servidor de desarrollo conectado a la BD remota de .env.local.
+pnpm test:ci	Ejecuta la suite completa de pruebas contra la BD remota de .env.test.
+pnpm gen:types	Regenera los tipos de TypeScript desde el esquema de tu BD remota de .env.local.
+pnpm diag:all	Ejecuta una auditoría completa del esquema en una BD remota (--env=dev o --env=test).
+pnpm query:all	Inspecciona los datos en una BD remota (--env=dev o --env=test).
+```

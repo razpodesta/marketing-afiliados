@@ -2,31 +2,62 @@
 /**
  * @file app/[locale]/login/page.tsx
  * @description Página de inicio de sesión principal (Server Component).
- * REFACTORIZACIÓN MENOR: Se ha actualizado la llamada a `LoginForm` para
- * pasar la prop `defaultView`, alineándose con las mejoras del componente hijo.
- *
- * @author Metashark
- * @version 4.1.0 (Dynamic View Prop)
+ * REFACTORIZADO:
+ * 1.  Implementa redirección inteligente post-login usando el parámetro `next`.
+ * 2.  Añade un esqueleto de carga (`Suspense`) para mejorar la UX.
+ * 3.  Genera metadatos dinámicos para SEO.
+ * 4.  CORREGIDO: Uso correcto de las funciones de traducción de `next-intl`,
+ *     resolviendo el error de tipado `TS2339`.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 6.0.0 (Translation Typo Fix)
  */
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react"; // Importar Suspense
+import { headers } from "next/headers"; // Para leer searchParams en Server Component
 
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage() {
-  const t = await getTranslations("LoginPage");
+/**
+ * @function generateMetadata
+ * @description Genera metadatos dinámicos para la página de login, incluyendo el título traducido.
+ * @returns {Promise<import("next").Metadata>} Los metadatos de la página.
+ */
+export async function generateMetadata(): Promise<import("next").Metadata> {
+  const tLoginPage = await getTranslations("LoginPage"); // Obtener la función t para LoginPage
+  return {
+    title: tLoginPage("metadataTitle"), // Usar la función t correctamente
+  };
+}
+
+/**
+ * @function LoginPageContent
+ * @description Componente interno que carga los datos y renderiza el formulario de login.
+ *              Envuelto en Suspense por el componente padre.
+ * @param {{ searchParams: { next?: string } }} props - Parámetros de búsqueda de la URL.
+ * @returns {Promise<JSX.Element>} El formulario de login o una redirección.
+ */
+async function LoginPageContent({
+  searchParams,
+}: {
+  searchParams: { next?: string };
+}) {
+  const t = await getTranslations("LoginPage"); // Obtener la función t para LoginPage
   const supabase = createClient();
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
+  // Redirección inteligente: Si el usuario ya está autenticado,
+  // lo enviamos al dashboard o a la página que intentaba visitar.
   if (session) {
-    return redirect("/dashboard");
+    const redirectTo = searchParams.next || "/dashboard";
+    return redirect(redirectTo);
   }
 
   // Objeto de localización para los textos del componente de Supabase UI
@@ -38,6 +69,8 @@ export default async function LoginPage() {
         button_label: t("signInButton"),
         social_provider_text: t("signInWith"),
         link_text: t("alreadyHaveAccount"),
+        // Asegúrate de que estas claves existan en tus archivos JSON de traducción.
+        forgot_password_text: t("forgotPasswordLink"),
       },
       sign_up: {
         email_label: t("emailLabel"),
@@ -54,6 +87,43 @@ export default async function LoginPage() {
     },
   };
 
+  // Pasamos el parámetro `next` al LoginForm para que la UI de Supabase lo use en `redirectTo`.
+  const nextPath = searchParams.next || undefined;
+
+  return (
+    <Card className="w-full max-w-md border-border/60 bg-card/50 backdrop-blur-lg">
+      <CardContent className="pt-6">
+        <LoginForm
+          localization={localization}
+          defaultView="sign_in"
+          next={nextPath}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * @function LoginPageSkeleton
+ * @description Esqueleto de carga para la página de login.
+ * @returns {JSX.Element} La UI del esqueleto.
+ */
+const LoginPageSkeleton = () => (
+  <Card className="w-full max-w-md h-96 animate-pulse border-border/60 bg-card/50 backdrop-blur-lg flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4">
+      <div className="h-10 w-48 bg-muted rounded-md" />
+      <div className="h-8 w-64 bg-muted rounded-md" />
+      <div className="h-6 w-32 bg-muted rounded-md" />
+    </div>
+  </Card>
+);
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { next?: string };
+}) {
+  const t = await getTranslations("LoginPage"); // Obtener la función t para la renderización del título/subtítulo.
   return (
     <main className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
       <div
@@ -74,59 +144,16 @@ export default async function LoginPage() {
         <h1 className="mt-4 text-3xl font-bold">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
-      <Card className="w-full max-w-md border-border/60 bg-card/50 backdrop-blur-lg">
-        <CardContent className="pt-6">
-          <LoginForm localization={localization} defaultView="sign_in" />
-        </CardContent>
-      </Card>
+      <Suspense fallback={<LoginPageSkeleton />}>
+        <LoginPageContent searchParams={searchParams} />
+      </Suspense>
     </main>
   );
 }
 
 /* MEJORAS FUTURAS DETECTADAS
- * 1. Gestión del Parámetro `next` para Redirección Inteligente: Este componente podría leer un parámetro de búsqueda `next` de la URL (ej. `/login?next=/dashboard/settings`). Este parámetro podría ser pasado al `LoginForm` para que lo añada a la prop `redirectTo` de Supabase, asegurando que después del login, el usuario sea redirigido a la página que intentaba acceder originalmente.
- * 2. Esqueleto de Carga con Suspense: Envolver la `<Card>` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga del formulario. Esto mejoraría la experiencia de usuario percibida (LCP) mientras se ejecuta la lógica de `getSession` en el servidor.
- * 3. Rutas Separadas para Sign Up: Crear una ruta `/signup` que renderice este mismo componente pero pase `defaultView="sign_up"` a `LoginForm`, proporcionando URLs semánticas distintas para el registro y el inicio de sesión.
+ * 1. Rutas Separadas para Sign Up: Crear una ruta `/signup` que renderice este mismo componente pero pase `defaultView="sign_up"` a `LoginForm`, proporcionando URLs semánticas distintas para el registro y el inicio de sesión, en lugar de depender de los botones internos del formulario de Supabase Auth UI.
+ * 2. Mensajes de Error de Supabase Traducidos: La UI de Supabase Auth puede mostrar mensajes de error genéricos del backend. Una mejora sería interceptar estos errores, mapearlos a claves de traducción específicas y mostrar mensajes más amigables y traducidos a través de `react-hot-toast`.
+ * 3. Auditoría de Login (Exitoso y Fallido): Extender las Server Actions de autenticación para registrar intentos de login (exitosos y fallidos) en la tabla `audit_logs` con la dirección IP, user agent y la hora.
  */
-/* Ruta: app/[locale]/login/page.tsx */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Gestión del Parámetro `next` para Redirección Inteligente: Este componente podría leer un parámetro de búsqueda `next` de la URL (ej. `/login?next=/dashboard/settings`). Este parámetro podría ser pasado al `LoginForm` y, a su vez, a la prop `redirectTo` de Supabase, asegurando que después de un inicio de sesión exitoso, el usuario sea redirigido a la página que intentaba acceder originalmente, en lugar de siempre a `/dashboard`.
- * 2. Esqueleto de Carga con Suspense: Envolver la `<Card>` que contiene el `LoginForm` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga del formulario. Esto mejoraría la experiencia de usuario percibida (LCP) mientras se ejecuta la lógica de `getSession` en el servidor.
- * 3. Metadatos de Página Dinámicos: Utilizar la función `generateMetadata` de Next.js en este archivo para establecer el título de la página de forma dinámica usando las traducciones (ej. `t('metadataTitle')`). Esto es una mejor práctica para el SEO y la accesibilidad, en lugar de depender únicamente de los metadatos globales del layout raíz.
- */
-/* MEJORAS PROPUESTAS
- * 1. **Componente de Carga con Suspense:** Envolver la `<Card>` en un `<Suspense>` de React con un `fallback` que muestre un esqueleto de carga (skeleton). Esto mejoraría la experiencia de usuario percibida mientras se verifica la sesión del servidor.
- * 2. **Metadatos de Página Dinámicos:** Utilizar la función `generateMetadata` para establecer el título de la página de forma dinámica usando las traducciones, lo cual es una mejor práctica para el SEO y la accesibilidad.
- * 3. **Gestión del Parámetro `next`:** Leer el parámetro de búsqueda `next` en este componente del servidor y pasarlo como prop a `LoginForm`. `LoginForm` podría entonces añadirlo a la `redirectTo` URL de Supabase, completando el flujo de redirección inteligente.
-1.  **Tema Personalizado para Auth UI:** Crear un tema que coincida con la estética de Shadcn/UI.
-2.  **Manejo de Errores de OAuth:** Implementar una página de error de autenticación.
-3.  **Flujo de Onboarding Post-Registro:** Usar "Auth Hooks" de Supabase para redirigir a los nuevos usuarios a `/welcome`.
-1.  **Añadir Más Proveedores:** Integrar fácilmente más proveedores (GitHub, Apple) simplemente añadiendo más componentes `SignInButton` con el ID del proveedor correspondiente.
-2.  **Formulario de Login con Contraseña:** Reintroducir un formulario de login con email/contraseña que utilice el `Credentials Provider` conectado a Supabase, ofreciendo una alternativa a OAuth.
-3.  **Accesibilidad (A11y):** Añadir iconos SVG para cada proveedor de OAuth dentro de los botones y asegurarse de que tengan el `aria-label` adecuado para lectores de pantalla.
- * 1. **Manejo de Errores de Redirección:** Si un proveedor OAuth redirige con un parámetro de error en la URL, esta página podría leerlo y pasar un mensaje de error al `LoginForm` para mostrarlo al usuario.
- * 2. **Página de Carga (Loading UI):** Añadir un archivo `loading.tsx` en esta misma carpeta para mostrar un esqueleto de carga mientras se verifica la sesión del servidor, mejorando la experiencia de usuario percibida.
- * 1. **Tema Personalizado para Auth UI:** Crear un tema que coincida con la estética de Shadcn/UI.
- * 2. **Manejo de Errores de OAuth:** Implementar una página de error de autenticación.
- * 3. **Flujo de Onboarding Post-Registro:** Redirigir a los nuevos usuarios a una página de bienvenida.
- * 1. **Tema Personalizado para Auth UI:** Crear un tema que coincida con la estética de Shadcn/UI, en lugar de usar `ThemeSupa`.
- * 2. **Manejo de Errores de OAuth:** Implementar una página de error de autenticación a la que Supabase pueda redirigir si un proveedor de OAuth devuelve un error.
- * 3. **Flujo de Onboarding Post-Registro:** Utilizar los "Auth Hooks" de Supabase para redirigir a los nuevos usuarios a una página de onboarding (`/welcome`) después de su primer inicio de sesión.
- * 1. **Tema Personalizado para Auth UI:** Crear un tema personalizado para `@supabase/auth-ui-react` que coincida perfectamente con la estética de Shadcn/UI, en lugar de usar `ThemeSupa`.
- * 2. **Manejo de Errores de OAuth:** Implementar una página de error de autenticación a la que Supabase pueda redirigir si un proveedor de OAuth devuelve un error.
- * 3. **Flujo de Onboarding Post-Registro:** Utilizar los "Auth Hooks" de Supabase para redirigir a los nuevos usuarios a una página de onboarding (`/welcome`) después de su primer inicio de sesión para configurar su perfil o workspace.
- * 1. **OAuth como Opción Principal:** Integrar botones de "Iniciar Sesión con Google/GitHub" para una UX superior.
- * 2. **Enlace "Olvidé mi contraseña":** Añadir un `Link` para un futuro flujo de recuperación de contraseña.
- * 3. **Redirección Post-Login Inteligente:** Mejorar la redirección para que, si un usuario intentó acceder a una página protegida, sea devuelto a esa página después del login, usando el parámetro `callbackUrl`.
- * 1. **OAuth como Opción Principal:** Integrar botones de "Iniciar Sesión con Google/GitHub" por encima del formulario de credenciales. Para la mayoría de los SaaS, OAuth es la opción preferida por los usuarios.
- * 2. **Enlace "Olvidé mi contraseña":** Añadir un `Link` debajo del botón de inicio de sesión que dirija a un futuro flujo de recuperación de contraseña, el cual puede ser gestionado fácilmente con Supabase Auth.
- * 3. **Manejo de Redirección Post-Login:** La redirección actual va siempre a `/dashboard`. Se podría mejorar para que, si el usuario intentó acceder a una página protegida, sea redirigido a esa página específica después de iniciar sesión. Esto se puede lograr pasando un `callbackUrl` en la URL.
- * 1. **OAuth como Opción Principal:** Integrar botones de "Iniciar Sesión con Google/GitHub" por encima del formulario de credenciales. Para la mayoría de los SaaS, OAuth es la opción preferida por los usuarios.
- * 2. **Enlace "Olvidé mi contraseña":** Añadir un `Link` debajo del botón de inicio de sesión que dirija a un futuro flujo de recuperación de contraseña, el cual puede ser gestionado fácilmente con Supabase Auth.
- * 3. **Manejo de Redirección Post-Login:** La redirección actual va siempre a `/dashboard`. Se podría mejorar para que, si el usuario intentó acceder a una página protegida, sea redirigido a esa página específica después de iniciar sesión. Esto se puede lograr pasando un `callbackUrl` en la URL.
- * 1. **Feedback de Errores:** Implementar `useActionState` para mostrar un mensaje de "Credenciales incorrectas" al usuario directamente en el formulario si el login falla.
- * 2. **Social Logins:** Añadir botones para iniciar sesión con proveedores OAuth (Google, GitHub) para una mejor experiencia de usuario.
- * 1. **Manejo de Errores en UI:** Modificar la Server Action `login` y usar `useActionState` en `LoginForm` para mostrar mensajes de error específicos (ej. "Credenciales inválidas") directamente en el formulario.
- * 2. **Enlace "Olvidé mi contraseña":** Añadir un enlace que dirija a un flujo de recuperación de contraseña.
- * 3. **Botones de OAuth:** Integrar botones para iniciar sesión con Google, GitHub, etc., debajo del formulario de credenciales.
- */
+// Ruta: app/[locale]/login/page.tsx

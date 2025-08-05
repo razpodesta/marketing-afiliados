@@ -2,9 +2,10 @@
 /**
  * @file workspaces.ts
  * @description Define el contrato de datos atómico para la tabla `workspaces`.
- *              Esta es la entidad de más alto nivel para la organización de datos.
+ *              Sincronizado con el esquema remoto para eliminar el campo obsoleto
+ *              `storage_used_mb`.
  * @author L.I.A Legacy
- * @version 1.0.0
+ * @version 2.0.0 (Remote Schema Synchronized)
  */
 export type Workspaces = {
   Row: {
@@ -14,7 +15,6 @@ export type Workspaces = {
     icon: string | null;
     name: string;
     owner_id: string;
-    storage_used_mb: number;
     updated_at: string | null;
   };
   Insert: {
@@ -24,7 +24,6 @@ export type Workspaces = {
     icon?: string | null;
     name: string;
     owner_id: string;
-    storage_used_mb?: number;
     updated_at?: string | null;
   };
   Update: {
@@ -34,7 +33,6 @@ export type Workspaces = {
     icon?: string | null;
     name?: string;
     owner_id?: string;
-    storage_used_mb?: number;
     updated_at?: string | null;
   };
   Relationships: [
@@ -49,11 +47,11 @@ export type Workspaces = {
 };
 
 /**
- * @description Este aparato define la forma de los datos para la tabla `workspaces`.
- *              Actúa como el contenedor principal para `sites` y `workspace_members`.
- * @propose_new_improvements
- * 1. **Asociación de Plan**: Añadir una columna `plan_id: string | null` que sea una clave foránea a una futura tabla `plans` para gestionar las suscripciones a nivel de workspace.
- * 2. **Límites de Recursos**: Incluir columnas como `max_sites: number` o `max_storage_mb: number` que se puedan configurar según el plan del workspace.
- * 3. **Soft Deletes**: Implementar borrado lógico añadiendo un campo `deleted_at: string | null` para permitir la recuperación de workspaces.
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Sincronización de Esquema**: ((Implementada)) Se ha eliminado el campo `storage_used_mb` que no existe en la base de datos remota, eliminando la deuda técnica de "schema drift".
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Límites de Recursos**: ((Vigente)) Considerar añadir columnas como `max_sites` o `max_members` que se puedan configurar según el plan del workspace.
  */
-// lib/types/database/tables/workspaces.ts
