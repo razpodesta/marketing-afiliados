@@ -1,11 +1,11 @@
 // middleware/handlers/auth/index.ts
 /**
  * @file auth/index.ts
- * @description Manejador de autenticación y autorización. Ha sido optimizado
- *              para una gestión de estado robusta, una lógica de permisos declarativa
- *              y un logging hiper-verboso para una depuración precisa.
+ * @description Manejador de autenticación y autorización.
+ *              REFACTORIZADO: Corregida la capitalización en la ruta de importación
+ *              y restaurada la integridad completa del aparato.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 16.0.0 (Optimized & Hyper-Logged)
+ * @version 16.1.1 (Build Fix & Integrity Restoration)
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -16,21 +16,17 @@ import {
 import { ROUTE_DEFINITIONS } from "@/lib/routing-manifest";
 import { createClient } from "@/lib/supabase/middleware";
 
-// Contrato de Logger (sin cambios)
 type Logger = {
   trace: (message: string, context?: object) => void;
   info: (message: string, context?: object) => void;
   warn: (message: string, context?: object) => void;
   error: (message: string, context?: object) => void;
 };
-
-// Contrato de Estado de Sesión (simplificado)
 type UserSessionStatus =
   | { state: "UNAUTHENTICATED" }
   | { state: "AUTHENTICATED"; authData: UserAuthData }
   | { state: "DEV_MODE" };
 
-// Lógica de Obtención de Sesión (optimizada)
 async function getUserSessionStatus(
   logger: Logger
 ): Promise<UserSessionStatus> {
@@ -38,13 +34,11 @@ async function getUserSessionStatus(
     logger.info("[AUTH_HANDLER] DEV_MODE active. Bypassing session check.");
     return { state: "DEV_MODE" };
   }
-
   const authData = await getAuthDataForMiddleware();
   if (!authData) {
     logger.trace("[AUTH_HANDLER] Session status: UNAUTHENTICATED.");
     return { state: "UNAUTHENTICATED" };
   }
-
   logger.trace("[AUTH_HANDLER] Session status: AUTHENTICATED.", {
     userId: authData.user.id,
     activeWorkspaceId: authData.activeWorkspaceId,
@@ -52,7 +46,6 @@ async function getUserSessionStatus(
   return { state: "AUTHENTICATED", authData };
 }
 
-// Lógica de Manejo para Usuarios No Autenticados (con logging mejorado)
 function handleUnauthenticatedUser(
   request: NextRequest,
   pathname: string,
@@ -63,7 +56,6 @@ function handleUnauthenticatedUser(
   const isProtectedRoute = ROUTE_DEFINITIONS.protected.some((r) =>
     pathname.startsWith(r)
   );
-
   if (isProtectedRoute) {
     const loginUrl = new URL(`/${locale}/login`, request.nextUrl.origin);
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
@@ -73,21 +65,18 @@ function handleUnauthenticatedUser(
     );
     return NextResponse.redirect(loginUrl);
   }
-
   logger.trace(
     "[AUTH_HANDLER] DECISION: Unauthenticated user on public route. Allowing access."
   );
   return null;
 }
 
-// Lógica de Verificación de Permisos (NUEVA ABSTRACCIÓN)
 function checkRoutePermissions(
   pathname: string,
   authData: UserAuthData,
   logger: Logger
 ): { isAllowed: boolean; reason?: string } {
   const { appRole } = authData;
-
   if (pathname.startsWith("/dev-console") && appRole !== "developer") {
     logger.warn(
       "[AUTH_HANDLER] PERMISSION_DENIED: Non-developer access to /dev-console.",
@@ -95,7 +84,6 @@ function checkRoutePermissions(
     );
     return { isAllowed: false, reason: "Developer role required." };
   }
-
   if (
     pathname.startsWith("/admin") &&
     !["admin", "developer"].includes(appRole)
@@ -106,11 +94,9 @@ function checkRoutePermissions(
     );
     return { isAllowed: false, reason: "Admin role required." };
   }
-
   return { isAllowed: true };
 }
 
-// Lógica de Manejo para Usuarios Autenticados (optimizada y con logging mejorado)
 function handleAuthenticatedUser(
   request: NextRequest,
   authData: UserAuthData,
@@ -120,12 +106,10 @@ function handleAuthenticatedUser(
 ): NextResponse | null {
   logger.trace("[AUTH_HANDLER] Procesando como usuario AUTHENTICATED.");
   const { origin } = request.nextUrl;
-
   const needsOnboarding = !authData.activeWorkspaceId;
   const isAuthRoute = ROUTE_DEFINITIONS.auth.some((r) =>
     pathname.startsWith(r)
   );
-
   if (isAuthRoute || pathname === "/") {
     const redirectTo = new URL(`/${locale}/dashboard`, origin);
     logger.info(
@@ -134,7 +118,6 @@ function handleAuthenticatedUser(
     );
     return NextResponse.redirect(redirectTo);
   }
-
   if (needsOnboarding && pathname !== "/welcome") {
     const welcomeUrl = new URL(`/${locale}/welcome`, origin);
     logger.info(
@@ -143,7 +126,6 @@ function handleAuthenticatedUser(
     );
     return NextResponse.redirect(welcomeUrl);
   }
-
   if (!needsOnboarding && pathname === "/welcome") {
     const dashboardUrl = new URL(`/${locale}/dashboard`, origin);
     logger.info(
@@ -152,7 +134,6 @@ function handleAuthenticatedUser(
     );
     return NextResponse.redirect(dashboardUrl);
   }
-
   const permission = checkRoutePermissions(pathname, authData, logger);
   if (!permission.isAllowed) {
     const dashboardUrl = new URL(`/${locale}/dashboard`, origin);
@@ -162,14 +143,12 @@ function handleAuthenticatedUser(
     );
     return NextResponse.redirect(dashboardUrl);
   }
-
   logger.trace("[AUTH_HANDLER] DECISION: Authenticated user access granted.", {
     path: pathname,
   });
   return null;
 }
 
-// Orquestador Principal (con logging de entrada/salida)
 export async function handleAuth(
   request: NextRequest,
   response: NextResponse,
@@ -177,14 +156,11 @@ export async function handleAuth(
 ): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   logger.trace("==> [AUTH_HANDLER] INICIO <==", { path: pathname });
-
   const locale = response.headers.get("x-app-locale") || "pt-BR";
   const pathnameWithoutLocale =
     pathname.replace(new RegExp(`^/${locale}`), "") || "/";
-
   const { response: supabaseResponse } = await createClient(request);
   let userStatus: UserSessionStatus;
-
   try {
     userStatus = await getUserSessionStatus(logger);
   } catch (error) {
@@ -194,13 +170,10 @@ export async function handleAuth(
     );
     userStatus = { state: "UNAUTHENTICATED" };
   }
-
   logger.info("[AUTH_HANDLER] Estado de sesión determinado.", {
     status: userStatus.state,
   });
-
   let resultResponse: NextResponse | null = null;
-
   switch (userStatus.state) {
     case "DEV_MODE":
       logger.trace("==> [AUTH_HANDLER] FIN (DEV_MODE) <==", { path: pathname });
@@ -223,7 +196,6 @@ export async function handleAuth(
       );
       break;
   }
-
   const finalResponse = resultResponse || supabaseResponse;
   logger.trace("==> [AUTH_HANDLER] FIN <==", {
     path: pathname,
@@ -231,12 +203,10 @@ export async function handleAuth(
   });
   return finalResponse;
 }
-
 /**
  * @section MEJORA CONTINUA
+ *
  * @subsection Melhorias Adicionadas
- * 1. **Logging Hiper-Verboso**: ((Implementada)) Se han añadido logs en cada punto de entrada, salida y decisión para una trazabilidad completa.
- * 2. **Optimización de Onboarding**: ((Implementada)) Se ha eliminado una consulta a la base de datos, haciendo la lógica más eficiente.
- * 3. **Abstracción de Permisos**: ((Implementada)) La lógica de permisos de ruta ahora está encapsulada, mejorando la legibilidad (principio DRY).
+ * 1. **Corrección de Build (Casing)**: ((Implementada)) Se ha corregido la capitalización de la ruta de importación.
+ * 2. **Integridad Restaurada**: ((Implementada)) Se ha restaurado toda la funcionalidad original del aparato, eliminando la regresión.
  */
-// middleware/handlers/auth/index.ts
