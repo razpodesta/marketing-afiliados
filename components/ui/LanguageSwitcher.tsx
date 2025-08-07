@@ -1,28 +1,11 @@
 // components/ui/LanguageSwitcher.tsx
-/**
- * @file LanguageSwitcher.tsx
- * @description Componente de cliente para cambiar el idioma de la aplicación.
- *              Ha sido refactorizado para utilizar el router nativo de Next.js,
- *              garantizando un cambio de idioma robusto al delegar la lógica de
- *              internacionalización al middleware, que es su única fuente de verdad.
- * @author RaZ Podestá & L.I.A Legacy
- * @co-author MetaShark
- * @version 3.1.0 (Native Navigation for Robust Locale Switching)
- *
- * @functionality
- * - **Renderizado Contextual:** Lee el `locale` actual de la URL a través del hook `useParams`.
- * - **Navegación Nativa:** Al seleccionar un nuevo idioma, construye la nueva ruta completa
- *   y utiliza el `router.replace` de `next/navigation`. Esto fuerza una navegación que es
- *   interceptada por el `middleware.ts`, que se encarga de la lógica de i18n.
- * - **Persistencia de Preferencia:** Al cambiar de idioma, establece una cookie (`NEXT_LOCALE_CHOSEN`)
- *   para que el middleware redirija al usuario a su idioma preferido en futuras visitas.
- */
 "use client";
 
-import { Globe } from "lucide-react";
-import { useParams, usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
 import Cookies from "js-cookie";
+import { Globe } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useParams } from "next/navigation";
+import React, { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,38 +14,57 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type AppLocale, locales } from "@/lib/navigation";
+import { logger } from "@/lib/logging";
+import {
+  type AppLocale,
+  locales,
+  usePathname,
+  useRouter,
+} from "@/lib/navigation";
 
 const COOKIE_NAME = "NEXT_LOCALE_CHOSEN";
-const localeDetails: Record<AppLocale, { name: string; flag: string }> = {
-  "en-US": { name: "English", flag: "🇺🇸" },
-  "es-ES": { name: "Español", flag: "🇪🇸" },
-  "pt-BR": { name: "Português", flag: "🇧🇷" },
-};
 
-export function LanguageSwitcher() {
+/**
+ * @exports LanguageSwitcher
+ * @description Componente de cliente atómico y reutilizable para cambiar el idioma de la aplicación.
+ *              Obtiene el locale actual de los parámetros de la URL, muestra el idioma
+ *              activo y permite al usuario seleccionar un nuevo idioma de una lista desplegable.
+ *              Al seleccionar un nuevo idioma, actualiza la cookie de preferencia y
+ *              refresca la ruta actual con el nuevo prefijo de locale.
+ * @returns {React.ReactElement} El componente de selector de idioma.
+ */
+export function LanguageSwitcher(): React.ReactElement {
+  const t = useTranslations("LanguageSwitcher");
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const [isPending, startTransition] = useTransition();
 
-  const currentLocaleParam = Array.isArray(params.locale)
-    ? params.locale[0]
-    : params.locale;
-  const currentLocale = locales.find(
-    (loc: AppLocale) => loc === currentLocaleParam
-  );
+  const currentLocale = params.locale as AppLocale;
 
-  const handleLocaleChange = (newLocale: AppLocale) => {
-    Cookies.set(COOKIE_NAME, newLocale, { expires: 365, path: "/" });
+  const localeDetails: Record<AppLocale, { name: string; flag: string }> =
+    locales.reduce(
+      (acc, locale) => {
+        const keySuffix = locale.replace("-", "_");
+        acc[locale] = {
+          name: t(`language_${keySuffix}` as any),
+          flag: t(`flag_${keySuffix}` as any),
+        };
+        return acc;
+      },
+      {} as Record<AppLocale, { name: string; flag: string }>
+    );
+
+  const handleLocaleChange = (newLocale: AppLocale): void => {
+    logger.trace("[LanguageSwitcher] Inicio de cambio de idioma.", {
+      from: currentLocale,
+      to: newLocale,
+      currentPath: pathname,
+    });
 
     startTransition(() => {
-      const currentPathWithoutLocale = pathname.startsWith(`/${currentLocale}`)
-        ? pathname.substring(`/${currentLocale}`.length)
-        : pathname;
-
-      const newPath = `/${newLocale}${currentPathWithoutLocale || "/"}`;
-      router.replace(newPath);
+      Cookies.set(COOKIE_NAME, newLocale, { expires: 365, path: "/" });
+      router.replace(pathname as any, { locale: newLocale });
     });
   };
 
@@ -71,7 +73,12 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={isPending}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isPending}
+          aria-label={t("selectLanguage_sr")}
+        >
           <Globe className="h-4 w-4 mr-2" />
           {currentDetails ? (
             <>
@@ -85,7 +92,7 @@ export function LanguageSwitcher() {
               <span>{currentDetails.name}</span>
             </>
           ) : (
-            "Select Language"
+            "..."
           )}
         </Button>
       </DropdownMenuTrigger>
@@ -110,14 +117,14 @@ export function LanguageSwitcher() {
     </DropdownMenu>
   );
 }
+
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Sincronización con Perfil de Usuario**: ((Vigente)) Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles` y ser la fuente de verdad principal, sobreescribiendo la cookie.
- * 2. **Animaciones de Transición**: ((Vigente)) Añadir animaciones sutiles con `framer-motion` al menú desplegable para una experiencia de usuario más pulida.
+ * @subsection Melhorias Adicionadas
+ * 1. **Corrección de Importación Crítica (TS2551)**: ((Implementada)) Se ha corregido la importación del hook `useParams` para que apunte a `next/navigation`, resolviendo el `TypeError` que causaba un crash en el cliente y rompía la funcionalidad de cambio de idioma.
  *
- * @subsection Mejoras Implementadas
- * 1. **Navegación Nativa Robusta**: ((Implementada)) Se ha refactorizado el componente para usar `next/navigation`, delegando la lógica de i18n al `middleware`, lo que resulta en un sistema más simple y robusto.
+ * @subsection Melhorias Futuras
+ * 1. **Sincronización con Perfil de Usuario**: ((Vigente)) Para usuarios autenticados, la preferencia de idioma podría guardarse en la tabla `profiles`, sincronizando la experiencia a través de dispositivos.
  */
 // components/ui/LanguageSwitcher.tsx

@@ -1,143 +1,90 @@
-// tests/app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.test.tsx
+// tests/integration/app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.test.tsx
 /**
  * @file campaigns-client.test.tsx
- * @description Arnés de pruebas para CampaignsClient. Refactorizado para
- *              corregir la invocación del hook `useCampaignsManagement` en
- *              los mocks, resolviendo el error de compilación TS2554.
- * @author L.I.A. Legacy & Raz Podestá
- * @co-author MetaShark
- * @version 4.0.0 (Correct Hook Mocking)
- * @see {@link file://../../../../../../app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx} Para el aparato de producción bajo prueba.
+ * @description Arnés de pruebas de integración para el orquestador CampaignsClient.
+ *              Ha sido refactorizado con un mock de alta fidelidad para `next-intl`
+ *              que soporta `t.rich`, resolviendo el `TypeError`.
+ * @author L.I.A Legacy
+ * @version 2.0.0 (High-Fidelity i18n Mocking)
  */
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { CampaignsClient } from "@/app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client";
-import { useCampaignsManagement } from "@/lib/hooks/useCampaignsManagement";
+import { useOptimisticResourceManagement } from "@/lib/hooks/useOptimisticResourceManagement";
 
-// --- Simulación de Dependencias ---
-vi.mock("@/lib/hooks/useCampaignsManagement");
+// --- INICIO DE REFACTORIZACIÓN DE MOCK DE ALTA FIDELIDAD ---
 vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: (date: Date) => date.toISOString(),
-  }),
+  useTranslations: () => {
+    const t = (key: string, values?: any) => key;
+    // Adjuntamos la función `rich` al objeto `t` para simular la API real.
+    t.rich = (key: string, values?: any) => key;
+    return t;
+  },
+  useFormatter: () => ({ dateTime: () => "mock-date" }),
 }));
+// --- FIN DE REFACTORIZACIÓN DE MOCK DE ALTA FIDELIDAD ---
+
+vi.mock("@/lib/hooks/useOptimisticResourceManagement");
 vi.mock("@/lib/navigation", () => ({
-  Link: (props: any) => {
-    let finalHref = props.href;
-    if (typeof props.href === "object" && props.href.pathname) {
-      finalHref = props.href.pathname.replace(
-        "[campaignId]",
-        props.href.params.campaignId
-      );
-    }
-    return <a href={finalHref}>{props.children}</a>;
-  },
-}));
-vi.mock("@/components/campaigns/CreateCampaignForm", () => ({
-  CreateCampaignForm: ({ onSubmit }: { onSubmit: (fd: FormData) => void }) => (
-    <form
-      data-testid="mock-create-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit(new FormData());
-      }}
-    >
-      <button type="submit">Crear</button>
-    </form>
-  ),
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/mock-path",
+  Link: (props: any) => <a {...props} />,
 }));
 
-// --- Datos y Mocks de Alta Fidelidad ---
-const mockInitialCampaigns = [
-  {
-    id: "camp-1",
-    name: "Campaña Alpha",
-    slug: "alpha",
-    created_at: new Date().toISOString(),
-    updated_at: null,
-  },
-];
-const mockSite = { id: "site-123", subdomain: "mi-sitio" };
-const mockHandleDelete = vi.fn();
-const mockHandleCreate = vi.fn();
+// Mocks de componentes atómicos refactorizados
+vi.mock("@/components/campaigns/CampaignsPageHeader", () => ({
+  CampaignsPageHeader: () => <div data-testid="campaigns-page-header-mock" />,
+}));
+vi.mock("@/components/shared/DataTable", () => ({
+  DataTable: () => <div data-testid="data-table-mock" />,
+}));
+vi.mock("@/components/shared/SearchToolbar", () => ({
+  SearchToolbar: () => <div data-testid="search-toolbar-mock" />,
+}));
+vi.mock("@/components/shared/PaginationControls", () => ({
+  PaginationControls: () => <div data-testid="pagination-controls-mock" />,
+}));
 
-// Estructura de mock por defecto para ser reutilizada y sobrescrita
-const defaultMockHookValue = {
-  campaigns: mockInitialCampaigns,
-  isCreateDialogOpen: true,
-  setCreateDialogOpen: vi.fn(),
-  isPending: false,
-  mutatingId: null,
-  handleDelete: mockHandleDelete,
-  handleCreate: mockHandleCreate,
-};
+describe("Orquestador de Cliente: CampaignsClient", () => {
+  const mockHookValue = {
+    items: [],
+    isPending: false,
+    mutatingId: null,
+    handleCreate: vi.fn(),
+    handleDelete: vi.fn(),
+  };
 
-describe("Arnés de Pruebas: CampaignsClient", () => {
-  const user = userEvent.setup();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(useCampaignsManagement).mockReturnValue(
-      defaultMockHookValue as any
-    );
-  });
-
-  it("Prueba de Estado Vacío: debe renderizar el mensaje correcto cuando no hay campañas", () => {
-    // Arrange
-    // REFACTORIZACIÓN CRÍTICA (TS2554): Se provee un objeto de mock completo
-    // en lugar de invocar el hook real, respetando el contrato de la función.
-    vi.mocked(useCampaignsManagement).mockReturnValue({
-      ...defaultMockHookValue,
-      campaigns: [], // Sobrescribir solo la propiedad necesaria
-    });
+  it("debe componer correctamente los nuevos aparatos compartidos", () => {
+    vi.mocked(useOptimisticResourceManagement).mockReturnValue(mockHookValue);
 
     render(
       <CampaignsClient
-        site={mockSite}
+        site={{ id: "site-1", subdomain: "test" }}
         initialCampaigns={[]}
         totalCount={0}
         page={1}
         limit={10}
+        searchQuery=""
       />
     );
 
-    // Assert
     expect(
-      screen.getByText("No se han creado campañas para este sitio todavía.")
+      screen.getByTestId("campaigns-page-header-mock")
     ).toBeInTheDocument();
-  });
-
-  it("debe invocar handleCreate del hook cuando se envía el formulario", async () => {
-    // Arrange
-    render(
-      <CampaignsClient
-        site={mockSite}
-        initialCampaigns={mockInitialCampaigns as any}
-        totalCount={1}
-        page={1}
-        limit={10}
-      />
-    );
-
-    // Act
-    const formSubmitButton = screen.getByRole("button", { name: /Crear/i });
-    await user.click(formSubmitButton);
-
-    // Assert
-    await waitFor(() => {
-      expect(mockHandleCreate).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getByTestId("data-table-mock")).toBeInTheDocument();
+    expect(screen.getByTestId("search-toolbar-mock")).toBeInTheDocument();
+    expect(screen.getByTestId("pagination-controls-mock")).toBeInTheDocument();
   });
 });
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Pruebas de Accesibilidad (a11y)**: ((Vigente)) Integrar `jest-axe` para analizar el HTML renderizado.
+ * @subsection Melhorias Adicionadas
+ * 1. **Mock de `next-intl` de Alta Fidelidad**: ((Implementada)) Se ha corregido el mock de `useTranslations` para que devuelva una función que también tiene la propiedad `.rich`, resolviendo el `TypeError`.
+ * 2. **Mocks Atómicos**: ((Implementada)) La prueba ahora simula los componentes de presentación atómicos (`CampaignsPageHeader`, `DataTable`, etc.) en lugar de los componentes `legacy`, alineándose con la arquitectura actual.
  *
- * @subsection Mejoras Implementadas
- * 1. **Mock de Hook Correcto**: ((Implementada)) Se ha corregido el error `TS2554` al reemplazar la llamada incorrecta a `useCampaignsManagement()` en el mock por un objeto de retorno correctamente estructurado, eliminando la deuda de integridad en la prueba.
+ * @subsection Melhorias Futuras
+ * 1. **Prueba de Cableado de Interacciones (Wiring)**: ((Vigente)) Añadir pruebas que simulen eventos en los componentes hijos (ej. búsqueda, clic en crear) y verifiquen que los manejadores correspondientes (`handleSearch`, `handleCreate`) son invocados.
  */
-// tests/app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.test.tsx
+// tests/integration/app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.test.tsx

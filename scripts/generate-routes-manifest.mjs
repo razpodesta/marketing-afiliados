@@ -2,11 +2,10 @@
 /**
  * @file generate-routes-manifest.mjs
  * @description Script de élite que genera automáticamente el manifiesto de
- *              navegación. Ha sido blindado para ser agnóstico al sistema
- *              operativo y para escapar correctamente las cadenas, garantizando
- *              una salida sintácticamente válida en todo momento.
+ *              navegación. Ha sido blindado con una lógica de recorrido recursivo
+ *              robusta que detecta correctamente las páginas anidadas.
  * @author L.I.A Legacy
- * @version 4.0.0 (Syntax Hardening)
+ * @version 5.0.0 (Robust Recursive Traversal)
  */
 import fs from "fs/promises";
 import path from "path";
@@ -35,6 +34,15 @@ export type AppLocale = (typeof locales)[number];
 export const localePrefix = "as-needed";
 `.trim();
 
+/**
+ * @async
+ * @function generateRouteTree
+ * @description Recorre de forma recursiva la estructura de directorios de 'app' para
+ *              construir un mapa de todas las rutas válidas que contienen un `page.tsx`.
+ * @param {string} dir - El directorio actual a escanear.
+ * @param {string} [prefix="/"] - El prefijo de la ruta acumulado.
+ * @returns {Promise<Record<string, string>>} Un objeto que mapea las rutas canónicas.
+ */
 async function generateRouteTree(dir, prefix = "/") {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   let routes = {};
@@ -43,23 +51,15 @@ async function generateRouteTree(dir, prefix = "/") {
     if (IGNORE_DIRS.includes(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
-    // --- INICIO DE CORRECCIÓN DE PORTABILIDAD Y SINTAXIS ---
-    // Se utiliza path.posix.join para forzar el uso de barras diagonales.
     const routePath = path.posix.join(prefix, entry.name);
-    // --- FIN DE CORRECCIÓN ---
 
     if (entry.isDirectory()) {
       const childrenRoutes = await generateRouteTree(fullPath, routePath);
       routes = { ...routes, ...childrenRoutes };
-
-      const pageFileExists = await fs
-        .access(path.join(fullPath, "page.tsx"))
-        .then(() => true)
-        .catch(() => false);
-
-      if (pageFileExists) {
-        routes[routePath] = routePath;
-      }
+    } else if (entry.name === "page.tsx") {
+      // Lógica corregida: Si encontramos una página, su ruta es el prefijo actual.
+      // Para la raíz (app/[locale]/page.tsx), el prefijo será '/'.
+      routes[prefix] = prefix;
     }
   }
   return routes;
@@ -69,12 +69,10 @@ async function main() {
   console.log("🚀 Generando manifiesto de navegación tipado...");
   try {
     const routeTree = await generateRouteTree(APP_DIR);
-    const rootPageExists = await fs
-      .access(path.join(APP_DIR, "page.tsx"))
-      .then(() => true)
-      .catch(() => false);
 
-    if (rootPageExists) {
+    // La nueva lógica de `generateRouteTree` maneja la raíz correctamente.
+    // El chequeo explícito ya no es necesario si la estructura es `app/[locale]/page.tsx`.
+    if (!routeTree["/"]) {
       routeTree["/"] = "/";
     }
 

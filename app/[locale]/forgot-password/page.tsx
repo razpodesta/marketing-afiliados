@@ -1,19 +1,4 @@
 // app/[locale]/forgot-password/page.tsx
-/**
- * @file page.tsx
- * @description Página para solicitar la recuperación de contraseña. Se ha corregido la
- *              importación de la Server Action para alinearla con el manifiesto de
- *              acciones, resolviendo un fallo crítico de compilación.
- * @author Metashark (Refactorizado por L.I.A Legacy & Validator)
- * @version 3.3.0 (Fix: Action Import Path)
- *
- * @section MEJORAS FUTURAS
- * @description Mejoras para evolucionar el flujo de recuperación de contraseña.
- *
- * 1.  **Rate Limiting (Server-Side):** (Vigente) Implementar limitación de tasa real en la `requestPasswordResetAction` del servidor.
- * 2.  **Integración con Servicio de Email Transaccional:** (Vigente) Integrar un servicio como Resend o Postmark para mejorar la entregabilidad de los correos.
- * 3.  **Validación en Tiempo Real en Cliente:** (Vigente) Migrar este formulario a `react-hook-form` con `zodResolver` para una UX superior.
- */
 "use client";
 
 import { Loader2 } from "lucide-react";
@@ -27,8 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// CORRECCIÓN ESTRUCTURAL: Se importa desde el namespace 'password' correcto.
-import { password as passwordActions } from "@/lib/actions";
+// --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+// Se importa la acción directamente desde su archivo de origen,
+// rompiendo la dependencia con el archivo barril.
+import { requestPasswordResetAction } from "@/lib/actions/password.actions";
+// --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 import { type RequestPasswordResetState } from "@/lib/validators";
 
 function SubmitButton() {
@@ -48,7 +36,7 @@ export default function ForgotPasswordPage() {
 
   const initialState: RequestPasswordResetState = { error: null };
   const [state, formAction] = useFormState(
-    passwordActions.requestPasswordResetAction,
+    requestPasswordResetAction,
     initialState
   );
 
@@ -103,4 +91,18 @@ export default function ForgotPasswordPage() {
     </main>
   );
 }
+/**
+ * @file page.tsx
+ * @description Página para solicitar la recuperación de contraseña.
+ *              Ha sido refactorizada para importar su Server Action directamente,
+ *              respetando el límite Servidor-Cliente de Next.js.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 4.0.0 (Server-Client Boundary Compliance)
+ */
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Cumplimiento del Límite Servidor-Cliente**: ((Implementada)) La importación directa de la Server Action resuelve el error de build y alinea el componente con las mejores prácticas de la arquitectura de Next.js App Router.
+ */
 // app/[locale]/forgot-password/page.tsx

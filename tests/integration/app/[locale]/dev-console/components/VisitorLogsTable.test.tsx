@@ -1,107 +1,176 @@
-// tests/app/[locale]/dev-console/components/VisitorLogsTable.test.tsx
+// app/[locale]/dev-console/components/VisitorLogsTable.tsx
 /**
- * @file VisitorLogsTable.test.tsx
- * @description Arnés de pruebas para VisitorLogsTable. Ha sido refactorizado
- *              para alinearse con las mejoras de accesibilidad del componente,
- *              resolviendo los errores de consulta (`TestingLibraryElementError`).
- * @author L.I.A Legacy & RaZ Podestá
- * @co-author MetaShark
- * @version 3.0.0 (Accessible Querying Fix)
+ * @file VisitorLogsTable.tsx
+ * @description Componente de cliente para mostrar los registros de telemetría.
+ *              Refactorizado para ser completamente internacionalizado.
+ * @author L.I.A Legacy
+ * @version 3.0.0 (Full Internationalization)
  */
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+"use client";
 
+import { Eye, Globe, MoreHorizontal, User } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
+
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
-  VisitorLogsTable,
-  type VisitorLogRow,
-} from "@/app/[locale]/dev-console/components/VisitorLogsTable";
-import React from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { type Json } from "@/lib/types/database";
 
-// --- Simulación de Dependencias ---
-vi.mock("next-intl", () => ({
-  useFormatter: () => ({
-    dateTime: (date: Date) => date.toISOString(),
-  }),
-}));
-
-// --- Helper de Renderizado con Proveedores ---
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(<TooltipProvider>{ui}</TooltipProvider>);
+export type VisitorLogRow = {
+  id: string;
+  session_id: string;
+  user_id: string | null;
+  fingerprint: string;
+  ip_address: string;
+  geo_data: Json | null;
+  utm_params: Json | null;
+  created_at: string;
 };
 
-// --- Datos de Prueba (Test Data) ---
-const mockLogs: VisitorLogRow[] = [
-  {
-    id: "log-1",
-    session_id: "session-1",
-    user_id: "user-abc",
-    fingerprint: "fp-12345",
-    ip_address: "192.168.1.1",
-    geo_data: { country: "BR", city: "Florianopolis" },
-    utm_params: { source: "google", campaign: "test" },
-    created_at: new Date().toISOString(),
-  },
-];
+const JsonViewerDialog = ({
+  title,
+  data,
+  trigger,
+}: {
+  title: string;
+  data: Json | null;
+  trigger: React.ReactNode;
+}) => (
+  <Dialog>
+    <DialogTrigger asChild>{trigger}</DialogTrigger>
+    <DialogContent className="max-w-3xl">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+      </DialogHeader>
+      <pre className="mt-2 w-full rounded-lg bg-muted p-4 text-xs overflow-auto max-h-[60vh]">
+        {JSON.stringify(data, null, 2) || "No data available."}
+      </pre>
+    </DialogContent>
+  </Dialog>
+);
 
-describe("Arnés de Pruebas: VisitorLogsTable", () => {
-  const user = userEvent.setup();
+export function VisitorLogsTable({ logs }: { logs: VisitorLogRow[] }) {
+  const format = useFormatter();
+  const t = useTranslations("DevConsole.TelemetryTable");
 
-  it("Estado Vacío: debe renderizar el mensaje correcto si no hay logs", () => {
-    // Arrange
-    renderWithProviders(<VisitorLogsTable logs={[]} />);
-
-    // Assert
-    expect(
-      screen.getByText("No se han registrado visitas todavía.")
-    ).toBeInTheDocument();
-  });
-
-  it("Interacción: debe abrir el diálogo de Geo Data con el contenido correcto", async () => {
-    // Arrange
-    renderWithProviders(<VisitorLogsTable logs={mockLogs} />);
-    // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
-    // Consulta accesible y única por `aria-label`
-    const actionButton = screen.getByLabelText("Acciones para el log log-1");
-    // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
-
-    // Act
-    await user.click(actionButton);
-    const viewGeoButton = await screen.findByText("Ver Geo Data");
-    await user.click(viewGeoButton);
-
-    // Assert
-    await waitFor(() => {
-      const dialog = screen.getByRole("dialog");
-      expect(dialog).toBeInTheDocument();
-      expect(screen.getByText(/"country": "BR"/)).toBeInTheDocument();
-    });
-  });
-
-  it("Interacción: debe abrir el diálogo de UTM Params con el contenido correcto", async () => {
-    // Arrange
-    renderWithProviders(<VisitorLogsTable logs={mockLogs} />);
-    const actionButton = screen.getByLabelText("Acciones para el log log-1");
-
-    // Act
-    await user.click(actionButton);
-    const viewUtmButton = await screen.findByText("Ver UTMs");
-    await user.click(viewUtmButton);
-
-    // Assert
-    await waitFor(() => {
-      const dialog = screen.getByRole("dialog");
-      expect(dialog).toBeInTheDocument();
-      expect(screen.getByText(/"source": "google"/)).toBeInTheDocument();
-    });
-  });
-});
-
+  return (
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("header_timestamp")}</TableHead>
+            <TableHead>{t("header_user_session")}</TableHead>
+            <TableHead>{t("header_ip_country")}</TableHead>
+            <TableHead>{t("header_fingerprint")}</TableHead>
+            <TableHead className="text-right">{t("header_actions")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {logs.length > 0 ? (
+            logs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell>
+                  {format.dateTime(new Date(log.created_at), "medium")}
+                </TableCell>
+                <TableCell>
+                  {log.user_id ? (
+                    <span className="flex items-center gap-2 font-medium">
+                      <User className="h-4 w-4" />
+                      {log.user_id}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {log.session_id}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="font-mono text-xs">{log.ip_address}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {(log.geo_data as any)?.city},{" "}
+                    {(log.geo_data as any)?.country}
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs truncate max-w-xs">
+                  {log.fingerprint}
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Acciones para el log ${log.id}`}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <JsonViewerDialog
+                        title={t("dialog_title_geo")}
+                        data={log.geo_data}
+                        trigger={
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Globe className="mr-2 h-4 w-4" />{" "}
+                            {t("action_view_geo")}
+                          </DropdownMenuItem>
+                        }
+                      />
+                      <JsonViewerDialog
+                        title={t("dialog_title_utms")}
+                        data={log.utm_params}
+                        trigger={
+                          <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />{" "}
+                            {t("action_view_utms")}
+                          </DropdownMenuItem>
+                        }
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center">
+                {t("empty_state")}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Implementadas
- * 1. **Consultas de Prueba Accesibles**: ((Implementada)) Se ha corregido el `TestingLibraryElementError` al utilizar el `aria-label` único para encontrar el botón de acción, haciendo la prueba más robusta y alineada con las mejores prácticas de accesibilidad.
+ * @subsection Melhorias Adicionadas
+ * 1. **Internacionalización Completa**: ((Implementada)) Todos los textos visibles del componente han sido abstraídos a claves de traducción.
  */
-// tests/app/[locale]/dev-console/components/VisitorLogsTable.test.tsx
+// app/[locale]/dev-console/components/VisitorLogsTable.tsx

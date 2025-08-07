@@ -1,9 +1,7 @@
-/* Ruta: components/landing/Features.tsx */
-
+// components/landing/Features.tsx
 "use client";
 
 import { motion } from "framer-motion";
-import { Bot, LayoutTemplate, PenSquare, PieChart } from "lucide-react";
 import React from "react";
 
 import {
@@ -12,45 +10,45 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DynamicIcon } from "@/components/ui/DynamicIcon";
 
 /**
  * @file Features.tsx
- * @description Sección de características principales de la landing page. Muestra los
- * servicios clave de la plataforma en tarjetas interactivas y animadas que responden
- * al cursor del usuario para una experiencia atractiva y moderna.
- *
- * @author Metashark
- * @version 1.0.0
+ * @description Sección de características de la landing page. Refactorizado para
+ *              alinearse con la arquitectura de React Server Components, recibiendo
+ *              nombres de iconos como strings y renderizándolos dinámicamente.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 3.0.0 (RSC Architecture Alignment)
  */
+export interface Feature {
+  /** El nombre del icono de `lucide-react` a renderizar, en formato PascalCase. */
+  icon: string;
+  /** El título de la característica. */
+  title: string;
+  /** La descripción de la característica. */
+  description: string;
+}
 
-const features = [
-  {
-    icon: LayoutTemplate,
-    title: "Constructor de Landings IA",
-    description:
-      "Crea páginas de venta y captura de alta conversión en minutos con nuestro constructor guiado por IA.",
-  },
-  {
-    icon: PenSquare,
-    title: "AI Copywriter Pro",
-    description:
-      "Genera textos persuasivos para tus anuncios, emails y landings que conectan con tu audiencia y venden.",
-  },
-  {
-    icon: PieChart,
-    title: "Análisis Predictivo",
-    description:
-      "Nuestra IA analiza tus métricas y te da insights claros para optimizar tus campañas y maximizar tu ROI.",
-  },
-  {
-    icon: Bot,
-    title: "Asistente L.I.A",
-    description:
-      "Tu estratega de marketing personal. Resuelve dudas, genera ideas y audita tus estrategias 24/7.",
-  },
-];
+export interface FeaturesProps {
+  /** El título principal de la sección. */
+  title: string;
+  /** El subtítulo o descripción de la sección. */
+  subtitle: string;
+  /** Un array de objetos de características a mostrar. */
+  features: Feature[];
+}
 
-export function Features() {
+/**
+ * Renderiza la sección de características de la landing page.
+ * @component
+ * @param {FeaturesProps} props - Las propiedades del componente.
+ * @returns {React.ReactElement} El componente de sección de características.
+ */
+export function Features({
+  title,
+  subtitle,
+  features,
+}: FeaturesProps): React.ReactElement {
   const FADE_IN_ANIMATION_VARIANTS = {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { type: "spring" } },
@@ -59,12 +57,9 @@ export function Features() {
   return (
     <section id="features" className="py-20">
       <div className="container mx-auto flex flex-col items-center gap-8 px-4 md:px-6">
-        <h2 className="text-3xl font-bold text-center">
-          Una Suite de Herramientas, Potencial Ilimitado
-        </h2>
+        <h2 className="text-3xl font-bold text-center">{title}</h2>
         <p className="max-w-2xl text-center text-muted-foreground">
-          Todo lo que necesitas para escalar tus operaciones de afiliado,
-          impulsado por la tecnología más avanzada.
+          {subtitle}
         </p>
 
         <motion.div
@@ -85,7 +80,10 @@ export function Features() {
               <Card className="group h-full overflow-hidden border-border/80 bg-card/80 transition-all duration-300 hover:border-primary/60 hover:shadow-2xl hover:shadow-primary/20">
                 <CardHeader className="p-6">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <feature.icon className="h-6 w-6 text-primary" />
+                    <DynamicIcon
+                      name={feature.icon}
+                      className="h-6 w-6 text-primary"
+                    />
                   </div>
                   <CardTitle>{feature.title}</CardTitle>
                   <CardDescription className="mt-2 text-muted-foreground">
@@ -100,14 +98,14 @@ export function Features() {
     </section>
   );
 }
-/* Ruta: components/landing/Features.tsx */
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Efecto de Borde Iluminado (`Spotlight`): Para una estética aún más premium, se podría implementar un efecto "spotlight" en el hover de las tarjetas. Este efecto consiste en un gradiente cónico que sigue al cursor dentro de los límites de la tarjeta, creando una ilusión de iluminación sofisticada y atrayendo la atención del usuario.
- * 2. Contenido Dinámico desde un CMS: Para una máxima flexibilidad, el array `features` podría ser extraído y cargado desde un CMS Headless (como Contentful) o incluso desde una tabla en Supabase. Esto permitiría al equipo de marketing actualizar las características, iconos y descripciones en tiempo real sin necesidad de solicitar un cambio en el código ni un nuevo despliegue.
- * 3. Modal con Detalles Adicionales: Al hacer clic en una tarjeta, se podría abrir un modal (`Dialog` de Shadcn/UI) que muestre más detalles sobre esa característica específica. El modal podría contener una lista de sub-funcionalidades, capturas de pantalla o incluso un video corto de demostración, proporcionando una capa más profunda de información para los usuarios interesados.
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Alineación con Arquitectura RSC**: ((Implementada)) El contrato de props (`Feature.icon`) ahora es un `string`. El componente utiliza `DynamicIcon` para renderizar el icono en el cliente, resolviendo el error de "functions cannot be passed to client components".
+ * 2. **Documentación TSDoc Verbosa**: ((Implementada)) Se ha añadido documentación TSDoc completa para el componente y sus interfaces, mejorando la mantenibilidad y claridad.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Modal con Detalles Adicionales**: ((Vigente)) Añadir una prop `onClick` a cada `Feature` para permitir abrir un modal con más información, videos o ejemplos de la característica. Esto podría ser un objeto `action` con `href` y `type` (modal/link).
  */
-/* MEJORAS PROPUESTAS
- * 1. **Efecto de Borde Iluminado (`Spotlight`):** Implementar un efecto "spotlight" en el hover de las tarjetas, donde un gradiente cónico sigue al cursor dentro de los límites de la tarjeta, creando un efecto de iluminación muy sofisticado.
- * 2. **Contenido Dinámico desde CMS:** Mover el array `features` a un sistema de gestión de contenidos (CMS) como Contentful o incluso a una tabla en Supabase. Esto permitiría al equipo de marketing actualizar las características sin necesidad de un despliegue de código.
- * 3. **Modal con Más Detalles:** Al hacer clic en una tarjeta, se podría abrir un modal (`Dialog` de Shadcn) que muestre más detalles sobre la característica, incluyendo un video corto de demostración o una lista de sub-funcionalidades.
- */
+// components/landing/Features.tsx

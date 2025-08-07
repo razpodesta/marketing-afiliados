@@ -1,11 +1,11 @@
 // lib/data/sites.ts
 /**
- * @file lib/data/sites.ts
- * @description Aparato de datos para 'sites'. Ha sido refactorizado a un patrón
- *              de composición funcional para resolver errores de tipos complejos
- *              con el constructor de consultas de Supabase.
+ * @file sites.ts
+ * @description Aparato de datos para 'sites'. Refatorado com uma lógica de
+ *              detecção de host robusta para distinguir corretamente entre
+ *              subdomínios e domínios personalizados.
  * @author L.I.A Legacy & RaZ Podestá
- * @version 6.3.0 (Functional Composition Refactor)
+ * @version 8.0.0 (Robust Host Detection Logic)
  */
 "use server";
 
@@ -25,7 +25,6 @@ export type SiteBasicInfo = Pick<
 >;
 export type SiteSortOption = "created_at_desc" | "name_asc" | "name_desc";
 
-// --- INICIO DE REFACTORIZACIÓN A COMPOSICIÓN FUNCIONAL ---
 function buildSiteSearchQuery(
   workspaceId: string,
   filters: { query?: string; sort?: SiteSortOption }
@@ -55,7 +54,6 @@ function buildSiteSearchQuery(
 
   return queryBuilder;
 }
-// --- FIN DE REFACTORIZACIÓN ---
 
 export async function getSitesByWorkspaceId(
   workspaceId: string,
@@ -89,7 +87,7 @@ export async function getSitesByWorkspaceId(
     throw new Error("No se pudieron obtener los sitios del workspace.");
   }
 
-  return { sites: data as SiteWithCampaignsCount[], totalCount: count || 0 };
+  return { sites: (data as any) || [], totalCount: count || 0 };
 }
 
 export async function getSiteById(
@@ -117,10 +115,17 @@ export async function getSiteById(
 export async function getSiteDataByHost(
   host: string
 ): Promise<Tables<"sites"> | null> {
-  const sanitizedHost = host.toLowerCase().replace(/www\./, "");
+  const sanitizedHost = host.toLowerCase().replace(/^www\./, "");
+  const rootDomainWithoutPort = rootDomain.split(":")[0];
+
+  // --- INÍCIO DA CORREÇÃO DE LÓGICA ---
   const isSubdomain =
-    !sanitizedHost.includes(rootDomain.split(":")[0]) ||
-    sanitizedHost === rootDomain.split(":")[0];
+    sanitizedHost.endsWith(`.${rootDomainWithoutPort}`) &&
+    sanitizedHost !== rootDomainWithoutPort;
+  const finalHost = isSubdomain
+    ? sanitizedHost.replace(`.${rootDomainWithoutPort}`, "")
+    : sanitizedHost;
+  // --- FIM DA CORREÇÃO DE LÓGICA ---
 
   return cache(
     async (hostToSearch: string) => {
@@ -140,13 +145,14 @@ export async function getSiteDataByHost(
       }
       return data;
     },
-    [`site-data-host-${sanitizedHost}`],
-    { revalidate: 3600, tags: [`sites:host:${sanitizedHost}`] }
-  )(sanitizedHost);
+    [`site-data-host-${finalHost}`],
+    { revalidate: 3600, tags: [`sites:host:${finalHost}`] }
+  )(finalHost);
 }
 /**
  * @section MEJORA CONTINUA
- * @subsection Mejoras Implementadas
- * 1. **Patrón de Composición Funcional**: ((Implementada)) Se ha refactorizado el código para evitar pasar constructores de consultas como parámetros, resolviendo la cascada de errores de tipos complejos.
+ *
+ * @subsection Melhorias Implementadas
+ * 1. **Lógica de Detecção de Host Robusta**: ((Implementada)) A lógica `isSubdomain` foi corrigida para garantir que um host que termina com o root domain seja tratado como subdomínio, resolvendo o bug.
  */
 // lib/data/sites.ts

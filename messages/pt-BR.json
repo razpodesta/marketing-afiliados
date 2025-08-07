@@ -1,5 +1,71 @@
-
 {
+  "LandingHeader": {
+    "features": "Recursos",
+    "pricing": "Preços",
+    "signIn": "Entrar",
+    "signUp": "Cadastre-se Grátis",
+    "openMenu": "Abrir menu"
+  },
+  "LandingFooter": {
+    "slogan": "Seu copiloto estratégico para marketing de afiliados.",
+    "product": "Produto",
+    "company": "Empresa",
+    "contact": "Contato",
+    "stayUpdated": "Mantenha-se Atualizado",
+    "newsletterPrompt": "Junte-se à nossa newsletter para receber as últimas notícias e dicas.",
+    "subscribe": "Inscrever-se",
+    "allRightsReserved": "© {year} MetaShark Tech. Todos os direitos reservados."
+  },
+  "HeroSection": {
+    "title": "Crie Campanhas de Afiliados de Alta Performance com IA",
+    "subtitle": "Vá da ideia à landing page publicada em minutos. Sem código, apenas resultados.",
+    "ctaPrimary": "Comece Agora",
+    "ctaSecondary": "Ver Recursos"
+  },
+  "FeaturesSection": {
+    "title": "Uma Suíte de Ferramentas, Potencial Ilimitado",
+    "subtitle": "Tudo o que você precisa para escalar suas operações de afiliado, impulsionado pela tecnologia mais avançada.",
+    "features": {
+      "builder": {
+        "title": "Construtor de Landings IA",
+        "description": "Crie páginas de venda e captura de alta conversão em minutos com nosso construtor guiado por IA."
+      },
+      "copywriter": {
+        "title": "AI Copywriter Pro",
+        "description": "Gere textos persuasivos para seus anúncios, e-mails e landing pages que conectam com sua audiência e vendem."
+      },
+      "analytics": {
+        "title": "Análise Preditiva",
+        "description": "Nossa IA analisa suas métricas e te dá insights claros para otimizar suas campanhas e maximizar seu ROI."
+      },
+      "assistant": {
+        "title": "Assistente L.I.A",
+        "description": "Sua estrategista de marketing pessoal. Tira dúvidas, gera ideias e audita suas estratégias 24/7."
+      }
+    }
+  },
+  "LanguageSwitcher": {
+    "selectLanguage_sr": "Selecionar idioma",
+    "language_en_US": "English",
+    "flag_en_US": "🇺🇸",
+    "language_es_ES": "Español",
+    "flag_es_ES": "🇪🇸",
+    "language_pt_BR": "Português",
+    "flag_pt_BR": "🇧🇷"
+  },
+  "PrivacyPolicyPage": { "title": "Política de Privacidade" },
+  "TermsOfServicePage": { "title": "Termos de Serviço" },
+  "CookiePolicyPage": { "title": "Política de Cookies" },
+  "LegalNoticePage": { "title": "Aviso Legal" },
+  "DisclaimerPage": { "title": "Isenção de Responsabilidade" },
+  "AboutPage": { "title": "Sobre Nós" },
+  "BlogPage": { "title": "Blog" },
+  "DocsPage": { "title": "Documentação" },
+  "ChooseLanguagePage": {
+    "title": "Selecione seu Idioma",
+    "selectFromListText": "Ou escolha da lista:",
+    "redirectText": "Você será redirecionado para a versão em português em {seconds} segundos."
+  },
   "Breadcrumbs": {
     "dashboard": "Painel",
     "sites": "Meus Sites",
@@ -12,7 +78,7 @@
   "DashboardSidebar": {
     "dashboard": "Painel",
     "mySites": "Meus Sites",
-    "liaChat": "Chat L.I.A",
+    "liaChat": "Chat L.I.A.",
     "settings": "Configurações",
     "devConsole": "Console Dev",
     "userMenu_accountSettings": "Configurações da Conta",
@@ -25,93 +91,228 @@
     "empty_results": "Nenhum workspace encontrado.",
     "createWorkspace_button": "Criar Workspace",
     "inviteMember_button": "Convidar Membro",
+    "inviteMember_description": "Convide um novo membro para o seu workspace <strong>{workspaceName}</strong>.",
     "workspaceSettings_button": "Configurações do Workspace",
-    "changing_status": "Trocando..."
+    "changing_status": "Trocando...",
+    "onboarding_title": "Crie seu primeiro Workspace",
+    "onboarding_welcome_title": "Bem-vindo(a) à MetaShark",
+    "onboarding_welcome_description": "Para começar, crie um workspace para organizar seus sites e campanhas."
+  },
+  "DashboardHeader": {
+    "mobile_openMenu_sr": "Abrir menu de navegação",
+    "search_placeholder": "Buscar...",
+    "search_command": "⌘K"
+  },
+  "InvitationBell": {
+    "view_invitations_sr": "Ver convites",
+    "pending_invitations_label": "Convites Pendentes",
+    "invitation_text": "Você foi convidado(a) para se juntar a <strong>{workspaceName}</strong>",
+    "no_pending_invitations": "Você não tem convites pendentes.",
+    "accept_invitation_success": "Você se juntou ao workspace!",
+    "accept_invitation_error": "Não foi possível aceitar o convite. Tente novamente."
   },
   "SitesPage": {
     "header_title": "Meus Sites",
     "header_description": "Gerencie e pesquise seus sites. Cada site pode ter múltiplas campanhas.",
     "search_placeholder": "Buscar por subdomínio...",
+    "clear_search_aria": "Limpar busca",
     "createSite_button": "Criar Site",
+    "createSiteDialog_title": "Criar um novo site",
+    "form_name_label": "Nome do site",
+    "form_name_placeholder": "Meu Primeiro Site Web",
+    "form_subdomain_label": "Subdomínio",
+    "subdomain_in_use_error": "Este subdomínio já está em uso.",
+    "form_description_label": "Descrição (opcional)",
+    "form_description_placeholder": "Um site para minha nova campanha de afiliados.",
+    "form_creating_button": "Criando Site...",
+    "form_create_button": "Criar Site",
     "emptyState_title": "Nenhum site encontrado",
     "emptyState_description": "Tente outra busca ou crie um novo site.",
-    "createSiteDialog_title": "Criar um novo site",
-    "createSiteDialog_description": "Sites permitem que você organize suas campanhas sob um subdomínio único."
+    "campaignCount": "{count, plural, one {Campanha} other {Campanhas}}",
+    "manageCampaigns_button": "Gerenciar Campanhas",
+    "delete_site_aria_label": "Excluir site {subdomain}",
+    "open_site_aria_label": "Abrir site em uma nova aba",
+    "popover_title": "Visualização Rápida",
+    "popover_description": "Uma prévia do site aparecerá aqui. (Funcionalidade em desenvolvimento).",
+    "deleteDialog_title": "Você tem certeza?",
+    "deleteDialog_description": "Esta ação é irreversível. O site <strong>{subdomain}</strong>, junto com todas as suas campanhas e dados, será excluído permanentemente.",
+    "deleteDialog_confirmButton": "Sim, excluir site"
   },
   "CampaignsPage": {
-    "header_title_prefix": "Campanhas para:",
-    "header_description": "Crie e edite as páginas para este site.",
-    "backToSites_button": "Voltar para Meus Sites",
-    "createCampaign_button": "Nova Campanha",
-    "tableHeader_name": "Nome",
-    "tableHeader_slug": "Slug",
-    "tableHeader_lastUpdated": "Última Atualização",
-    "tableHeader_actions": "Ações",
-    "tableRow_edit": "Editar",
-    "emptyState_text": "Nenhuma campanha foi criada para este site ainda.",
-    "createCampaignDialog_title": "Criar Nova Campanha"
+    "entityName": "Campanha",
+    "pageTitle": "Campanhas para <span>{siteName}</span>",
+    "pageDescription": "Crie, edite e monitore todas as campanhas para este site.",
+    "backToSitesButton": "Voltar para Sites",
+    "createCampaignButton": "Nova Campanha",
+    "createDialog": {
+      "title": "Criar uma nova campanha"
+    },
+    "deleteDialog": {
+      "title": "Excluir Campanha",
+      "description": "Esta ação é irreversível. A campanha <strong>{campaignName}</strong> será excluída permanentemente.",
+      "confirmButton": "Sim, excluir campanha"
+    },
+    "search": {
+      "placeholder": "Buscar por nome ou slug...",
+      "clear_aria": "Limpar busca"
+    },
+    "table": {
+      "header_name": "Nome",
+      "header_slug": "Slug",
+      "header_lastUpdated": "Última Atualização",
+      "header_actions": "Ações",
+      "action_edit": "Editar",
+      "action_delete_aria": "Excluir campanha {campaignName}",
+      "empty_state": "Nenhuma campanha foi criada para este site ainda."
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Próxima",
+      "page": "Ir para a página {pageNumber}"
+    },
+    "form_name_label": "Nome da Campanha",
+    "form_name_placeholder": "Ex: Lançamento Produto X",
+    "form_creating_button": "Criando Campanha...",
+    "form_create_button": "Criar Campanha"
   },
   "Dialogs": {
-    "deleteSite_title": "Excluir Site?",
-    "deleteSite_description": "Esta ação é irreversível. O site <strong>{subdomain}</strong>, junto com todas as suas campanhas e dados, será excluído permanentemente.",
-    "deleteSite_confirmButton": "Sim, excluir site",
-    "deleteCampaign_title": "Excluir Campanha?",
-    "deleteCampaign_description": "Esta ação é irreversível. A campanha <strong>{campaignName}</strong> será excluída permanentemente.",
-    "deleteCampaign_confirmButton": "Sim, excluir",
     "generic_cancelButton": "Cancelar"
   },
-  "AdminDashboard": {
-    "headerTitle": "Gerenciamento de Sites",
-    "welcomeMessage": "Bem-vindo(a), {username}",
-    "signOutButton": "Sair",
-    "noSubdomains": "Nenhum site foi criado ainda.",
-    "visitSubdomain": "Visitar Site",
-    "created": "Criado em"
+  "AuthLayout": {
+    "go_back_home_aria": "Voltar para a página inicial"
   },
   "LoginPage": {
-    "metadataTitle": "Login | Metashark",
-    "title": "Bem-vindo(a) à Metashark",
-    "subtitle": "Acesse sua conta para começar a transformar seu marketing.",
+    "metadataTitle": "Entrar | MetaShark",
+    "title": "Bem-vindo(a) de volta à MetaShark",
+    "subtitle": "Insira suas credenciais para acessar seu painel.",
     "emailLabel": "Endereço de e-mail",
     "passwordLabel": "Senha",
     "signInButton": "Entrar",
-    "signUpButton": "Criar Conta",
-    "signInWith": "Continuar com",
-    "signUpWith": "Criar conta com",
-    "alreadyHaveAccount": "Já tem uma conta? Entrar",
+    "signInWith": "Entrar com",
     "dontHaveAccount": "Não tem uma conta? Cadastre-se",
-    "forgotPasswordLink": "Esqueceu sua senha?",
-    "sendInstructionsButton": "Enviar Instruções"
+    "alreadyHaveAccount": "Já tem uma conta? Entrar"
+  },
+  "SignUpPage": {
+    "metadataTitle": "Cadastre-se | MetaShark",
+    "title": "Crie sua Conta",
+    "subtitle": "Junte-se à plataforma para começar a construir suas campanhas.",
+    "signUpButton": "Criar Conta",
+    "signUpWith": "Cadastrar-se com"
+  },
+  "AuthNoticePage": {
+    "confirmation": {
+      "title": "Verifique seu e-mail",
+      "description": "Enviamos um link de confirmação para sua caixa de entrada"
+    },
+    "reset": {
+      "title": "Verifique seu e-mail",
+      "description": "Enviamos um link para redefinir sua senha para sua caixa de entrada"
+    },
+    "default": {
+      "title": "Aviso",
+      "description": "Por favor, verifique seu e-mail para mais instruções."
+    }
   },
   "ForgotPasswordPage": {
-    "title": "Esqueceu sua Senha?",
-    "description": "Digite seu e-mail e enviaremos um link para redefini-la.",
-    "emailLabel": "Endereço de E-mail",
+    "title": "Esqueceu sua senha?",
+    "description": "Não se preocupe, nós lhe enviaremos instruções para redefini-la.",
+    "emailLabel": "E-mail",
     "submitButton": "Enviar Link de Redefinição",
     "sendingButton": "Enviando..."
   },
   "ResetPasswordPage": {
-    "title": "Redefinir sua Senha",
+    "title": "Definir uma Nova Senha",
     "newPasswordLabel": "Nova Senha",
     "confirmPasswordLabel": "Confirmar Nova Senha",
-    "submitButton": "Atualizar Senha",
-    "strength_veryWeak": "Muito Fraca",
-    "strength_weak": "Fraca",
-    "strength_medium": "Média",
-    "strength_strong": "Forte",
-    "strength_veryStrong": "Muito Forte"
+    "submitButton": "Atualizar Senha"
   },
-  "AuthNoticePage": {
-    "confirmation_title": "Verifique seu e-mail",
-    "confirmation_description": "Enviamos um link de confirmação para o seu endereço de e-mail.",
-    "reset_title": "Verifique seu e-mail",
-    "reset_description": "Enviamos um link para redefinir sua senha para o seu e-mail.",
-    "default_title": "Ação Necessária",
-    "default_description": "Por favor, verifique seu e-mail para mais instruções.",
-    "backToLogin_button": "Voltar para o Login",
-    "resend_button": "Reenviar e-mail",
-    "resend_countdown": "Reenviar em {seconds}s",
-    "open_email_provider": "Abrir {provider}"
+  "DashboardPage": {
+    "error_title": "Erro ao Carregar o Painel",
+    "error_description": "Não foi possível obter os dados mais recentes. Por favor, tente novamente."
+  },
+  "DevConsoleSidebar": {
+    "overview": "Visão Geral",
+    "userManagement": "Gerenciamento de Usuários",
+    "campaignViewer": "Visualizador de Campanhas",
+    "telemetry": "Telemetria",
+    "auditLogs": "Logs de Auditoria",
+    "routeViewer": "Visualizador de Rotas do Projeto",
+    "loadingRoutes": "Carregando rotas...",
+    "signOut": "Sair"
+  },
+  "DevConsole": {
+    "UserManagementTable": {
+      "table_header": {
+        "email": "E-mail / ID do Usuário",
+        "full_name": "Nome Completo",
+        "role": "Função",
+        "actions": "Ações"
+      },
+      "search_placeholder": "Buscar por e-mail ou nome...",
+      "clear_search_aria": "Limpar busca",
+      "table_empty_state": "Nenhum usuário encontrado.",
+      "pagination": {
+        "previousPageLabel": "Página anterior",
+        "nextPageLabel": "Próxima página",
+        "pageLabelTemplate": "Ir para a página {pageNumber}"
+      },
+      "role_update_success_toast": "Função do usuário atualizada com sucesso.",
+      "role_update_error_toast": "Falha ao atualizar a função do usuário.",
+      "impersonate_dialog": {
+        "aria_label": "Personificar usuário {email}",
+        "title": "Personificar Usuário?",
+        "description": "Isso abrirá uma nova aba onde você estará logado como <strong>{email}</strong>. Esta é uma ação de alto privilégio para fins de depuração.",
+        "cancel_button": "Cancelar",
+        "confirm_button": "Sim, Personificar",
+        "success_toast": "Link de personificação gerado. Abrindo em uma nova aba.",
+        "default_error_toast": "Falha ao gerar o link de personificação."
+      }
+    },
+    "CampaignsTable": {
+      "title": "Visualizador de Campanhas",
+      "description": "Monitore todas as campanhas criadas na plataforma.",
+      "error_title": "Erro ao Carregar Campanhas",
+      "error_description": "Não foi possível obter os dados da camada de dados.",
+      "header_name": "Nome da Campanha",
+      "header_site": "Site (Subdomínio)",
+      "header_created": "Data de Criação",
+      "header_updated": "Última Atualização",
+      "header_actions": "Ações",
+      "action_view_json": "Ver JSON",
+      "dialog_title": "Conteúdo para: {campaignName}"
+    },
+    "TelemetryTable": {
+      "title": "Visualizador de Telemetria de Visitantes",
+      "description": "Monitore a atividade dos visitantes na plataforma.",
+      "error_title": "Erro ao Carregar os Logs",
+      "error_description": "Não foi possível obter as informações de telemetria. Por favor, tente recarregar a página.",
+      "header_timestamp": "Data e Hora",
+      "header_user_session": "Usuário / Sessão",
+      "header_ip_country": "IP / País",
+      "header_fingerprint": "Impressão Digital",
+      "header_actions": "Ações",
+      "action_view_geo": "Ver Geo Dados",
+      "action_view_utms": "Ver UTMs",
+      "empty_state": "Nenhuma visita foi registrada ainda.",
+      "dialog_title_geo": "Dados Geográficos",
+      "dialog_title_utms": "Parâmetros UTM"
+    },
+    "DashboardPage": {
+      "tooltip": "Este é o seu Centro de Comando. Arraste e solte os cartões para personalizar seu layout.",
+      "welcomeMessage": "Bem-vindo, {username}",
+      "subtitle": "Qual campanha de alta performance vamos lançar hoje?",
+      "layoutSaveError": "Não foi possível salvar o layout do painel.",
+      "RecentCampaigns": {
+        "title": "Continuar trabalhando em...",
+        "emptyState": {
+          "title": "Vamos começar sua primeira campanha!",
+          "ctaTitle": "Campanha Guiada",
+          "ctaDescription": "Vou te guiar passo a passo para criar uma landing page de alta conversão.",
+          "ctaButton": "Criar minha Primeira Campanha"
+        },
+        "lastEdited": "Última edição",
+        "preview": "Pré-visualização"
+      }
+    }
   }
 }
-

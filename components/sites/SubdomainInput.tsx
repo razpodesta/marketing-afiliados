@@ -1,12 +1,11 @@
 // components/sites/SubdomainInput.tsx
 /**
  * @file SubdomainInput.tsx
- * @description Componente de campo de formulario de presentación puro para
- *              la validación de subdominios. Delega toda su lógica de estado
- *              al hook atómico `useSubdomainAvailability`.
+ * @description Componente de campo de formulario para la validación de subdominios.
+ *              Refatorado para ser um componente puro que recebe a mensagem de
+ *              erro de internacionalização via props.
  * @author L.I.A. Legacy
- * @version 6.0.0 (Atomic Architecture Refactor)
- * @see {@link file://../../lib/hooks/useSubdomainAvailability.ts} Para la lógica de negocio subyacente.
+ * @version 7.0.0 (Pure I18n Component)
  */
 "use client";
 
@@ -17,11 +16,14 @@ import { Input } from "@/components/ui/input";
 import { useSubdomainAvailability } from "@/lib/hooks/useSubdomainAvailability";
 import { rootDomain } from "@/lib/utils";
 
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 interface SubdomainInputProps {
   form: UseFormReturn<any>;
+  errorText: string;
 }
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 
-export function SubdomainInput({ form }: SubdomainInputProps) {
+export function SubdomainInput({ form, errorText }: SubdomainInputProps) {
   const {
     register,
     watch,
@@ -30,17 +32,13 @@ export function SubdomainInput({ form }: SubdomainInputProps) {
 
   const subdomainValue = watch("subdomain");
 
-  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
-  // Se consume el nuevo hook para obtener el estado de disponibilidad.
   const { availability } = useSubdomainAvailability(
     subdomainValue,
     !!dirtyFields.subdomain,
     !!errors.subdomain
   );
-  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
   const renderAvailabilityIcon = () => {
-    // La lógica de renderizado permanece, pero ahora depende del estado del hook.
     switch (availability) {
       case "checking":
         return (
@@ -81,20 +79,16 @@ export function SubdomainInput({ form }: SubdomainInputProps) {
       )}
       {availability === "unavailable" && !errors.subdomain && (
         <p className="text-sm text-destructive" role="alert">
-          Este subdominio ya está en uso.
+          {errorText}
         </p>
       )}
     </>
   );
 }
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Tipado Estricto de `form` Prop**: ((Vigente)) Tipar la prop `form` con el tipo exacto del formulario padre para máxima seguridad de tipos.
- *
- * @subsection Mejoras Implementadas
- * 1. **Arquitectura Atómica**: ((Implementada)) Toda la lógica de estado y asincronía ha sido extraída al hook reutilizable `useSubdomainAvailability`, haciendo este componente significativamente más simple, declarativo y fácil de mantener.
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) A mensagem de erro de disponibilidade agora é recebida via props, tornando o componente completamente agnóstico ao conteúdo.
  */
 // components/sites/SubdomainInput.tsx

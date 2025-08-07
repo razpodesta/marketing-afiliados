@@ -1,12 +1,10 @@
 // components/sites/SitesHeader.tsx
 /**
  * @file SitesHeader.tsx
- * @description Encabezado para la página "Mis Sitios". Compone la UI para
- *              el título, la búsqueda con debounce y el diálogo de creación.
- *              Su contrato de props ha sido alineado para recibir el estado
- *              de carga desde el orquestador padre.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 8.0.0
+ * @description Encabezado para la página "Mis Sitios". Refatorado para ser
+ *              um componente puro que recebe todos os seus textos via props.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 10.0.0 (Pure I18n Component)
  */
 "use client";
 
@@ -23,9 +21,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CreateSiteForm } from "./CreateSiteForm";
+
+import { CreateSiteForm, type CreateSiteFormTexts } from "./CreateSiteForm";
+
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+export interface SitesHeaderTexts {
+  title: string;
+  description: string;
+  searchPlaceholder: string;
+  clearSearchAria: string;
+  createSiteButton: string;
+  createDialogTitle: string;
+}
 
 interface SitesHeaderProps {
+  texts: SitesHeaderTexts;
+  formTexts: CreateSiteFormTexts;
   isCreateDialogOpen: boolean;
   setCreateDialogOpen: (isOpen: boolean) => void;
   searchQuery: string;
@@ -34,8 +45,11 @@ interface SitesHeaderProps {
   onCreate: (formData: FormData) => void;
   isPending: boolean;
 }
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 
 export function SitesHeader({
+  texts,
+  formTexts,
   isCreateDialogOpen,
   setCreateDialogOpen,
   searchQuery,
@@ -47,17 +61,14 @@ export function SitesHeader({
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative">
       <div>
-        <h1 className="text-2xl font-bold">Mis Sitios</h1>
-        <p className="text-muted-foreground">
-          Gestiona y busca en tus sitios. Cada sitio puede tener múltiples
-          campañas.
-        </p>
+        <h1 className="text-2xl font-bold">{texts.title}</h1>
+        <p className="text-muted-foreground">{texts.description}</p>
       </div>
       <div className="flex w-full md:w-auto items-center gap-2">
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por subdominio..."
+            placeholder={texts.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10 pr-10"
@@ -75,7 +86,7 @@ export function SitesHeader({
                   size="icon"
                   className="h-7 w-7"
                   onClick={() => onSearchChange("")}
-                  aria-label="Limpiar búsqueda"
+                  aria-label={texts.clearSearchAria}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -87,17 +98,18 @@ export function SitesHeader({
           <DialogTrigger asChild>
             <Button className="shrink-0">
               <PlusCircle className="mr-2 h-4 w-4" />
-              Crear Sitio
+              {texts.createSiteButton}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Crear un nuevo sitio</DialogTitle>
+              <DialogTitle>{texts.createDialogTitle}</DialogTitle>
             </DialogHeader>
             <CreateSiteForm
               workspaceId={workspaceId}
               onSuccess={onCreate}
               isPending={isPending}
+              texts={formTexts}
             />
           </DialogContent>
         </Dialog>
@@ -105,3 +117,10 @@ export function SitesHeader({
     </div>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) O componente agora é 100% agnóstico ao conteúdo, recebendo todos os seus textos através da prop `texts`.
+ */
+// components/sites/SitesHeader.tsx

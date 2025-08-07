@@ -1,12 +1,4 @@
 // components/landing/Hero.tsx
-/**
- * @file Hero.tsx
- * @description Sección Hero de la landing page. Ha sido refactorizado para ser un
- *              componente de presentación puro, recibiendo su contenido a través
- *              de props para facilitar la internacionalización y reutilización.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.0.0 (Content Decoupling)
- */
 "use client";
 
 import { motion } from "framer-motion";
@@ -16,17 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/lib/navigation";
 
 /**
- * @interface HeroProps
- * @description Define las propiedades que el componente Hero acepta.
- * @property {string} title - El titular principal que se mostrará.
- * @property {string} subtitle - El texto secundario o eslogan.
+ * @file Hero.tsx
+ * @description Sección Hero de la landing page. Refactorizado a un componente 100% puro.
+ *              Todo su contenido textual, incluyendo los botones de CTA, es inyectado
+ *              a través de props, garantizando una completa internacionalización.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 7.0.0 (Fully Internationalizable)
  */
 export interface HeroProps {
+  /** El titular principal que se mostrará en la sección. */
   title: string;
+  /** El texto secundario o eslogan debajo del titular. */
   subtitle: string;
+  /** El texto para el botón de llamada a la acción principal (ej. "Empezar Ahora"). */
+  ctaPrimaryText: string;
+  /** El texto para el botón de llamada a la acción secundario (ej. "Ver Características"). */
+  ctaSecondaryText: string;
 }
 
-export function Hero({ title, subtitle }: HeroProps) {
+export function Hero({
+  title,
+  subtitle,
+  ctaPrimaryText,
+  ctaSecondaryText,
+}: HeroProps) {
   const FADE_IN_ANIMATION_VARIANTS = {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { type: "spring" } },
@@ -61,12 +66,12 @@ export function Hero({ title, subtitle }: HeroProps) {
           className="mt-8 flex flex-col justify-center gap-4 sm:flex-row"
         >
           <Button size="lg" asChild>
-            <Link href="/login">
-              Empezar Ahora <ArrowRight className="ml-2 h-5 w-5" />
+            <Link href="/auth/login">
+              {ctaPrimaryText} <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <a href="#features">Ver Características</a>
+            <a href="#features">{ctaSecondaryText}</a>
           </Button>
         </motion.div>
       </motion.div>
@@ -77,10 +82,8 @@ export function Hero({ title, subtitle }: HeroProps) {
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Desacoplamiento de Contenido**: ((Implementada)) El componente ahora es de presentación pura, recibiendo su texto vía props. Esto es fundamental para la internacionalización y resuelve la causa raíz del bug.
- * 2. **Contrato de Props Explícito**: ((Implementada)) Se ha añadido la interfaz `HeroProps` para un tipado estricto.
+ * 1. **Componente 100% Puro**: ((Implementada)) Se ha extraído todo el texto estático a props, haciendo el componente completamente agnóstico al contenido y 100% internacionalizable.
  *
  * @subsection Melhorias Futuras
  * 1. **Botones de CTA Dinámicos**: ((Vigente)) Añadir una prop opcional `ctaButtons` (un array de objetos con `text`, `href` y `variant`) para permitir la total customización de los botones de Call to Action desde el componente padre.
- * 2. **Imagen de Fondo/Video**: ((Vigente)) Añadir una prop `backgroundUrl` que pueda aceptar una URL de imagen o video para mostrar en el fondo de la sección, haciéndola más versátil.
  */

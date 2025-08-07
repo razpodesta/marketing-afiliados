@@ -1,5 +1,71 @@
-
 {
+  "LandingHeader": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "signIn": "Sign In",
+    "signUp": "Sign Up Free",
+    "openMenu": "Open menu"
+  },
+  "LandingFooter": {
+    "slogan": "Your strategic co-pilot for affiliate marketing.",
+    "product": "Product",
+    "company": "Company",
+    "contact": "Contact",
+    "stayUpdated": "Stay Updated",
+    "newsletterPrompt": "Join our newsletter for the latest news and tips.",
+    "subscribe": "Subscribe",
+    "allRightsReserved": "© {year} MetaShark Tech. All rights reserved."
+  },
+  "HeroSection": {
+    "title": "Build High-Performance Affiliate Campaigns with AI",
+    "subtitle": "Go from idea to published landing page in minutes. No code, just results.",
+    "ctaPrimary": "Start Now",
+    "ctaSecondary": "View Features"
+  },
+  "FeaturesSection": {
+    "title": "A Suite of Tools, Unlimited Potential",
+    "subtitle": "Everything you need to scale your affiliate operations, powered by the most advanced technology.",
+    "features": {
+      "builder": {
+        "title": "AI Landing Builder",
+        "description": "Create high-converting sales and capture pages in minutes with our AI-guided builder."
+      },
+      "copywriter": {
+        "title": "AI Copywriter Pro",
+        "description": "Generate persuasive copy for your ads, emails, and landing pages that connects with your audience and sells."
+      },
+      "analytics": {
+        "title": "Predictive Analysis",
+        "description": "Our AI analyzes your metrics and gives you clear insights to optimize your campaigns and maximize your ROI."
+      },
+      "assistant": {
+        "title": "L.I.A. Assistant",
+        "description": "Your personal marketing strategist. Answer questions, generate ideas, and audit your strategies 24/7."
+      }
+    }
+  },
+  "LanguageSwitcher": {
+    "selectLanguage_sr": "Select language",
+    "language_en_US": "English",
+    "flag_en_US": "🇺🇸",
+    "language_es_ES": "Español",
+    "flag_es_ES": "🇪🇸",
+    "language_pt_BR": "Português",
+    "flag_pt_BR": "🇧🇷"
+  },
+  "PrivacyPolicyPage": { "title": "Privacy Policy" },
+  "TermsOfServicePage": { "title": "Terms of Service" },
+  "CookiePolicyPage": { "title": "Cookie Policy" },
+  "LegalNoticePage": { "title": "Legal Notice" },
+  "DisclaimerPage": { "title": "Disclaimer" },
+  "AboutPage": { "title": "About Us" },
+  "BlogPage": { "title": "Blog" },
+  "DocsPage": { "title": "Documentation" },
+  "ChooseLanguagePage": {
+    "title": "Select Your Language",
+    "selectFromListText": "Or choose from the list:",
+    "redirectText": "You will be redirected to the default version in {seconds} seconds."
+  },
   "Breadcrumbs": {
     "dashboard": "Dashboard",
     "sites": "My Sites",
@@ -12,7 +78,7 @@
   "DashboardSidebar": {
     "dashboard": "Dashboard",
     "mySites": "My Sites",
-    "liaChat": "L.I.A Chat",
+    "liaChat": "L.I.A. Chat",
     "settings": "Settings",
     "devConsole": "Dev Console",
     "userMenu_accountSettings": "Account Settings",
@@ -25,93 +91,228 @@
     "empty_results": "Workspace not found.",
     "createWorkspace_button": "Create Workspace",
     "inviteMember_button": "Invite Member",
+    "inviteMember_description": "Invite a new member to your workspace <strong>{workspaceName}</strong>.",
     "workspaceSettings_button": "Workspace Settings",
-    "changing_status": "Switching..."
+    "changing_status": "Switching...",
+    "onboarding_title": "Create your first Workspace",
+    "onboarding_welcome_title": "Welcome to MetaShark!",
+    "onboarding_welcome_description": "To get started, create a workspace to organize your sites and campaigns."
+  },
+  "DashboardHeader": {
+    "mobile_openMenu_sr": "Open navigation menu",
+    "search_placeholder": "Search...",
+    "search_command": "⌘K"
+  },
+  "InvitationBell": {
+    "view_invitations_sr": "View invitations",
+    "pending_invitations_label": "Pending Invitations",
+    "invitation_text": "You have been invited to join <strong>{workspaceName}</strong>",
+    "no_pending_invitations": "You have no pending invitations.",
+    "accept_invitation_success": "You have joined the workspace!",
+    "accept_invitation_error": "Could not accept the invitation. Please try again."
   },
   "SitesPage": {
     "header_title": "My Sites",
     "header_description": "Manage and search your sites. Each site can have multiple campaigns.",
     "search_placeholder": "Search by subdomain...",
+    "clear_search_aria": "Clear search",
     "createSite_button": "Create Site",
+    "createSiteDialog_title": "Create a new site",
+    "form_name_label": "Site name",
+    "form_name_placeholder": "My First Website",
+    "form_subdomain_label": "Subdomain",
+    "subdomain_in_use_error": "This subdomain is already in use.",
+    "form_description_label": "Description (optional)",
+    "form_description_placeholder": "A site for my new affiliate campaign.",
+    "form_creating_button": "Creating Site...",
+    "form_create_button": "Create Site",
     "emptyState_title": "No sites found",
     "emptyState_description": "Try another search or create a new site.",
-    "createSiteDialog_title": "Create a new site",
-    "createSiteDialog_description": "Sites allow you to organize your campaigns under a unique subdomain."
+    "campaignCount": "{count, plural, one {Campaign} other {Campaigns}}",
+    "manageCampaigns_button": "Manage Campaigns",
+    "delete_site_aria_label": "Delete site {subdomain}",
+    "open_site_aria_label": "Open site in a new tab",
+    "popover_title": "Quick Preview",
+    "popover_description": "A preview of the site will appear here. (Feature in development).",
+    "deleteDialog_title": "Are you sure?",
+    "deleteDialog_description": "This action is irreversible. The site <strong>{subdomain}</strong>, along with all its campaigns and data, will be permanently deleted.",
+    "deleteDialog_confirmButton": "Yes, delete site"
   },
   "CampaignsPage": {
-    "header_title_prefix": "Campaigns for:",
-    "header_description": "Create and edit the pages for this site.",
-    "backToSites_button": "Back to My Sites",
-    "createCampaign_button": "New Campaign",
-    "tableHeader_name": "Name",
-    "tableHeader_slug": "Slug",
-    "tableHeader_lastUpdated": "Last Updated",
-    "tableHeader_actions": "Actions",
-    "tableRow_edit": "Edit",
-    "emptyState_text": "No campaigns have been created for this site yet.",
-    "createCampaignDialog_title": "Create New Campaign"
+    "entityName": "Campaign",
+    "pageTitle": "Campaigns for <span>{siteName}</span>",
+    "pageDescription": "Create, edit, and monitor all campaigns for this site.",
+    "backToSitesButton": "Back to Sites",
+    "createCampaignButton": "New Campaign",
+    "createDialog": {
+      "title": "Create a new campaign"
+    },
+    "deleteDialog": {
+      "title": "Delete Campaign",
+      "description": "This action is irreversible. The campaign <strong>{campaignName}</strong> will be permanently deleted.",
+      "confirmButton": "Yes, delete campaign"
+    },
+    "search": {
+      "placeholder": "Search by name or slug...",
+      "clear_aria": "Clear search"
+    },
+    "table": {
+      "header_name": "Name",
+      "header_slug": "Slug",
+      "header_lastUpdated": "Last Updated",
+      "header_actions": "Actions",
+      "action_edit": "Edit",
+      "action_delete_aria": "Delete campaign {campaignName}",
+      "empty_state": "No campaigns have been created for this site yet."
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Go to page {pageNumber}"
+    },
+    "form_name_label": "Campaign Name",
+    "form_name_placeholder": "e.g., Product X Launch",
+    "form_creating_button": "Creating Campaign...",
+    "form_create_button": "Create Campaign"
   },
   "Dialogs": {
-    "deleteSite_title": "Delete Site?",
-    "deleteSite_description": "This action is irreversible. The site <strong>{subdomain}</strong>, along with all its campaigns and data, will be permanently deleted.",
-    "deleteSite_confirmButton": "Yes, delete site",
-    "deleteCampaign_title": "Delete Campaign?",
-    "deleteCampaign_description": "This action is irreversible. The campaign <strong>{campaignName}</strong> will be permanently deleted.",
-    "deleteCampaign_confirmButton": "Yes, delete",
     "generic_cancelButton": "Cancel"
   },
-  "AdminDashboard": {
-    "headerTitle": "Site Management",
-    "welcomeMessage": "Welcome, {username}",
-    "signOutButton": "Sign Out",
-    "noSubdomains": "No sites have been created yet.",
-    "visitSubdomain": "Visit Site",
-    "created": "Created"
+  "AuthLayout": {
+    "go_back_home_aria": "Go back to homepage"
   },
   "LoginPage": {
-    "metadataTitle": "Sign In | Metashark",
-    "title": "Welcome to Metashark",
-    "subtitle": "Access your account to start transforming your marketing.",
-    "emailLabel": "Email address",
+    "metadataTitle": "Sign In | MetaShark",
+    "title": "Welcome back to MetaShark",
+    "subtitle": "Enter your credentials to access your dashboard.",
+    "emailLabel": "Email Address",
     "passwordLabel": "Password",
     "signInButton": "Sign In",
-    "signUpButton": "Sign Up",
-    "signInWith": "Continue with",
-    "signUpWith": "Sign up with",
-    "alreadyHaveAccount": "Already have an account? Sign In",
-    "dontHaveAccount": "Don't have an account? Sign Up",
-    "forgotPasswordLink": "Forgot your password?",
-    "sendInstructionsButton": "Send Reset Instructions"
+    "signInWith": "Sign in with",
+    "dontHaveAccount": "Don't have an account? Sign up",
+    "alreadyHaveAccount": "Already have an account? Sign in"
+  },
+  "SignUpPage": {
+    "metadataTitle": "Sign Up | MetaShark",
+    "title": "Create your Account",
+    "subtitle": "Join the platform to start building your campaigns.",
+    "signUpButton": "Create Account",
+    "signUpWith": "Sign up with"
+  },
+  "AuthNoticePage": {
+    "confirmation": {
+      "title": "Check your email",
+      "description": "We've sent a confirmation link to your inbox"
+    },
+    "reset": {
+      "title": "Check your email",
+      "description": "We've sent a password reset link to your inbox"
+    },
+    "default": {
+      "title": "Notice",
+      "description": "Please check your email for further instructions."
+    }
   },
   "ForgotPasswordPage": {
-    "title": "Forgot Your Password?",
-    "description": "Enter your email and we'll send you a link to reset it.",
-    "emailLabel": "Email Address",
+    "title": "Forgot Password?",
+    "description": "No worries, we'll send you reset instructions.",
+    "emailLabel": "Email",
     "submitButton": "Send Reset Link",
     "sendingButton": "Sending..."
   },
   "ResetPasswordPage": {
-    "title": "Reset Your Password",
+    "title": "Set a New Password",
     "newPasswordLabel": "New Password",
     "confirmPasswordLabel": "Confirm New Password",
-    "submitButton": "Update Password",
-    "strength_veryWeak": "Very Weak",
-    "strength_weak": "Weak",
-    "strength_medium": "Medium",
-    "strength_strong": "Strong",
-    "strength_veryStrong": "Very Strong"
+    "submitButton": "Update Password"
   },
-  "AuthNoticePage": {
-    "confirmation_title": "Check your email",
-    "confirmation_description": "We've sent a confirmation link to your email address.",
-    "reset_title": "Check your email",
-    "reset_description": "We've sent a password reset link to your email address.",
-    "default_title": "Action Required",
-    "default_description": "Please check your email for further instructions.",
-    "backToLogin_button": "Back to Sign In",
-    "resend_button": "Resend email",
-    "resend_countdown": "Resend in {seconds}s",
-    "open_email_provider": "Open {provider}"
+  "DashboardPage": {
+    "error_title": "Error Loading Dashboard",
+    "error_description": "We couldn't get the latest data. Please try again."
+  },
+  "DevConsoleSidebar": {
+    "overview": "Overview",
+    "userManagement": "User Management",
+    "campaignViewer": "Campaign Viewer",
+    "telemetry": "Telemetry",
+    "auditLogs": "Audit Logs",
+    "routeViewer": "Project Route Viewer",
+    "loadingRoutes": "Loading routes...",
+    "signOut": "Sign Out"
+  },
+  "DevConsole": {
+    "UserManagementTable": {
+      "table_header": {
+        "email": "Email / User ID",
+        "full_name": "Full Name",
+        "role": "Role",
+        "actions": "Actions"
+      },
+      "search_placeholder": "Search by email or name...",
+      "clear_search_aria": "Clear search",
+      "table_empty_state": "No users found.",
+      "pagination": {
+        "previousPageLabel": "Previous page",
+        "nextPageLabel": "Next page",
+        "pageLabelTemplate": "Go to page {pageNumber}"
+      },
+      "role_update_success_toast": "User role updated successfully.",
+      "role_update_error_toast": "Failed to update user role.",
+      "impersonate_dialog": {
+        "aria_label": "Impersonate user {email}",
+        "title": "Impersonate User?",
+        "description": "This will open a new tab where you will be logged in as <strong>{email}</strong>. This is a high-privilege action for debugging purposes.",
+        "cancel_button": "Cancel",
+        "confirm_button": "Yes, Impersonate",
+        "success_toast": "Impersonation link generated. Opening in a new tab.",
+        "default_error_toast": "Failed to generate impersonation link."
+      }
+    },
+    "CampaignsTable": {
+      "title": "Campaign Viewer",
+      "description": "Monitor all campaigns created on the platform.",
+      "error_title": "Error Loading Campaigns",
+      "error_description": "Could not fetch data from the data layer.",
+      "header_name": "Campaign Name",
+      "header_site": "Site (Subdomain)",
+      "header_created": "Created At",
+      "header_updated": "Last Updated",
+      "header_actions": "Actions",
+      "action_view_json": "View JSON",
+      "dialog_title": "Content for: {campaignName}"
+    },
+    "TelemetryTable": {
+      "title": "Visitor Telemetry Viewer",
+      "description": "Monitor visitor activity on the platform.",
+      "error_title": "Error Loading Logs",
+      "error_description": "Could not fetch telemetry information. Please try reloading the page.",
+      "header_timestamp": "Timestamp",
+      "header_user_session": "User / Session",
+      "header_ip_country": "IP / Country",
+      "header_fingerprint": "Fingerprint",
+      "header_actions": "Actions",
+      "action_view_geo": "View Geo Data",
+      "action_view_utms": "View UTMs",
+      "empty_state": "No visits have been recorded yet.",
+      "dialog_title_geo": "Geo Data",
+      "dialog_title_utms": "UTM Parameters"
+    },
+    "DashboardPage": {
+      "tooltip": "This is your Command Center. Drag and drop the cards to customize your layout.",
+      "welcomeMessage": "Welcome, {username}",
+      "subtitle": "Which high-performance campaign are we launching today?",
+      "layoutSaveError": "Could not save the dashboard layout.",
+      "RecentCampaigns": {
+        "title": "Continue working on...",
+        "emptyState": {
+          "title": "Let's start your first campaign!",
+          "ctaTitle": "Guided Campaign",
+          "ctaDescription": "I'll guide you step-by-step to create a high-converting landing page.",
+          "ctaButton": "Create my First Campaign"
+        },
+        "lastEdited": "Last edited",
+        "preview": "Preview"
+      }
+    }
   }
 }
-

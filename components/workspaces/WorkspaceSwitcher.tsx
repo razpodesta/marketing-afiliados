@@ -1,11 +1,10 @@
-// Ruta: components/workspaces/WorkspaceSwitcher.tsx
+// components/workspaces/WorkspaceSwitcher.tsx
 /**
  * @file WorkspaceSwitcher.tsx
- * @description Componente de UI para seleccionar, crear y gestionar workspaces.
- *              Actúa como el selector de contexto principal para la navegación
- *              y la visualización de datos en toda la aplicación.
- * @author Metashark (Refactorizado por L.I.A Legacy & RaZ Podestá)
- * @version 6.0.0 (Type-Safe & Architecturally Aligned)
+ * @description Componente de UI para seleccionar, crear y gestionar workspaces,
+ *              ahora completamente internacionalizado.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 7.0.0 (Full Internationalization)
  */
 "use client";
 
@@ -17,6 +16,7 @@ import {
   Settings,
   UserPlus,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -44,8 +43,6 @@ import {
 } from "@/components/ui/popover";
 import { workspaces as workspaceActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
-// CORRECCIÓN: Con el `tsconfig.json` reparado, esta importación ahora se
-// resuelve correctamente, eliminando el error `TS2307`.
 import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -54,9 +51,6 @@ import { InviteMemberForm } from "../workspaces/InviteMemberForm";
 
 type Workspace = { id: string; name: string; icon: string | null };
 
-/**
- * @description Sub-componente para renderizar un ítem individual en la lista de workspaces.
- */
 const WorkspaceItem = ({
   workspace,
   onSelect,
@@ -88,6 +82,7 @@ const WorkspaceItem = ({
 );
 
 export function WorkspaceSwitcher({ className }: { className?: string }) {
+  const t = useTranslations("WorkspaceSwitcher");
   const { workspaces, activeWorkspace } = useDashboard();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -107,22 +102,14 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     setPopoverOpen(false);
   };
 
-  // --- Flujo de Onboarding ---
   if (workspaces.length === 0) {
     return (
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogTrigger asChild>
-          <Button className={cn("w-full md:w-auto", className)}>
-            <LayoutGrid className="mr-2 h-4 w-4" />
-            Crea tu primer Workspace
-          </Button>
-        </DialogTrigger>
+      <Dialog open={!inviteDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Bienvenido a MetaShark</DialogTitle>
+            <DialogTitle>{t("onboarding_welcome_title")}</DialogTitle>
             <DialogDescription>
-              Para empezar, crea un workspace para organizar tus sitios y
-              campañas.
+              {t("onboarding_welcome_description")}
             </DialogDescription>
           </DialogHeader>
           <CreateWorkspaceForm onSuccess={() => setCreateDialogOpen(false)} />
@@ -131,15 +118,14 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     );
   }
 
-  // --- Flujo Principal ---
   return (
     <div className="relative">
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Crear un nuevo workspace</DialogTitle>
+            <DialogTitle>{t("createWorkspace_button")}</DialogTitle>
             <DialogDescription>
-              Los workspaces te ayudan a organizar tus sitios y campañas.
+              {t("onboarding_welcome_description")}
             </DialogDescription>
           </DialogHeader>
           <CreateWorkspaceForm onSuccess={() => setCreateDialogOpen(false)} />
@@ -149,10 +135,12 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Invitar a un Miembro</DialogTitle>
+            <DialogTitle>{t("inviteMember_button")}</DialogTitle>
             <DialogDescription>
-              Invita a un nuevo miembro a tu workspace{" "}
-              <strong>{activeWorkspace?.name}</strong>.
+              {t.rich("inviteMember_description", {
+                workspaceName: activeWorkspace?.name,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           {activeWorkspace && (
@@ -170,7 +158,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
             variant="outline"
             role="combobox"
             aria-expanded={popoverOpen}
-            aria-label="Seleccionar workspace"
+            aria-label={t("selectWorkspace_label")}
             className={cn("w-[220px] justify-between", className)}
             disabled={isPending}
           >
@@ -180,10 +168,10 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
               </span>
               <span className="truncate">
                 {isPending
-                  ? "Cambiando..."
+                  ? t("changing_status")
                   : activeWorkspace
                     ? activeWorkspace.name
-                    : "Seleccionar workspace"}
+                    : t("selectWorkspace_label")}
               </span>
             </div>
             <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
@@ -192,8 +180,8 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
         <PopoverContent className="w-[220px] p-0">
           <Command>
             <CommandList>
-              <CommandInput placeholder="Buscar workspace..." />
-              <CommandEmpty>No se encontró el workspace.</CommandEmpty>
+              <CommandInput placeholder={t("search_placeholder")} />
+              <CommandEmpty>{t("empty_results")}</CommandEmpty>
               <CommandGroup>
                 {workspaces.map((workspace) => (
                   <WorkspaceItem
@@ -216,7 +204,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
                   className="cursor-pointer"
                 >
                   <PlusCircle className="mr-2 h-5 w-5" />
-                  Crear Workspace
+                  {t("createWorkspace_button")}
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
@@ -226,14 +214,14 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
                   className="cursor-pointer"
                 >
                   <UserPlus className="mr-2 h-5 w-5" />
-                  Invitar Miembro
+                  {t("inviteMember_button")}
                 </CommandItem>
                 <CommandItem
                   onSelect={onGoToSettings}
                   className="cursor-pointer"
                 >
                   <Settings className="mr-2 h-5 w-5" />
-                  Ajustes del Workspace
+                  {t("workspaceSettings_button")}
                 </CommandItem>
               </CommandGroup>
             </CommandList>
@@ -244,57 +232,14 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
   );
 }
 
-/*
- * =================================================================================================
- *                                   L.I.A. LOGIC ANALYSIS
- * =================================================================================================
- * @fileoverview El aparato `WorkspaceSwitcher` es el selector de contexto principal de la aplicación.
- *               Su correcta implementación es vital para la arquitectura multi-tenant.
- *
- * @functionality
- * - **Renderizado Condicional de Onboarding:** Su primera y más importante función es actuar como
- *   un "guardián de onboarding". Consume los datos del `DashboardContext` y, si el usuario no
- *   tiene workspaces, renderiza un estado de UI completamente diferente que lo guía a crear
- *   su primer workspace. Esto crea un flujo de usuario sin fricciones para las nuevas cuentas.
- * - **Selección de Contexto:** Cuando el usuario tiene workspaces, renderiza un `Popover` que
- *   contiene un componente de `Command` (un combobox con búsqueda). Esto permite al usuario
- *   buscar y seleccionar eficientemente el workspace en el que desea trabajar.
- * - **Orquestación de Acciones:**
- *   - Al seleccionar un nuevo workspace, invoca la Server Action `setActiveWorkspaceAction`
- *     envuelta en `useTransition`. Esta acción establece una cookie en el servidor y
- *     desencadena una recarga completa de los datos del layout, cambiando el contexto de
- *     toda la aplicación.
- *   - Proporciona accesos directos para abrir modales (`Dialogs`) que contienen los
- *     formularios para "Crear Workspace" e "Invitar Miembro", centralizando la gestión
- *     de workspaces en un único componente.
- *
- * @relationships
- * - Depende críticamente de `lib/context/DashboardContext.tsx` para obtener la lista de
- *   workspaces y el workspace activo.
- * - Utiliza `lib/navigation.ts` para la navegación segura a la página de ajustes.
- * - Invoca Server Actions de `lib/actions/workspaces.actions.ts`.
- * - Compone otros componentes complejos como `CreateWorkspaceForm` e `InviteMemberForm`.
- *
- * @expectations
- * - Se espera que este componente sea el punto central para que el usuario defina su contexto
- *   de trabajo. Su lógica debe ser robusta para manejar tanto el flujo de un nuevo usuario
- *   como el de un usuario existente con múltiples workspaces. La corrección de la ruta de
- *   importación asegura que pueda comunicarse con el sistema de enrutamiento tipado.
- * =================================================================================================
- */
-
 /**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras para evolucionar el selector de workspaces a un centro de control de nivel superior.
+ * @section MEJORA CONTINUA
  *
- * 1.  **Búsqueda de Workspaces en Servidor:** Para usuarios que pertenecen a un gran número de workspaces (ej. agencias), la búsqueda en el cliente puede ser lenta. La funcionalidad debería evolucionar para que, al escribir en el `CommandInput`, se llame a una Server Action que realice la búsqueda en la base de datos y devuelva solo los resultados coincidentes.
- * 2.  **Carga Asíncrona "Bajo Demanda":** En lugar de cargar todos los workspaces en el `DashboardLayout`, el `WorkspaceSwitcher` podría cargar solo los primeros 10 y obtener más a medida que el usuario se desplaza por la lista (`infinite scroll`) o realiza una búsqueda, optimizando la carga inicial.
- * 3.  **Feedback Visual de Transición Mejorado:** Actualmente, el botón muestra "Cambiando...". Se podría mejorar el feedback mostrando un spinner (`<Loader2 />`) en el botón y manteniendo el nombre del workspace anterior visible pero atenuado hasta que la transición se complete, reduciendo la sensación de "salto" en la UI.
+ * @subsection Melhorias Adicionadas
+ * 1. **Internacionalización Completa**: ((Implementada)) Se ha eliminado todo el texto codificado en duro. El componente consume `useTranslations` para renderizar su contenido en todos sus flujos y estados, incluyendo el uso de `t.rich` para texto con formato.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Búsqueda de Workspaces en Servidor**: ((Vigente)) Para escalar, la búsqueda en el `CommandInput` debería invocar una Server Action que realice la búsqueda en la base de datos.
+ * 2. **Feedback Visual de Transición Mejorado**: ((Vigente)) Mostrar un spinner en el botón y atenuar el nombre del workspace anterior hasta que la transición de cambio de contexto se complete.
  */
-// Ruta: components/workspaces/WorkspaceSwitcher.tsx
-/*
-=== SECCIÓN DE MEJORAS IDENTIFICADAS (ACUMULATIVO) ===
-1.  **Implementar Server Action:** La funcionalidad `onWorkspaceSelect` debe llamar a una Server Action `setActiveWorkspaceAction(workspaceId)` que establezca la cookie de contexto y recargue la página.
-2.  **Creación de Workspace:** El botón "Crear Workspace" debe redirigir a una nueva página (`/dashboard/workspaces/new`) con un formulario para crear una nueva organización.
-3.  **Completar Componente `Command`:** Este componente depende del componente `Command` de `shadcn/ui`. Si no está instalado, se debe añadir (`pnpm dlx shadcn-ui@latest add command`).
-*/
+// components/workspaces/WorkspaceSwitcher.tsx

@@ -1,10 +1,11 @@
-// Ruta: components/sites/DeleteSiteDialog.tsx
+// components/sites/DeleteSiteDialog.tsx
 /**
  * @file DeleteSiteDialog.tsx
  * @description Modal de confirmación para la eliminación irreversible de un sitio.
- *              Refactorizado para una accesibilidad y encapsulación de eventos robusta.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.2.0 (Event Encapsulation & A11y Fix)
+ *              Refatorado para ser um componente de apresentação 100% puro
+ *              e agnóstico ao conteúdo, recebendo todos os textos via props.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 3.0.0 (Pure I18n Component)
  */
 "use client";
 
@@ -23,6 +24,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+export interface DeleteSiteDialogTexts {
+  title: string;
+  description: (subdomain: string) => React.ReactNode;
+  cancelButton: string;
+  confirmButton: string;
+}
+
 interface SimpleSite {
   id: string;
   subdomain: string | null;
@@ -32,13 +41,16 @@ interface DeleteSiteDialogProps {
   site: SimpleSite;
   onDelete: (formData: FormData) => void;
   isPending: boolean;
+  texts: DeleteSiteDialogTexts;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 
 export function DeleteSiteDialog({
   site,
   onDelete,
   isPending,
+  texts,
   onClick,
 }: DeleteSiteDialogProps) {
   return (
@@ -59,27 +71,22 @@ export function DeleteSiteDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldAlert className="h-6 w-6 text-red-600" />
-              ¿Estás seguro?
+              {texts.title}
             </DialogTitle>
             <DialogDescription>
-              Esta acción es irreversible. El sitio{" "}
-              <strong className="font-medium text-foreground">
-                {site.subdomain}
-              </strong>
-              , junto con todas sus campañas y datos, será eliminado
-              permanentemente.
+              {texts.description(site.subdomain || "")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                Cancelar
+                {texts.cancelButton}
               </Button>
             </DialogClose>
             <input type="hidden" name="siteId" value={site.id} />
             <Button variant="destructive" type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sí, eliminar sitio
+              {texts.confirmButton}
             </Button>
           </DialogFooter>
         </form>
@@ -87,9 +94,11 @@ export function DeleteSiteDialog({
     </Dialog>
   );
 }
-// Ruta: components/sites/DeleteSiteDialog.tsx
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Input de Confirmación: Para acciones destructivas de alto riesgo, se podría añadir un campo de texto donde el usuario deba escribir el nombre del subdominio para habilitar el botón de eliminar. Esto previene eliminaciones accidentales.
- * 2. Feedback de Carga Específico: El estado `isPending` podría ser más granular, indicando no solo la carga, sino también los estados "success" y "error" para mostrar un feedback visual dentro del modal antes de que se cierre.
- * 3. Reutilización del Componente: Este patrón de diálogo de confirmación es altamente reutilizable. Podría ser abstraído a un componente genérico `<ConfirmationDialog>` que acepte título, descripción y la acción a ejecutar.
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) O componente agora é 100% agnóstico ao conteúdo.
+ * 2. **Suporte a Rich Text**: ((Implementada)) A prop `description` agora aceita `React.ReactNode`, permitindo que o componente pai passe texto formatado (e.g., com `<strong>`).
  */
+// components/sites/DeleteSiteDialog.tsx

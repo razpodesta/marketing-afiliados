@@ -1,68 +1,64 @@
-Aparato de Trabajo N.º 33: Blueprint Arquitectónico del Constructor de Campañas (Versión 3.0 - Estado Actual y Próximos Pasos)
-Visión General (Actualizada)
-Hemos pasado de la planificación a la implementación exitosa de las etapas fundamentales del Constructor de Campañas. La visión de un editor visual (WYSIWYG) modular, con estado centralizado y renderizado desacoplado, no solo se mantiene, sino que ha sido validada y construida. Este documento actualiza el blueprint original para reflejar el progreso realizado, las decisiones arquitectónicas tomadas y el camino claro hacia la finalización.
-Fase 1: Estructura de Archivos y Directorios (Implementada y Refinada)
-Nuestra estructura de archivos ha evolucionado y se ha solidificado. La decisión de co-ubicar los bloques de plantilla dentro de /components ha sido una mejora clave que hemos implementado.
-Estructura Actual (Implementada):
-Generated code
+// .docs/CANVA-DESIGN-DOCS/blueprint-canvasuite.md
+Aparato de Trabalho N.º 33: Blueprint Arquitetônico do Construtor de Campanhas (Versão 3.1 - Estrutura de Templates Sincronizada)
+Visão Geral (Atualizada)
+Passamos do planejamento para a implementação bem-sucedida das etapas fundamentais do Construtor de Campanhas. A visão de um editor visual (WYSIWYG) modular, com estado centralizado e renderização desacoplada, não apenas se mantém, mas foi validada e construída. Este documento atualiza o blueprint original para refletir o progresso realizado, as decisões arquitetônicas tomadas e o caminho claro para a finalização.
+
+Fase 1: Estrutura de Arquivos e Diretórios (Implementada e Refinada)
+Nossa estrutura de arquivos evoluiu e se solidificou. A decisão de co-localizar os blocos de template dentro de uma estrutura granular foi uma melhoria chave implementada.
+
+Estrutura Atual (Implementada):
+
 app/
 └── [locale]/
-└── builder/
-├── [campaignId]/
-│ ├── layout.tsx // ✅ HECHO: Orquesta DndContext y la UI de edición.
-│ └── page.tsx // ✅ HECHO: Carga datos de Supabase e inicializa el store.
-└── components/
-├── BlocksPalette.tsx // ✅ HECHO: Muestra bloques arrastrables.
-├── BuilderHeader.tsx // ✅ HECHO: Contiene acciones principales (Guardar).
-├── Canvas.tsx // ✅ HECHO: Renderiza los bloques desde el store.
-├── DraggableBlockWrapper.tsx // ✅ HECHO: HOC para interactividad de bloques.
-└── SettingsPanel.tsx // ✅ HECHO: Panel de edición dinámico.
+    └── builder/
+        ├── [campaignId]/
+        │   ├── layout.tsx // ✅ FEITO: Orquestra o DndContext e a UI de edição.
+        │   └── page.tsx   // ✅ FEITO: Carrega dados do Supabase e inicializa o store.
+        └── core/
+            └── store.ts   // ✅ FEITO: Cérebro de estado do construtor (Zustand).
 components/
-└── templates/ // ✅ HECHO (Reubicado): Biblioteca central de bloques.
-├── Header/
-│ └── Header1.tsx
-├── Hero/
-│ └── Hero1.tsx
-└── index.ts // ✅ HECHO: Registro de bloques.
+├── builder/
+│   ├── BlocksPalette.tsx         // ✅ FEITO: Mostra blocos arrastáveis.
+│   ├── BuilderHeader.tsx         // ✅ FEITO: Contém ações principais (Salvar).
+│   ├── Canvas.tsx                // ✅ FEITO: Renderiza os blocos do store.
+│   ├── DraggableBlockWrapper.tsx // ✅ FEITO: HOC para interatividade de blocos.
+│   └── SettingsPanel.tsx         // ✅ FEITO: Painel de edição dinâmico.
+└── templates/                    // ✅ FEITO (Re-localizado e Granular): Biblioteca central de blocos.
+    ├── Headers/
+    │   └── Header1/
+    │       └── index.tsx         // ✅ FEITO: Implementação do bloco Header1.
+    ├── Heros/
+    │   └── Hero1/
+    │       └── index.tsx         // ✅ FEITO: Implementação do bloco Hero1.
+    └── index.ts                  // ✅ FEITO: Registro central de blocos.
 lib/
 └── builder/
-└── types.d.ts // ✅ HECHO: Nuestro "contrato de datos" oficial.
+    └── types.d.ts            // ✅ FEITO: Nosso "contrato de dados" oficial.
 
-Lógica y Justificación (Validada):
-Aislamiento Exitoso: La ruta /builder está completamente aislada, con su propio layout, permitiendo una experiencia de edición inmersiva.
-Modularidad Comprobada: La co-ubicación de /templates dentro de /components ha simplificado las importaciones y ha hecho que la estructura del proyecto sea más intuitiva. Añadir nuevos bloques es un proceso claro y escalable.
-Componentes de Responsabilidad Única: La separación de Canvas, SettingsPanel, BlocksPalette, etc., ha demostrado ser una arquitectura limpia que nos ha permitido construir e iterar rápidamente.
-Fase 2: Selección de Tecnologías Clave (Implementadas)
-Todas nuestras elecciones tecnológicas iniciales han sido implementadas y han demostrado ser las correctas para el trabajo.
-Gestión de Estado (Zustand): Implementado y Funcional.
-Estado Actual: Nuestro store.ts (app/[locale]/builder/core/store.ts) es ahora el cerebro del constructor. Gestiona no solo el campaignConfig, sino también el selectedBlockId y el estado isSaving. Proporciona acciones granulares para añadir, mover, eliminar y actualizar bloques, todo de forma centralizada.
-Ventaja Realizada: Hemos visto cómo el Canvas y el SettingsPanel reaccionan a los cambios en el store sin necesidad de comunicación directa, validando la arquitectura desacoplada.
-Drag and Drop (@dnd-kit): Implementado y Funcional.
-Estado Actual: El DndContext en el layout.tsx orquesta la lógica de arrastrar y soltar. La BlocksPalette implementa useDraggable para hacer que los bloques sean arrastrables, y el Canvas junto con DraggableBlockWrapper usan SortableContext y useSortable para permitir el reordenamiento.
-Ventaja Realizada: La experiencia de usuario de añadir y reordenar bloques es fluida y cumple con los estándares de una aplicación moderna.
-Renderizado en el Canvas: Implementado y Funcional.
-Estado Actual: El Canvas.tsx lee el array blocks del store, y utilizando el blockRegistry de components/templates/index.ts, renderiza dinámicamente el componente React correspondiente para cada bloque.
-Ventaja Realizada: El "hot replace" es instantáneo. Cualquier cambio en el SettingsPanel que actualice el store se refleja inmediatamente en el Canvas.
-Fase 3: Modelo de Datos en Supabase (Implementado y Refinado)
-Hemos refinado y expandido nuestro modelo de datos.
-Tabla campaigns (Actualizada):
-content (jsonb): Implementada. Esta columna ahora existe en nuestra base de datos y es la que persistirá el trabajo del usuario.
-updated_at (timestamptz): Implementada. Con su trigger automático, garantiza la integridad de los datos.
-Tabla invitations (Diseñada e Implementada):
-Hemos añadido esta tabla a nuestro esquema para soportar la funcionalidad colaborativa de los workspaces.
-ENUM app_role (Actualizado):
-Se ha expandido para incluir el rol 'admin', formalizando nuestra arquitectura de permisos de tres niveles.
-Fase 4: Plan de Implementación por Etapas (Progreso y Próximos Pasos)
-Hemos completado una parte significativa del plan.
-Etapa 1: El Núcleo del Constructor: ✅ COMPLETADO.
-Hemos creado la estructura, definido el layout, implementado el store, creado los primeros bloques y construido el Canvas y el SettingsPanel funcionales.
-Etapa 2: Interactividad y Biblioteca de Bloques: ✅ COMPLETADO.
-Hemos implementado la BlocksPalette y la funcionalidad completa de drag-and-drop con @dnd-kit.
-Etapa 3: Persistencia y Publicación: PARCIALMENTE COMPLETADO.
-updateCampaignContentAction: ✅ HECHO. Hemos creado la Server Action que permite guardar el estado del constructor en la base de datos. El botón "Guardar" en el BuilderHeader ya la utiliza.
-Página de Publicación (/c/[slug]): ⏳ PRÓXIMO PASO CRÍTICO. Esta es la siguiente gran pieza a construir. Necesitamos crear la ruta que leerá el content JSON y lo renderizará como una página pública estática y de alta velocidad.
-Etapa 4: Funcionalidades de Exportación: 📋 PENDIENTE.
-La implementación de la exportación a ZIP con jszip sigue siendo un objetivo futuro.
-Conclusión del Blueprint Actualizado
-El blueprint del Constructor de Campañas ha pasado de ser un plan teórico a una realidad funcional y arquitectónicamente sólida. Hemos implementado con éxito el núcleo de la experiencia de edición, desde la carga de datos hasta la edición interactiva y la persistencia.
-Nuestras decisiones tecnológicas han sido validadas, y la estructura modular que diseñamos nos ha permitido avanzar rápidamente sin sacrificar la calidad. El proyecto está en un estado saludable y el camino a seguir es claro.
+Lógica e Justificação (Validada):
+Isolamento Bem-sucedido: A rota `/builder` está completamente isolada, com seu próprio layout, permitindo uma experiência de edição imersiva.
+Modularidade Comprovada: A estrutura granular dentro de `/templates` e o registro central em `index.ts` simplificaram as importações e tornaram a adição de novos blocos um processo claro e escalável.
+Componentes de Responsabilidade Única: A separação de Canvas, SettingsPanel, BlocksPalette, etc., demonstrou ser uma arquitetura limpa que nos permitiu construir e iterar rapidamente.
+
+Fase 2: Seleção de Tecnologias Chave (Implementadas)
+Todas as nossas escolhas tecnológicas iniciais foram implementadas e provaram ser as corretas para o trabalho.
+
+Gestão de Estado (Zustand): Implementado e Funcional.
+Drag and Drop (@dnd-kit): Implementado e Funcional.
+Renderização no Canvas: Implementado e Funcional.
+
+Fase 3: Modelo de Dados no Supabase (Implementado e Refinado)
+Refinamos e expandimos nosso modelo de dados. A tabela `campaigns` com a coluna `content (jsonb)` está implementada e funcional.
+
+Fase 4: Plano de Implementação por Etapas (Progresso e Próximos Passos)
+Completamos uma parte significativa do plano.
+
+Etapa 1: O Núcleo do Construtor: ✅ CONCLUÍDO.
+Etapa 2: Interatividade e Biblioteca de Blocos: ✅ CONCLUÍDO.
+Etapa 3: Persistência e Publicação: PARCIALMENTE CONCLUÍDO.
+`updateCampaignContentAction`: ✅ FEITO. Temos a Server Action que permite salvar o estado.
+Página de Publicação (`/s/[subdomain]/[slug]`): ⏳ PRÓXIMO PASSO CRÍTICO.
+
+Conclusão do Blueprint Atualizado
+O blueprint do Construtor de Campanhas passou de um plano teórico para uma realidade funcional e arquitetonicamente sólida. Nossas decisões tecnológicas foram validadas, e a estrutura modular que projetamos nos permitiu avançar rapidamente sem sacrificar a qualidade. O projeto está em um estado saudável e o caminho a seguir é claro.
+// .docs/CANVA-DESIGN-DOCS/blueprint-canvasuite.md

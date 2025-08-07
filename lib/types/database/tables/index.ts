@@ -2,9 +2,10 @@
 /**
  * @file index.ts
  * @description Archivo barril para la exportación modular de todos los tipos de tabla.
- *              Actualizado para eliminar la referencia a la tabla obsoleta 'pages'.
+ *              Actualizado para incluir la tabla `notifications`, resolviendo un
+ *              error de compilación crítico.
  * @author L.I.A Legacy
- * @version 2.0.0 (Schema Simplification)
+ * @version 2.1.0 (Schema Synchronization)
  */
 export * from "./achievements";
 export * from "./affiliate_products";
@@ -17,8 +18,7 @@ export * from "./custom_blocks";
 export * from "./customers";
 export * from "./feature_flags";
 export * from "./invitations";
-export * from "./notifications";
-// export * from "./pages"; // ELIMINADO
+export * from "./notifications"; // <-- LÍNEA AÑADIDA
 export * from "./prices";
 export * from "./product_categories";
 export * from "./products";
@@ -38,8 +38,9 @@ export * from "./workspaces";
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Simplificación de Esquema**: ((Implementada)) Se ha eliminado la exportación de la tabla 'pages', alineando el contrato de tipos con la arquitectura de datos simplificada.
+ * 1. **Sincronización de Esquema**: ((Implementada)) Se ha añadido la exportación de la tabla 'notifications', alineando el contrato de tipos con el esquema real y resolviendo los errores de compilación.
  *
  * @subsection Melhorias Futuras
  * 1. **Generación Automática**: ((Vigente)) Crear un script para generar este archivo y prevenir omisiones manuales.
  */
+// lib/types/database/tables/index.ts

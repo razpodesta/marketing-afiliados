@@ -2,9 +2,10 @@
 /**
  * @file SitesGrid.tsx
  * @description Componente de presentación puro responsable de renderizar la
- *              cuadrícula de sitios con animaciones o un estado vacío.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.0.0
+ *              cuadrícula de sitios. Refatorado para receber todos os textos
+ *              do estado vazio e dos seus filhos via props.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 4.0.0 (Pure I18n Component)
  */
 "use client";
 
@@ -12,27 +13,41 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Card } from "@/components/ui/card";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
-import { SiteCard } from "./SiteCard";
+
+import { DeleteSiteDialogTexts, SiteCard, SiteCardTexts } from "./SiteCard";
+
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+export interface SitesGridTexts {
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+}
 
 interface SitesGridProps {
   sites: SiteWithCampaignsCount[];
   onDelete: (formData: FormData) => void;
   isPending: boolean;
   deletingSiteId: string | null;
+  texts: SitesGridTexts;
+  cardTexts: SiteCardTexts;
+  deleteDialogTexts: DeleteSiteDialogTexts;
 }
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 
 export function SitesGrid({
   sites,
   onDelete,
   isPending,
   deletingSiteId,
+  texts,
+  cardTexts,
+  deleteDialogTexts,
 }: SitesGridProps) {
   if (sites.length === 0) {
     return (
       <Card className="flex h-64 flex-col items-center justify-center p-8 text-center border-dashed">
-        <h3 className="text-xl font-semibold">No se encontraron sitios</h3>
+        <h3 className="text-xl font-semibold">{texts.emptyStateTitle}</h3>
         <p className="mt-2 text-muted-foreground">
-          Intenta con otra búsqueda o crea un nuevo sitio.
+          {texts.emptyStateDescription}
         </p>
       </Card>
     );
@@ -55,6 +70,8 @@ export function SitesGrid({
               onDelete={onDelete}
               isPending={isPending}
               deletingSiteId={deletingSiteId}
+              texts={cardTexts}
+              deleteDialogTexts={deleteDialogTexts}
             />
           </motion.div>
         ))}
@@ -62,3 +79,10 @@ export function SitesGrid({
     </div>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) O componente agora recebe todos os textos necessários para si e para seus filhos, propagando o contrato de internacionalização.
+ */
+// components/sites/SitesGrid.tsx

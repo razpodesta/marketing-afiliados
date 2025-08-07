@@ -1,11 +1,11 @@
 // lib/data/campaigns.ts
 /**
  * @file lib/data/campaigns.ts
- * @description Aparato de datos para 'campaigns'. Ha sido optimizado con caché
- *              de servidor (`unstable_cache`) y preparado para una futura
- *              optimización con función RPC.
+ * @description Aparato de datos para 'campaigns'. Ha sido optimizado para
+ *              soportar búsqueda en servidor y utiliza caché (`unstable_cache`)
+ *              para un rendimiento de élite.
  * @author L.I.A. Legacy & Raz Podestá
- * @version 2.1.0 (Server-Side Caching Implementation)
+ * @version 3.0.0 (Server-Side Search & Caching)
  */
 "use server";
 
@@ -24,26 +24,33 @@ export type CampaignWithContent = Tables<"campaigns"> & {
 
 export async function getCampaignsMetadataBySiteId(
   siteId: string,
-  { page, limit }: { page: number; limit: number }
+  { page, limit, query }: { page: number; limit: number; query?: string }
 ): Promise<{ campaigns: CampaignMetadata[]; totalCount: number }> {
+  const cacheKey = `campaigns-meta-${siteId}-p${page}-q${query || ""}`;
+  const cacheTags = [`campaigns:${siteId}`, `campaigns:${siteId}:p${page}`];
+
   return cache(
     async () => {
-      logger.info(
-        `[Cache MISS] Cargando metadatos de campañas desde DB para sitio ${siteId}, pág ${page}.`
-      );
+      logger.info(`[Cache MISS] Cargando metadatos para: ${cacheKey}`);
       const supabase = createClient();
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
-      const { data, error, count } = await supabase
+      let queryBuilder = supabase
         .from("campaigns")
         .select(
           "id, site_id, name, slug, created_at, updated_at, affiliate_url",
-          {
-            count: "exact",
-          }
+          { count: "exact" }
         )
-        .eq("site_id", siteId)
+        .eq("site_id", siteId);
+
+      if (query) {
+        queryBuilder = queryBuilder.or(
+          `name.ilike.%${query}%,slug.ilike.%${query}%`
+        );
+      }
+
+      const { data, error, count } = await queryBuilder
         .order("updated_at", { ascending: false, nullsFirst: false })
         .range(from, to);
 
@@ -56,8 +63,8 @@ export async function getCampaignsMetadataBySiteId(
       }
       return { campaigns: data, totalCount: count || 0 };
     },
-    [`campaigns-meta-${siteId}-p${page}`],
-    { tags: [`campaigns:${siteId}`] }
+    [cacheKey],
+    { tags: cacheTags }
   )();
 }
 
@@ -65,8 +72,6 @@ export async function getRecentCampaignsByWorkspaceId(
   workspaceId: string,
   limit: number = 4
 ): Promise<Tables<"campaigns">[]> {
-  // NOTA: La implementación RPC se omite por ahora para mantener la simplicidad
-  // hasta que el script SQL sea parte del flujo de migración.
   return cache(
     async () => {
       logger.info(
@@ -79,14 +84,12 @@ export async function getRecentCampaignsByWorkspaceId(
         .select("id")
         .eq("workspace_id", workspaceId);
 
-      if (sitesError) {
-        logger.error(
-          `Error al obtener sitios para el workspace ${workspaceId}:`,
-          sitesError
-        );
-        return [];
-      }
-      if (!sites || sites.length === 0) {
+      if (sitesError || !sites || sites.length === 0) {
+        if (sitesError)
+          logger.error(
+            `Error al obtener sitios para el workspace ${workspaceId}:`,
+            sitesError
+          );
         return [];
       }
 
@@ -118,8 +121,6 @@ export async function getCampaignContentById(
   campaignId: string,
   userId: string
 ): Promise<CampaignWithContent | null> {
-  // Esta función es de alta especificidad y no se beneficia tanto del cacheo
-  // a nivel de datos, ya que su lógica de permisos la hace dinámica.
   const supabase = createClient();
   const { data: campaign, error } = await supabase
     .from("campaigns")
@@ -157,11 +158,15 @@ export async function getCampaignContentById(
 
   return campaign as CampaignWithContent;
 }
-
 /**
  * @section MEJORA CONTINUA
- * @subsection Mejoras Implementadas
- * 1. **Cacheo de Servidor**: ((Implementada)) Las funciones de lectura ahora usan `unstable_cache`.
- * 2. **Optimización RPC Futura**: ((Planificada)) `getRecentCampaignsByWorkspaceId` está preparada para ser reemplazada por una función RPC.
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Búsqueda en Servidor**: ((Implementada)) La función `getCampaignsMetadataBySiteId` ahora acepta un parámetro `query` y construye una consulta `ilike` para un filtrado eficiente en la base de datos.
+ * 2. **Cacheo Dinámico**: ((Implementada)) La clave de caché para `getCampaignsMetadataBySiteId` ahora incluye la `query`, asegurando que diferentes búsquedas se cacheen por separado.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Función RPC `get_recent_campaigns`**: ((Vigente)) Reemplazar la lógica de `getRecentCampaignsByWorkspaceId` con una única llamada a una función de base de datos optimizada para reducir la latencia de red.
+ * 2. **Observabilidad de Rendimiento**: ((Vigente)) Añadir logging de `trace` con `performance.now()` para medir la duración de las consultas a la base de datos.
  */
 // lib/data/campaigns.ts

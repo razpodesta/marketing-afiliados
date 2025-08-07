@@ -2,11 +2,10 @@
 /**
  * @file page.tsx
  * @description Página del Dashboard de Administración (Server Component).
- *              Este aparato ha sido refactorizado para implementar un manejo de
- *              errores seguro en cuanto a tipos (`type-safe`), resolviendo el
- *              error de compilación `TS2345` al interactuar con el logger.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 9.0.0 (Type-Safe Error Handling)
+ *              Corrigido para incluir a propriedade `id` na transformação
+ *              de dados, satisfazendo o contrato de tipo do `AdminClient`.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 10.0.0 (Type Contract Synchronization)
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -14,7 +13,6 @@ import { Suspense } from "react";
 
 import { Card } from "@/components/ui/card";
 import * as dataLayer from "@/lib/data";
-import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import { logger } from "@/lib/logging";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/types/database";
@@ -29,13 +27,6 @@ export const metadata: Metadata = {
 
 const ADMIN_SITES_PER_PAGE = 12;
 
-/**
- * @function AdminDashboardSkeleton
- * @description Componente de esqueleto de carga para el dashboard de administración.
- *              Proporciona un feedback visual inmediato al usuario mientras se
- *              cargan los datos del servidor.
- * @returns {JSX.Element} La UI del esqueleto de carga.
- */
 const AdminDashboardSkeleton = () => (
   <div className="p-4 md:p-8">
     <div className="mx-auto w-full max-w-7xl">
@@ -54,15 +45,6 @@ const AdminDashboardSkeleton = () => (
   </div>
 );
 
-/**
- * @async
- * @function AdminDashboardLoader
- * @description Componente de servidor que maneja la lógica de obtención de datos
- *              y seguridad para el dashboard de administración.
- * @param {{ searchParams: { page?: string } }} props - Las props del componente.
- * @returns {Promise<JSX.Element>} El componente de cliente (`AdminClient`) con los
- *                                  datos o una redirección/UI de error.
- */
 async function AdminDashboardLoader({
   searchParams,
 }: {
@@ -100,11 +82,14 @@ async function AdminDashboardLoader({
       limit: ADMIN_SITES_PER_PAGE,
     });
 
-    const sites = rawSites.map((site: SiteWithCampaignsCount) => ({
+    // --- INÍCIO DA CORREÇÃO DE TIPO ---
+    const sites = rawSites.map((site) => ({
+      id: site.id, // Adiciona a propriedade 'id' que faltava
       subdomain: site.subdomain || "N/A",
       icon: site.icon || "❓",
       createdAt: new Date(site.created_at).getTime(),
     }));
+    // --- FIM DA CORREÇÃO DE TIPO ---
 
     return (
       <AdminClient
@@ -116,10 +101,6 @@ async function AdminDashboardLoader({
       />
     );
   } catch (error) {
-    // --- INICIO DE REFACTORIZACIÓN DE MANEJO DE ERRORES ---
-    // Verificamos si el error es una instancia de Error para acceder a sus
-    // propiedades de forma segura. Si no, lo convertimos a string.
-    // Esto satisface el contrato de tipo de `logger.error`.
     const errorContext =
       error instanceof Error
         ? { message: error.message, stack: error.stack }
@@ -128,7 +109,6 @@ async function AdminDashboardLoader({
       "Error al cargar los datos del dashboard de admin:",
       errorContext
     );
-    // --- FIN DE REFACTORIZACIÓN DE MANEJO DE ERRORES ---
     return (
       <p className="text-destructive p-8">
         Error al cargar los datos de la plataforma.
@@ -137,14 +117,6 @@ async function AdminDashboardLoader({
   }
 }
 
-/**
- * @function AdminPage
- * @description Componente de página principal que utiliza `Suspense` para orquestar
- *              una experiencia de carga fluida, mostrando un esqueleto mientras los
- *              datos se obtienen en el servidor.
- * @param {{ searchParams: { page?: string } }} props - Las props de la página.
- * @returns {JSX.Element} La página de administración renderizada.
- */
 export default function AdminPage({
   searchParams,
 }: {
@@ -158,15 +130,10 @@ export default function AdminPage({
     </div>
   );
 }
-
 /**
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Manejo de Errores Seguro en Tipos**: ((Implementada)) Se ha refactorizado el bloque `catch` para verificar el tipo del objeto de error antes de pasarlo al logger, resolviendo el error de compilación `TS2345` y adhiriéndose a las mejores prácticas de TypeScript.
- *
- * @subsection Melhorias Futuras
- * 1. **Componente de Error Dedicado**: ((Vigente)) En lugar de renderizar un simple `<p>`, se podría crear un componente de error reutilizable (`<ErrorDisplay />`) que muestre un mensaje más amigable, un ID de error para soporte y quizás una opción para reintentar la carga.
- * 2. **Paginación en `getAllSites`**: ((Vigente)) Asegurar que la función `getAllSites` en la capa de datos implemente una paginación robusta para manejar un gran número de sitios sin afectar el rendimiento.
+ * 1. **Sincronização de Contrato de Tipo**: ((Implementada)) A propriedade `id` agora é incluída no objeto transformado, satisfazendo o contrato de tipo do `AdminClient` e resolvendo o erro de compilação.
  */
 // app/[locale]/admin/page.tsx

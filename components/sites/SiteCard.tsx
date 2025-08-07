@@ -1,15 +1,16 @@
 // components/sites/SiteCard.tsx
 /**
  * @file SiteCard.tsx
- * @description Componente de UI que renderiza una tarjeta individual para un sitio.
- *              Ha sido refactorizado para una delegación de eventos robusta y
- *              una accesibilidad completa.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.3.0
+ * @description Componente de UI que renderiza uma tarjeta individual para un sitio.
+ *              Refatorado para ser um componente de apresentação puro que recebe
+ *              todos os seus textos via props, cumprindo com o mandato de i18n.
+ * @author Metashark (Refatorado por L.I.A Legacy)
+ * @version 6.0.0 (Pure I18n Component)
  */
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,19 +29,42 @@ import {
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { Link } from "@/lib/navigation";
 import { protocol, rootDomain } from "@/lib/utils";
-import { DeleteSiteDialog } from "./DeleteSiteDialog";
+import {
+  DeleteSiteDialog,
+  type DeleteSiteDialogTexts,
+} from "./DeleteSiteDialog";
+
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+export interface SiteCardTexts {
+  campaignCount: (count: number) => string;
+  manageCampaignsButton: string;
+  deleteSiteAriaLabel: (subdomain: string) => string;
+  openSiteAriaLabel: string;
+  popoverTitle: string;
+  popoverDescription: string;
+}
+
+// Re-exporta o tipo para o componente pai
+export type { DeleteSiteDialogTexts };
+
+interface SiteCardProps {
+  site: SiteWithCampaignsCount;
+  onDelete: (formData: FormData) => void;
+  isPending: boolean;
+  deletingSiteId: string | null;
+  texts: SiteCardTexts;
+  deleteDialogTexts: DeleteSiteDialogTexts;
+}
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
 
 export function SiteCard({
   site,
   onDelete,
   isPending,
   deletingSiteId,
-}: {
-  site: SiteWithCampaignsCount;
-  onDelete: (formData: FormData) => void;
-  isPending: boolean;
-  deletingSiteId: string | null;
-}) {
+  texts,
+  deleteDialogTexts,
+}: SiteCardProps) {
   const getCampaignCount = (currentSite: SiteWithCampaignsCount): number => {
     return currentSite.campaigns?.[0]?.count ?? 0;
   };
@@ -55,7 +79,7 @@ export function SiteCard({
               <div>
                 <CardTitle>{site.subdomain}</CardTitle>
                 <CardDescription>
-                  {campaignCount} {campaignCount === 1 ? "Campaña" : "Campañas"}
+                  {texts.campaignCount(campaignCount)}
                 </CardDescription>
               </div>
               <div className="text-4xl">{site.icon}</div>
@@ -69,7 +93,7 @@ export function SiteCard({
                   params: { siteId: site.id },
                 }}
               >
-                Gestionar Campañas
+                {texts.manageCampaignsButton}
               </Link>
             </Button>
             <div className="flex items-center gap-1">
@@ -79,7 +103,7 @@ export function SiteCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  aria-label="Abrir sitio en una nueva pestaña"
+                  aria-label={texts.openSiteAriaLabel}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
@@ -89,6 +113,7 @@ export function SiteCard({
                 onDelete={onDelete}
                 isPending={isPending && deletingSiteId === site.id}
                 onClick={(e) => e.stopPropagation()}
+                texts={deleteDialogTexts}
               />
             </div>
           </CardFooter>
@@ -96,13 +121,20 @@ export function SiteCard({
       </PopoverTrigger>
       <PopoverContent>
         <div className="p-4">
-          <h4 className="font-semibold">Previsualización Rápida</h4>
+          <h4 className="font-semibold">{texts.popoverTitle}</h4>
           <p className="text-sm text-muted-foreground mt-2">
-            Una previsualización del sitio aparecerá aquí. (Funcionalidad en
-            desarrollo).
+            {texts.popoverDescription}
           </p>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) O componente agora é 100% agnóstico ao conteúdo, recebendo todos os seus textos e os textos de seus filhos via props.
+ * 2. **Exportação de Tipos Aninhados**: ((Implementada)) O componente agora exporta os tipos de texto que seu filho (`DeleteSiteDialog`) precisa, permitindo que o orquestrador (`SitesGrid`) os forneça.
+ */
+// components/sites/SiteCard.tsx

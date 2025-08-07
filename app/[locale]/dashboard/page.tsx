@@ -1,16 +1,15 @@
 // app/[locale]/dashboard/page.tsx
 /**
  * @file page.tsx
- * @description Punto de entrada del servidor para el dashboard principal.
- *              Este aparato ha sido refactorizado para delegar completamente la
- *              obtención de datos a la capa de datos canónica, adhiriéndose a
- *              una arquitectura limpia y de alta cohesión.
+ * @description Punto de entrada del servidor para el dashboard. Refactorizado
+ *              para operar en modo de producción, con full observabilidad y
+ *              full internacionalización.
  * @author L.I.A. Legacy & Raz Podestá
- * @co-author MetaShark
- * @version 2.0.0 (Data Layer Abstraction)
+ * @version 3.0.0 (Production-Only, I18n & Observability)
  */
 import { AlertTriangle } from "lucide-react";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { Card } from "@/components/ui/card";
@@ -42,45 +41,42 @@ const PageSkeleton = () => (
 );
 
 async function DashboardPageLoader() {
-  if (process.env.DEV_MODE_ENABLED === "true") {
-    logger.trace(
-      "[DASHBOARD_PAGE] Modo DEV: Devolviendo datos de campañas simuladas."
-    );
-    // En modo DEV, el dashboard no necesita campañas recientes.
-    return <DashboardClient recentCampaigns={[]} />;
-  }
-
   const cookieStore = cookies();
   const activeWorkspaceId = cookieStore.get("active_workspace_id")?.value;
 
   if (!activeWorkspaceId) {
     logger.warn(
-      "[DASHBOARD_PAGE] No hay workspace activo. No se pueden cargar campañas recientes."
+      "[DashboardPageLoader] No active workspace found. Cannot load recent campaigns."
     );
     return <DashboardClient recentCampaigns={[]} />;
   }
 
   try {
-    // REFACTORIZACIÓN: La lógica de consulta a Supabase ha sido reemplazada
-    // por una llamada única y limpia a la capa de datos.
+    logger.trace(
+      `[DashboardPageLoader] Fetching recent campaigns for workspace: ${activeWorkspaceId}`
+    );
     const recentCampaigns =
       await campaignsData.getRecentCampaignsByWorkspaceId(activeWorkspaceId);
-
     return <DashboardClient recentCampaigns={recentCampaigns} />;
   } catch (error) {
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message }
+        : { error: String(error) };
     logger.error(
-      "[DASHBOARD_PAGE] Error al cargar campañas recientes desde la capa de datos:",
-      error
+      `[DashboardPageLoader] Failed to load recent campaigns for workspace: ${activeWorkspaceId}`,
+      errorContext
     );
+
+    // --- REFACTORIZACIÓN: Internacionalización del Error ---
+    const t = await getTranslations("DashboardPage");
     return (
       <Card className="flex flex-col items-center justify-center h-full p-8 text-center bg-destructive/10 border-destructive/50">
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-xl font-bold text-destructive-foreground">
-          Error al Cargar Datos
+          {t("error_title")}
         </h2>
-        <p className="text-muted-foreground mt-2">
-          No se pudo obtener la información de tus campañas recientes.
-        </p>
+        <p className="text-muted-foreground mt-2">{t("error_description")}</p>
       </Card>
     );
   }
@@ -93,14 +89,12 @@ export default async function DashboardPage() {
     </Suspense>
   );
 }
-
 /**
- * @section MEJORAS FUTURAS
- * @description Mejoras incrementales para la página principal del dashboard.
+ * @section MEJORA CONTINUA
  *
- * 1.  **Cacheo de Datos con `unstable_cache`**: La llamada a `getRecentCampaignsByWorkspaceId` es una candidata ideal para ser envuelta con `unstable_cache` de Next.js. Esto podría cachear el resultado por un corto período (ej. 1-5 minutos), mejorando el rendimiento en navegaciones frecuentes al dashboard sin sacrificar la frescura de los datos.
- * 2.  **Esqueleto de Carga Sofisticado**: El componente `PageSkeleton` actual es funcional. Podría ser reemplazado por un esqueleto más detallado que imite con mayor precisión la estructura de `DashboardClient` (título, cuadrícula de tarjetas), mejorando la experiencia de carga percibida (LCP y CLS).
- * 3.  **Estado de Bienvenida Contextual**: Aunque el layout redirige en el onboarding, esta página podría mostrar un componente especial de "Bienvenida" en la primera visita después de la creación del workspace, en lugar del dashboard completo, para guiar al usuario en sus siguientes pasos de forma más efectiva.
- * 4.  **Error Boundary de React**: Para una máxima resiliencia, el componente `<DashboardClient />` dentro de `DashboardPageLoader` podría ser envuelto en un Error Boundary de React. Esto capturaría cualquier error de renderizado inesperado en el lado del cliente y mostraría una UI de fallback amigable en lugar de una página en blanco.
+ * @subsection Melhorias Adicionadas
+ * 1. **Modo Exclusivo de Producción**: ((Implementada)) Se ha eliminado la lógica `DEV_MODE`.
+ * 2. **Full Internacionalización**: ((Implementada)) El estado de error ahora consume textos desde `next-intl`.
+ * 3. **Full Observabilidad**: ((Implementada)) Los logs de advertencia y error ahora incluyen el `workspaceId` para un diagnóstico preciso.
  */
 // app/[locale]/dashboard/page.tsx

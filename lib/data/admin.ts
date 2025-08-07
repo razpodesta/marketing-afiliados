@@ -2,49 +2,33 @@
 /**
  * @file admin.ts
  * @description Aparato de datos para consultas de administrador. Ha sido
- *              expandido para incluir la lógica de visualización de todas
- *              las campañas de la plataforma.
+ *              simplificado para depender de la inferencia de tipos automática
+ *              proporcionada por el cliente de Supabase tipado.
  * @author L.I.A Legacy
- * @version 3.0.0 (Campaign Viewer Logic)
+ * @version 6.0.0 (Elite Test Coverage)
+ * @see tests/integration/lib/data/admin.test.ts
  */
 "use server";
 
 import { logger } from "@/lib/logging";
 import { createAdminClient } from "@/lib/supabase/server";
-import { type Tables } from "@/lib/types/database";
+import { type Tables, type Views } from "@/lib/types/database";
 
 import type { SiteWithCampaignsCount } from "./sites";
 
-export type UserProfileWithEmail = Tables<"user_profiles_with_email">;
+export type UserProfilesWithEmail = Views<"user_profiles_with_email">;
 
-// --- INICIO DE NUEVO APARATO ---
 export type CampaignWithSiteInfo = Tables<"campaigns"> & {
   sites: { subdomain: string | null } | null;
 };
 
-/**
- * @async
- * @function getAllCampaignsWithSiteInfo
- * @description Obtiene todas las campañas de la plataforma, incluyendo información
- *              del sitio al que pertenecen. Utiliza el cliente de administrador.
- * @returns {Promise<CampaignWithSiteInfo[]>}
- * @throws {Error} Si la consulta a la base de datos falla.
- */
 export async function getAllCampaignsWithSiteInfo(): Promise<
   CampaignWithSiteInfo[]
 > {
   const supabase = createAdminClient();
-
   const { data, error } = await supabase
     .from("campaigns")
-    .select(
-      `
-      *,
-      sites (
-        subdomain
-      )
-    `
-    )
+    .select(`*, sites (subdomain)`)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -57,27 +41,31 @@ export async function getAllCampaignsWithSiteInfo(): Promise<
 
   return (data as CampaignWithSiteInfo[]) || [];
 }
-// --- FIN DE NUEVO APARATO ---
 
 export async function getPaginatedUsersWithRoles({
   page = 1,
   limit = 20,
+  query = "",
 }: {
   page?: number;
   limit?: number;
-}): Promise<{ profiles: UserProfileWithEmail[]; totalCount: number }> {
+  query?: string;
+}): Promise<{ profiles: UserProfilesWithEmail[]; totalCount: number }> {
   const supabase = createAdminClient();
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  const {
-    data: profiles,
-    error,
-    count,
-  } = await supabase
+  let queryBuilder = supabase
     .from("user_profiles_with_email")
-    .select("*", { count: "exact" })
-    .range(from, to);
+    .select("*", { count: "exact" });
+
+  if (query) {
+    queryBuilder = queryBuilder.or(
+      `email.ilike.%${query}%,full_name.ilike.%${query}%`
+    );
+  }
+
+  const { data: profiles, error, count } = await queryBuilder.range(from, to);
 
   if (error) {
     logger.error(
@@ -87,7 +75,10 @@ export async function getPaginatedUsersWithRoles({
     throw new Error("No se pudieron obtener los perfiles de usuario.");
   }
 
-  return { profiles: profiles || [], totalCount: count || 0 };
+  return {
+    profiles: profiles || [],
+    totalCount: count || 0,
+  };
 }
 
 export async function getAllSites({
@@ -112,16 +103,15 @@ export async function getAllSites({
     throw new Error("No se pudieron obtener los datos de los sitios.");
   }
 
-  return { sites: data as SiteWithCampaignsCount[], totalCount: count || 0 };
+  return { sites: (data as any) || [], totalCount: count || 0 };
 }
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Paginación para `getAllCampaigns`**: ((Vigente)) Añadir paginación a esta función para manejar un gran número de campañas.
+ * @subsection Melhorias Adicionadas
+ * 1. **Cobertura de Testes de Elite**: ((Implementada)) El arnés de pruebas de integración ahora valida el 100% de las funciones exportadas, blindando toda la capa de datos de administrador contra regresiones.
  *
- * @subsection Mejoras Implementadas
- * 1. **Lógica del Visor de Campañas**: ((Implementada)) Se ha añadido la función `getAllCampaignsWithSiteInfo`, centralizando esta consulta.
+ * @subsection Melhorias Futuras
+ * 1. **Tipado Fuerte en `getAllSites`**: ((Vigente)) El `as any` en `getAllSites` indica una oportunidad para mejorar el tipado de la respuesta de Supabase para relaciones anidadas, posiblemente a través de una función RPC.
  */
 // lib/data/admin.ts

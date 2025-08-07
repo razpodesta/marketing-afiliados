@@ -1,11 +1,10 @@
 // components/sites/CreateSiteForm.tsx
 /**
  * @file CreateSiteForm.tsx
- * @description Formulario para la creación de nuevos sitios. Ha sido refactorizado
- *              para que su callback `onSuccess` pase el FormData, delegando la
- *              invocación de la Server Action a su componente padre.
+ * @description Formulario para la creación de nuevos sitios. Refatorado para ser
+ *              um componente puro que recebe todos os seus textos via props.
  * @author L.I.A. Legacy
- * @version 6.0.0 (Callback Contract Alignment)
+ * @version 8.0.0 (Pure I18n Component)
  */
 "use client";
 
@@ -18,23 +17,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreateSiteClientSchema } from "@/lib/validators";
+
 import { SubdomainInput } from "./SubdomainInput";
 
-type FormInputData = z.infer<typeof CreateSiteClientSchema>;
+// --- INÍCIO DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+export interface CreateSiteFormTexts {
+  nameLabel: string;
+  namePlaceholder: string;
+  subdomainLabel: string;
+  subdomainInUseError: string;
+  descriptionLabel: string;
+  descriptionPlaceholder: string;
+  creatingButton: string;
+  createButton: string;
+}
 
 interface CreateSiteFormProps {
   workspaceId: string;
-  // --- INICIO DE REFACTORIZACIÓN DE CONTRATO ---
-  // El callback ahora pasa los datos del formulario.
   onSuccess: (formData: FormData) => void;
-  isPending: boolean; // El estado de carga viene de fuera.
-  // --- FIN DE REFACTORIZACIÓN DE CONTRATO ---
+  isPending: boolean;
+  texts: CreateSiteFormTexts;
 }
+// --- FIM DA ATUALIZAÇÃO DO CONTRATO DE PROPS ---
+
+type FormInputData = z.infer<typeof CreateSiteClientSchema>;
 
 export function CreateSiteForm({
   workspaceId,
   onSuccess,
   isPending,
+  texts,
 }: CreateSiteFormProps) {
   const form = useForm<FormInputData>({
     resolver: zodResolver(CreateSiteClientSchema),
@@ -59,7 +71,7 @@ export function CreateSiteForm({
     formData.append("subdomain", data.subdomain);
     formData.append("workspaceId", data.workspaceId);
     formData.append("description", data.description || "");
-    onSuccess(formData); // Llama al callback con los datos.
+    onSuccess(formData);
   };
 
   const isLoading = isSubmitting || isPending;
@@ -69,10 +81,10 @@ export function CreateSiteForm({
       <input type="hidden" {...register("workspaceId")} />
 
       <div className="space-y-2">
-        <Label htmlFor="name">Nombre del sitio</Label>
+        <Label htmlFor="name">{texts.nameLabel}</Label>
         <Input
           id="name"
-          placeholder="Mi Primer Sitio Web"
+          placeholder={texts.namePlaceholder}
           {...register("name")}
         />
         {errors.name && (
@@ -83,15 +95,15 @@ export function CreateSiteForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="subdomain">Subdominio</Label>
-        <SubdomainInput form={form} />
+        <Label htmlFor="subdomain">{texts.subdomainLabel}</Label>
+        <SubdomainInput form={form} errorText={texts.subdomainInUseError} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Descripción (opcional)</Label>
+        <Label htmlFor="description">{texts.descriptionLabel}</Label>
         <Input
           id="description"
-          placeholder="Un sitio para mi nueva campaña de afiliados."
+          placeholder={texts.descriptionPlaceholder}
           {...register("description")}
         />
         {errors.description && (
@@ -103,8 +115,15 @@ export function CreateSiteForm({
 
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {isLoading ? "Creando Sitio..." : "Crear Sitio"}
+        {isLoading ? texts.creatingButton : texts.createButton}
       </Button>
     </form>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Puro de I18n**: ((Implementada)) O componente agora é 100% agnóstico ao conteúdo.
+ */
+// components/sites/CreateSiteForm.tsx

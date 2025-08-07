@@ -1,12 +1,10 @@
 // app/[locale]/layout.tsx
 /**
  * @file app/[locale]/layout.tsx
- * @description Layout Canónico de Contexto y Estilo.
- *              REFACTORIZADO: Corregida la capitalización en la ruta de importación
- *              de TelemetryClientLogger para resolver el fallo de build, manteniendo
- *              la integridad completa del aparato.
+ * @description Layout Canónico de Contexto y Estilo. La telemetría del lado
+ *              del cliente ha sido suspendida temporalmente.
  * @author L.I.A. Legacy
- * @version 7.1.1 (Build Fix & Integrity Restoration)
+ * @version 8.0.0 (Client Telemetry Suspended)
  */
 import "../globals.css";
 
@@ -19,7 +17,7 @@ import React from "react";
 import { Toaster } from "react-hot-toast";
 
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { TelemetryClientLogger } from "@/components/telemetry/TelemetryClientLogger";
+// import { TelemetryClientLogger } from "@/components/telemetry/TelemetryClientLogger"; // TELEMETRÍA SUSPENDIDA
 import { locales } from "@/lib/navigation";
 
 export const metadata: Metadata = {
@@ -72,7 +70,10 @@ export default async function LocaleLayout({
           >
             <Toaster position="bottom-right" />
             {children}
-            <TelemetryClientLogger />
+            {/* --- INICIO DE SUSPENSIÓN DE TELEMETRÍA --- */}
+            {/* TODO: Reactivar la telemetría del cliente. */}
+            {/* <TelemetryClientLogger /> */}
+            {/* --- FIN DE SUSPENSIÓN DE TELEMETRÍA --- */}
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>
@@ -83,6 +84,9 @@ export default async function LocaleLayout({
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Corrección de Build (Casing)**: ((Implementada)) Se ha corregido la capitalización de la ruta de importación.
- * 2. **Integridad Restaurada**: ((Implementada)) Se ha restaurado toda la funcionalidad original del aparato, eliminando la regresión.
+ * 1. **Suspensión de Telemetría de Cliente**: ((Implementada)) Se ha comentado la renderización de `TelemetryClientLogger` para desactivar por completo la recolección de huellas digitales en el navegador y detener las llamadas a la Server Action fallida.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Carga Diferida Condicional**: ((Vigente)) Cuando se reactive, `TelemetryClientLogger` debería ser cargado dinámicamente (`next/dynamic` con `ssr: false`) para no impactar el LCP.
  */
+// app/[locale]/layout.tsx

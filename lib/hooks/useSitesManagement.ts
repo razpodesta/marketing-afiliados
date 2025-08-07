@@ -1,35 +1,32 @@
 // lib/hooks/useSitesManagement.ts
 /**
  * @file useSitesManagement.ts
- * @description Hook de estado especializado para la página "Mis Sitios".
- *              Ha sido refactorizado para utilizar el hook genérico reutilizable
- *              `useOptimisticResourceManagement`, unificando la lógica de creación
- *              y eliminación en un único patrón arquitectónico.
+ * @description Hook de estado especializado para a página "Meus Sites".
+ *              Refatorado para ser um hook de lógica pura, recebendo todas
+ *              as dependências de texto (como `entityName`) do orquestrador.
  * @author L.I.A Legacy & RaZ Podestá
- * @co-author MetaShark
- * @version 8.0.0 (Atomic Architecture Refactor)
- * @see {@link file://./useOptimisticResourceManagement.ts} Para la lógica de negocio subyacente.
+ * @version 9.0.0 (Pure Logic Hook)
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { useCallback, useState } from "react";
 
 import { sites as sitesActions } from "@/lib/actions";
 import { type SiteWithCampaignsCount } from "@/lib/data/sites";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { debounce } from "@/lib/utils";
+
 import { useOptimisticResourceManagement } from "./useOptimisticResourceManagement";
 
 export function useSitesManagement(
   initialSites: SiteWithCampaignsCount[],
-  workspaceId: string
+  workspaceId: string,
+  entityName: string // <-- Nova prop para internacionalização
 ) {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
-  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
   const {
     items: sites,
     isPending,
@@ -38,7 +35,7 @@ export function useSitesManagement(
     handleDelete: genericHandleDelete,
   } = useOptimisticResourceManagement<SiteWithCampaignsCount>({
     initialItems: initialSites,
-    entityName: "Sitio",
+    entityName, // <-- Passado para o hook genérico
     createAction: sitesActions.createSiteAction,
     deleteAction: sitesActions.deleteSiteAction,
   });
@@ -51,7 +48,7 @@ export function useSitesManagement(
       } else {
         params.delete("q");
       }
-      params.delete("page"); // Reset page on new search
+      params.set("page", "1");
       router.push(`${pathname}?${params.toString()}` as any);
     }, 500),
     [pathname, router]
@@ -65,13 +62,12 @@ export function useSitesManagement(
       name,
       subdomain,
       workspace_id: workspaceId,
-      // Proporcionar valores por defecto para el estado optimista
       id: `optimistic-${Date.now()}`,
       description: (formData.get("description") as string) || null,
       icon: "🌐",
       created_at: new Date().toISOString(),
       updated_at: null,
-      owner_id: "optimistic-user", // Placeholder
+      owner_id: "optimistic-user",
       custom_domain: null,
       campaigns: [{ count: 0 }],
     };
@@ -84,21 +80,27 @@ export function useSitesManagement(
     const siteId = formData.get("siteId");
     if (siteId) {
       const genericFormData = new FormData();
+      // O hook genérico espera a chave 'id'
       genericFormData.append("id", siteId as string);
       genericHandleDelete(genericFormData);
     }
   };
-  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
   return {
     sites,
     isCreateDialogOpen,
     setCreateDialogOpen,
     isPending,
-    // Renombrado para consistencia semántica
     mutatingId,
     handleSearch,
     handleCreate,
     handleDelete,
   };
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Hook de Lógica Pura**: ((Implementada)) O hook não contém mais texto codificado em duro. A prop `entityName` é agora injetada, tornando o hook completamente reutilizável e agnóstico à apresentação.
+ */
+// lib/hooks/useSitesManagement.ts

@@ -1,13 +1,4 @@
 // components/ui/ConfirmationDialog.tsx
-/**
- * @file ConfirmationDialog.tsx
- * @description Componente de UI genérico para confirmación de acciones.
- *              Ha sido refactorizado para una accesibilidad (a11y) completa,
- *              anidando correctamente `DialogHeader` y `DialogFooter` dentro
- *              de `DialogContent` para resolver la advertencia de `aria-describedby`.
- * @author L.I.A Legacy & Raz Podestá
- * @version 4.2.0 (Full Accessibility Compliance)
- */
 "use client";
 
 import { Loader2 } from "lucide-react";
@@ -26,12 +17,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+/**
+ * @file ConfirmationDialog.tsx
+ * @description Componente de UI genérico y puro para confirmación de acciones.
+ *              Ahora es completamente agnóstico al contenido, recibiendo todos
+ *              sus textos a través de props para una internacionalización total.
+ * @author L.I.A Legacy & Raz Podestá
+ * @version 5.0.0 (Full Internationalization via Props)
+ */
 interface ConfirmationDialogProps {
   triggerButton: React.ReactNode;
   icon?: React.ElementType;
   title: string;
   description: React.ReactNode;
   confirmButtonText: string;
+  cancelButtonText: string; // <-- NUEVA PROP
   confirmButtonVariant?: VariantProps<typeof buttonVariants>["variant"];
   onConfirm: (formData: FormData) => void;
   isPending: boolean;
@@ -44,6 +44,7 @@ export function ConfirmationDialog({
   title,
   description,
   confirmButtonText,
+  cancelButtonText, // <-- NUEVA PROP
   confirmButtonVariant = "destructive",
   onConfirm,
   isPending,
@@ -59,8 +60,6 @@ export function ConfirmationDialog({
     <Dialog>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent>
-        {/* --- INICIO DE REFACTORIZACIÓN DE ACCESIBILIDAD --- */}
-        {/* La estructura correcta es tener Header y Footer DENTRO de Content. */}
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -74,7 +73,7 @@ export function ConfirmationDialog({
           <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={isPending}>
-                Cancelar
+                {cancelButtonText}
               </Button>
             </DialogClose>
             {hiddenInputs &&
@@ -91,7 +90,6 @@ export function ConfirmationDialog({
             </Button>
           </DialogFooter>
         </form>
-        {/* --- FIN DE REFACTORIZACIÓN DE ACCESIBILIDAD --- */}
       </DialogContent>
     </Dialog>
   );
@@ -100,10 +98,10 @@ export function ConfirmationDialog({
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Input de Confirmación**: ((Vigente)) Para acciones de alto riesgo, añadir un campo de texto donde el usuario deba escribir el nombre del recurso para habilitar el botón de confirmación.
+ * @subsection Melhorias Adicionadas
+ * 1. **Contrato de Contenido Explícito**: ((Implementada)) Se ha añadido la prop `cancelButtonText`, haciendo que el componente sea 100% controlable y agnóstico al contenido, cumpliendo con el mandato de internacionalización.
  *
- * @subsection Mejoras Implementadas
- * 1. **Accesibilidad (`aria-describedby`)**: ((Implementada)) Se ha reestructurado el componente para anidar `DialogHeader` y `DialogFooter` dentro de `DialogContent`, lo que permite a Radix UI conectar automáticamente la descripción al diálogo y eliminar la advertencia de accesibilidad.
+ * @subsection Melhorias Futuras
+ * 1. **Input de Confirmación**: ((Vigente)) Para acciones de alto riesgo, añadir un campo de texto donde el usuario deba escribir el nombre del recurso para habilitar el botón de confirmación.
  */
 // components/ui/ConfirmationDialog.tsx

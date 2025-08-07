@@ -1,30 +1,29 @@
-// Ruta: lib/supabase/server.ts
+// lib/supabase/server.ts
 /**
  * @file lib/supabase/server.ts
  * @description Crea clientes de Supabase para uso exclusivo en el lado del servidor.
- *
- * @important
- * ESTE MÓDULO UTILIZA `cookies` DE `next/headers` Y SOLO DEBE SER IMPORTADO EN:
- *
- * @author Metashark
- * @version 3.2.0 (Usage Context Clarification)
+ *              Ha sido refactorizado para utilizar el tipo `Database` unificado,
+ *              proporcionando al cliente de Supabase un conocimiento completo del
+ *              esquema, incluyendo tablas y vistas.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 4.0.0 (Unified Type Integration)
  */
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 import { type Database } from "@/lib/types/database";
+// --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 
-/**
- * @description Crea una instancia del cliente de Supabase para el servidor que opera en nombre del usuario.
- *              Utiliza las cookies de la petición entrante para gestionar la sesión.
- * @returns La instancia del cliente de Supabase para el servidor.
- */
 export function createClient() {
   const cookieStore = cookies();
 
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+  // Se pasa el tipo `Database` unificado al cliente.
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
     {
       cookies: {
         get(name: string) {
@@ -34,16 +33,14 @@ export function createClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Los Server Components de solo lectura no pueden establecer cookies.
-            // Se ignora el error de forma segura.
+            // Ignorado de forma segura.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: "", ...options });
           } catch (error) {
-            // Los Server Components de solo lectura no pueden establecer cookies.
-            // Se ignora el error de forma segura.
+            // Ignorado de forma segura.
           }
         },
       },
@@ -51,16 +48,14 @@ export function createClient() {
   );
 }
 
-/**
- * @description Crea una instancia del cliente de Supabase para el servidor con privilegios de administrador.
- *              Utiliza la `SUPABASE_SERVICE_ROLE_KEY` para saltarse las políticas de RLS.
- * @returns La instancia del cliente de Supabase de administrador.
- */
 export function createAdminClient() {
   const cookieStore = cookies();
+  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
+  // Se pasa el tipo `Database` unificado al cliente de administrador.
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
     {
       cookies: {
         get(name: string) {
@@ -70,14 +65,14 @@ export function createAdminClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Los Server Components de solo lectura no pueden establecer cookies.
+            // Ignorado de forma segura.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: "", ...options });
           } catch (error) {
-            // Los Server Components de solo lectura no pueden establecer cookies.
+            // Ignorado de forma segura.
           }
         },
       },
@@ -89,8 +84,10 @@ export function createAdminClient() {
   );
 }
 
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Gestión Centralizada de Errores: Crear una función wrapper o una clase de servicio que utilice estos clientes y centralice el manejo de errores y el logging para las llamadas a la base de datos, reduciendo la repetición de bloques try/catch en toda la aplicación.
- * 2. Validación de Variables de Entorno: Implementar una validación de variables de entorno al inicio de la aplicación (usando Zod) para asegurar que las URLs y claves de Supabase estén siempre presentes, evitando fallos en tiempo de ejecución.
- * 3. Inyección de Dependencias: Para arquitecturas más complejas y facilitar las pruebas, se podría implementar un patrón de inyección de dependencias para proporcionar el cliente de Supabase a las funciones de acceso a datos, en lugar de importarlo directamente.
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Integración de Tipos Unificados**: ((Implementada)) Los clientes de Supabase ahora son instanciados con el tipo `Database` fusionado, dándoles visibilidad completa sobre Tablas y Vistas, y resolviendo la causa raíz de los errores de compilación.
  */
+// lib/supabase/server.ts

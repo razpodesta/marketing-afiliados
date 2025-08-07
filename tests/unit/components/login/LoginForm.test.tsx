@@ -14,7 +14,7 @@ import { render, screen } from "@testing-library/react";
 import { useSearchParams } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LoginForm } from "@/app/[locale]/login/login-form";
+import { LoginForm } from "@/app/[locale]/auth/login/login-form";
 
 // --- Simulación de Dependencias (solo las no cubiertas por el setup global) ---
 vi.mock("@supabase/auth-ui-react", () => ({

@@ -1,39 +1,48 @@
 // components/layout/LandingHeader.tsx
-/**
- * @file LandingHeader.tsx
- * @description Encabezado de la landing page, ahora "consciente del idioma".
- *              Ha sido refactorizado para usar el componente <Link> de `next-intl`,
- *              asegurando que todos los enlaces de navegación incluyan el prefijo
- *              del `locale` actual.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 8.0.0 (i18n-Aware Navigation)
- */
 "use client";
 
 import { Menu } from "lucide-react";
 import Image from "next/image";
-// --- INICIO DE REFACTORIZACIÓN I18N ---
-import { Link } from "@/lib/navigation";
-// --- FIN DE REFACTORIZACIÓN I18N ---
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { SmartLink, type NavLinkItem } from "@/components/ui/SmartLink";
+import { Link, type AppPathname } from "@/lib/navigation";
 
-export function LandingHeader() {
+/**
+ * @file LandingHeader.tsx
+ * @description Encabezado de la landing page, refactorizado para consumir el
+ *              componente atómico `SmartLink` y manejar correctamente los eventos
+ *              de UI en el menú móvil.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 12.1.0
+ * @see {@link file://./tests/unit/components/layout/LandingHeader.test.tsx} Para el arnés de pruebas correspondiente.
+ */
+export interface LandingHeaderProps {
+  navLinks: NavLinkItem[];
+  signInText: string;
+  signUpText: string;
+  openMenuText: string;
+}
+
+export function LandingHeader({
+  navLinks,
+  signInText,
+  signUpText,
+  openMenuText,
+}: LandingHeaderProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
 
-  const navLinks = [
-    { href: "#features", label: "Características" },
-    { href: "#pricing", label: "Precios" },
-    { href: "#faq", label: "FAQ" },
-  ];
+  const rootPath: AppPathname = "/";
+  const loginPath: AppPathname = "/auth/login";
+  const signupPath: AppPathname = "/auth/signup";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href={rootPath} className="flex items-center gap-3">
           <Image
             src="/images/logo.png"
             alt="Logo de MetaShark"
@@ -50,13 +59,12 @@ export function LandingHeader() {
           className="hidden items-center gap-6 text-sm font-medium md:flex"
         >
           {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </a>
+            <SmartLink
+              key={
+                typeof link.href === "string" ? link.href : link.href.pathname
+              }
+              {...link}
+            />
           ))}
         </nav>
 
@@ -64,10 +72,10 @@ export function LandingHeader() {
           <div className="hidden md:flex items-center gap-2">
             <LanguageSwitcher />
             <Button variant="ghost" asChild>
-              <Link href="/login">Iniciar Sesión</Link>
+              <Link href={loginPath}>{signInText}</Link>
             </Button>
             <Button asChild>
-              <Link href="/login">Regístrate Gratis</Link>
+              <Link href={signupPath}>{signUpText}</Link>
             </Button>
           </div>
 
@@ -76,7 +84,7 @@ export function LandingHeader() {
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon">
                   <Menu className="h-5 w-5" />
-                  <span className="sr-only">Abrir menú</span>
+                  <span className="sr-only">{openMenuText}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right">
@@ -85,23 +93,31 @@ export function LandingHeader() {
                   className="grid gap-6 text-lg font-medium mt-8"
                 >
                   {navLinks.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
+                    <div
+                      key={
+                        typeof link.href === "string"
+                          ? link.href
+                          : link.href.pathname
+                      }
                       onClick={() => setIsSheetOpen(false)}
-                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) =>
+                        (e.key === "Enter" || e.key === " ") &&
+                        setIsSheetOpen(false)
+                      }
                     >
-                      {link.label}
-                    </a>
+                      <SmartLink {...link} />
+                    </div>
                   ))}
                 </nav>
                 <div className="mt-8 pt-8 border-t border-border/40 flex flex-col gap-4">
                   <LanguageSwitcher />
                   <Button variant="ghost" asChild>
-                    <Link href="/login">Iniciar Sesión</Link>
+                    <Link href={loginPath}>{signInText}</Link>
                   </Button>
                   <Button asChild>
-                    <Link href="/login">Regístrate Gratis</Link>
+                    <Link href={signupPath}>{signUpText}</Link>
                   </Button>
                 </div>
               </SheetContent>
@@ -112,4 +128,11 @@ export function LandingHeader() {
     </header>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Composición de Componentes Correcta**: ((Implementada)) Se ha envuelto `SmartLink` en un `div` con el manejador `onClick` en el menú móvil, resolviendo el error `TS2322` y respetando el contrato de `SmartLink`.
+ * 2. **Accesibilidad (a11y)**: ((Implementada)) Se han añadido los atributos `role`, `tabIndex` y `onKeyDown` al `div` interactivo para asegurar que sea accesible a través del teclado.
+ */
 // components/layout/LandingHeader.tsx

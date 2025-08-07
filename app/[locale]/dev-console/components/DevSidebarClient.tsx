@@ -2,10 +2,11 @@
 /**
  * @file DevSidebarClient.tsx
  * @description Componente de cliente para la barra lateral del `dev-console`.
- *              Ha sido actualizado para incluir la navegación a la nueva
- *              sección de Telemetría.
+ *              Ha sido refactorizado para ser completamente internacionalizado,
+ *              consumiendo todos sus textos desde la capa de `next-intl`.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 2.1.0 (Telemetry Navigation Integration)
+ * @version 3.0.0 (Full Internationalization)
+ * @see tests/unit/app/[locale]/dev-console/components/DevSidebarClient.test.tsx
  */
 "use client";
 
@@ -18,10 +19,11 @@ import {
   LogOut,
   ShieldCheck,
   Users,
-  Waypoints, // <-- NUEVO ICONO
+  Waypoints,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import React, { useEffect, useState } from "react";
 
 import {
@@ -92,23 +94,23 @@ const RouteTree = ({ node }: { node: RouteNode }) => {
 };
 
 export function DevSidebarClient() {
+  const t = useTranslations("DevConsoleSidebar");
   const [routes, setRoutes] = useState<RouteNode | null>(null);
+
   const navLinks = [
-    { href: "/dev-console", label: "Overview", icon: Home },
-    { href: "/dev-console/users", label: "Gestión de Usuarios", icon: Users },
+    { href: "/dev-console", label: t("overview"), icon: Home },
+    { href: "/dev-console/users", label: t("userManagement"), icon: Users },
     {
       href: "/dev-console/campaigns",
-      label: "Visor de Campañas",
+      label: t("campaignViewer"),
       icon: LayoutGrid,
     },
-    // --- NUEVO ENLACE ---
     {
       href: "/dev-console/telemetry",
-      label: "Telemetría",
+      label: t("telemetry"),
       icon: Waypoints,
     },
-    // --- FIN DE NUEVO ENLACE ---
-    { href: "/dev-console/logs", label: "Logs de Auditoría", icon: FileText },
+    { href: "/dev-console/logs", label: t("auditLogs"), icon: FileText },
   ];
 
   useEffect(() => {
@@ -140,14 +142,14 @@ export function DevSidebarClient() {
           <Accordion type="single" collapsible>
             <AccordionItem value="routes">
               <AccordionTrigger className="text-sm font-semibold">
-                Visor de Rutas del Proyecto
+                {t("routeViewer")}
               </AccordionTrigger>
               <AccordionContent>
                 {routes ? (
                   <RouteTree node={routes} />
                 ) : (
                   <p className="text-xs text-muted-foreground p-2">
-                    Cargando rutas...
+                    {t("loadingRoutes")}
                   </p>
                 )}
               </AccordionContent>
@@ -159,7 +161,7 @@ export function DevSidebarClient() {
         <form action={sessionActions.signOutAction}>
           <Button variant="ghost" className="w-full justify-start">
             <LogOut className="mr-2 h-4 w-4" />
-            Cerrar Sesión
+            {t("signOut")}
           </Button>
         </form>
       </div>
@@ -168,14 +170,13 @@ export function DevSidebarClient() {
 }
 /**
  * @section MEJORA CONTINUA
- * @description Mejoras para evolucionar la barra lateral de la consola.
  *
- * @subsection Mejoras Futuras
- * 1. **Búsqueda en el Árbol de Rutas**: (Vigente) Añadir un campo de búsqueda para filtrar rápidamente las rutas.
- * 2. **Enlaces en el Árbol de Rutas**: (Vigente) Hacer que cada nodo del `RouteTree` que represente una página sea un `<Link>` navegable.
- * 3. **Sincronización de Estado del Acordeón**: (Vigente) Persistir el estado de apertura/cierre del acordeón en `localStorage`.
+ * @subsection Melhorias Adicionadas
+ * 1. **Internacionalización Completa**: ((Implementada)) Todos los textos visibles por el usuario han sido abstraídos a claves de traducción y se consumen a través del hook `useTranslations`, cumpliendo con el mandato del proyecto.
  *
- * @subsection Mejoras Adicionadas
- * 1. **Carga Dinámica de Enlaces**: (Vigente) Para una mayor flexibilidad, la lista `navLinks` podría ser cargada desde un archivo de configuración o incluso desde la base de datos, permitiendo añadir nuevas secciones a la `dev-console` sin necesidad de un redespliegue de código.
+ * @subsection Melhorias Futuras
+ * 1. **Búsqueda en el Árbol de Rutas**: ((Vigente)) Añadir un campo de búsqueda para filtrar rápidamente las rutas en el `RouteTree`.
+ * 2. **Enlaces Navegables en el Árbol**: ((Vigente)) Hacer que cada nodo del `RouteTree` que represente una página (`isPage: true`) sea un `<Link>` navegable.
+ * 3. **Carga de Enlaces desde Configuración**: ((Vigente)) Para máxima flexibilidad, la lista `navLinks` podría cargarse desde un archivo de configuración o incluso desde la base de datos.
  */
 // app/[locale]/dev-console/components/DevSidebarClient.tsx

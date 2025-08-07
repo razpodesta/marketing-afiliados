@@ -1,21 +1,28 @@
 // app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx
 /**
  * @file campaigns-client.tsx
- * @description Componente orquestador para la gestión de campañas. Ha sido
- *              re-arquitecturizado para componer aparatos de UI atómicos,
- *              simplificando su lógica y mejorando su mantenibilidad.
+ * @description Orquestador de Cliente de élite para la gestión de campañas.
+ *              Este aparato ha sido completamente atomizado. Su única responsabilidad
+ *              es gestionar el estado y componer aparatos de presentación puros.
  * @author L.I.A Legacy
- * @version 5.0.0
+ * @version 7.0.0 (Fully Atomized)
  */
 "use client";
 
-import { CampaignsHeader, CampaignsTable } from "@/components/campaigns";
-import { PaginationControls } from "@/components/sites/PaginationControls";
-import { Card } from "@/components/ui/card";
-import { useCampaignsManagement } from "@/lib/hooks/useCampaignsManagement";
-import type { Tables } from "@/lib/types/database";
+import { useFormatter, useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 
-type Campaign = Tables<"campaigns">;
+import { CampaignsPageHeader } from "@/components/campaigns/CampaignsPageHeader";
+import { getCampaignsColumns } from "@/components/campaigns/CampaignsTableColumns";
+import { DataTable } from "@/components/shared/DataTable";
+import { PaginationControls } from "@/components/shared/PaginationControls";
+import { SearchToolbar } from "@/components/shared/SearchToolbar";
+import { campaigns as campaignActions } from "@/lib/actions";
+import { type CampaignMetadata } from "@/lib/data/campaigns";
+import { useOptimisticResourceManagement } from "@/lib/hooks/useOptimisticResourceManagement";
+import { usePathname, useRouter } from "@/lib/navigation";
+
+type Campaign = CampaignMetadata;
 type SiteInfo = { id: string; subdomain: string | null };
 
 export function CampaignsClient({
@@ -24,51 +31,127 @@ export function CampaignsClient({
   totalCount,
   page,
   limit,
+  searchQuery,
 }: {
   site: SiteInfo;
   initialCampaigns: Campaign[];
   totalCount: number;
   page: number;
   limit: number;
+  searchQuery: string;
 }) {
+  const t = useTranslations("CampaignsPage");
+  const tDialogs = useTranslations("Dialogs");
+  const format = useFormatter();
+  const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
   const {
-    campaigns,
-    isCreateDialogOpen,
-    setCreateDialogOpen,
+    items: campaigns,
     isPending,
     mutatingId,
-    handleDelete,
-    handleCreate,
-  } = useCampaignsManagement(initialCampaigns, site.id);
+    handleCreate: genericHandleCreate,
+    handleDelete: genericHandleDelete,
+  } = useOptimisticResourceManagement<Campaign>({
+    initialItems: initialCampaigns,
+    entityName: t("entityName"),
+    createAction: campaignActions.createCampaignAction,
+    deleteAction: campaignActions.deleteCampaignAction,
+  });
 
-  const isCreating =
-    isPending && (mutatingId?.startsWith("optimistic-") ?? false);
+  const handleCreate = (formData: FormData) => {
+    const name = formData.get("name") as string;
+    if (!name) return;
+    const optimisticCampaign = {
+      name,
+      site_id: site.id,
+      slug: name.toLowerCase().replace(/\s+/g, "-"),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      affiliate_url: null,
+    };
+    genericHandleCreate(formData, optimisticCampaign);
+    setCreateDialogOpen(false);
+  };
+
+  const handleDelete = (formData: FormData) => {
+    const campaignId = formData.get("campaignId");
+    if (campaignId) {
+      const genericFormData = new FormData();
+      genericFormData.append("id", campaignId as string);
+      genericHandleDelete(genericFormData);
+    }
+  };
+
+  const handleSearch = (query: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (query) {
+      params.set("q", query);
+    } else {
+      params.delete("q");
+    }
+    params.set("page", "1");
+    router.push(`${pathname}?${params.toString()}` as any);
+  };
+
+  const columns = useMemo(
+    () =>
+      getCampaignsColumns({
+        t,
+        tDialogs,
+        format,
+        handleDelete,
+        isPending,
+        mutatingId,
+      }),
+    [t, tDialogs, format, handleDelete, isPending, mutatingId]
+  );
 
   return (
     <div className="space-y-6 relative">
-      <CampaignsHeader
-        siteId={site.id}
-        siteSubdomain={site.subdomain}
+      <CampaignsPageHeader
+        t={t}
+        site={site}
         isCreateDialogOpen={isCreateDialogOpen}
         setCreateDialogOpen={setCreateDialogOpen}
-        isCreating={isCreating}
-        onCreate={handleCreate}
+        handleCreate={handleCreate}
+        isPending={isPending}
+        mutatingId={mutatingId}
       />
-      <Card>
-        <CampaignsTable
-          campaigns={campaigns}
-          isPending={isPending}
-          mutatingId={mutatingId}
-          onDelete={handleDelete}
-        />
-      </Card>
+      <SearchToolbar
+        searchQuery={searchQuery}
+        onSearchChange={handleSearch}
+        texts={{
+          placeholder: t("search.placeholder"),
+          clearSearchLabel: t("search.clear_aria"),
+        }}
+      />
+      <DataTable
+        columns={columns}
+        data={campaigns}
+        noResultsText={t("table.empty_state")}
+      />
       <PaginationControls
         page={page}
         totalCount={totalCount}
         limit={limit}
-        basePath="/dashboard/sites/[siteId]/campaigns"
+        basePath={pathname}
         routeParams={{ siteId: site.id }}
+        searchQuery={searchQuery}
+        texts={{
+          previousPageLabel: t("pagination.previous"),
+          nextPageLabel: t("pagination.next"),
+          pageLabelTemplate: t("pagination.page"),
+        }}
       />
     </div>
   );
 }
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Componente Totalmente Atómico**: ((Implementada)) El componente ahora es un orquestador puro. Su JSX es una composición limpia de otros aparatos atómicos, adhiriéndose a nuestra filosofía de diseño.
+ */
+// app/[locale]/dashboard/sites/[siteId]/campaigns/campaigns-client.tsx

@@ -1,5 +1,71 @@
-
 {
+  "LandingHeader": {
+    "features": "Características",
+    "pricing": "Precios",
+    "signIn": "Iniciar Sesión",
+    "signUp": "Registrarse Gratis",
+    "openMenu": "Abrir menú"
+  },
+  "LandingFooter": {
+    "slogan": "Tu copiloto estratégico para el marketing de afiliados.",
+    "product": "Producto",
+    "company": "Compañía",
+    "contact": "Contacto",
+    "stayUpdated": "Mantente Actualizado",
+    "newsletterPrompt": "Únete a nuestro boletín para recibir las últimas noticias y consejos.",
+    "subscribe": "Suscribirse",
+    "allRightsReserved": "© {year} MetaShark Tech. Todos los derechos reservados."
+  },
+  "HeroSection": {
+    "title": "Crea Campañas de Afiliados de Alto Rendimiento con IA",
+    "subtitle": "Pasa de la idea a la landing page publicada en minutos. Sin código, solo resultados.",
+    "ctaPrimary": "Empezar Ahora",
+    "ctaSecondary": "Ver Características"
+  },
+  "FeaturesSection": {
+    "title": "Una Suite de Herramientas, Potencial Ilimitado",
+    "subtitle": "Todo lo que necesitas para escalar tus operaciones de afiliado, impulsado por la tecnología más avanzada.",
+    "features": {
+      "builder": {
+        "title": "Constructor de Landings IA",
+        "description": "Crea páginas de venta y captura de alta conversión en minutos con nuestro constructor guiado por IA."
+      },
+      "copywriter": {
+        "title": "AI Copywriter Pro",
+        "description": "Genera textos persuasivos para tus anuncios, emails y landings que conectan con tu audiencia y venden."
+      },
+      "analytics": {
+        "title": "Análisis Predictivo",
+        "description": "Nuestra IA analiza tus métricas y te da insights claros para optimizar tus campañas y maximizar tu ROI."
+      },
+      "assistant": {
+        "title": "Asistente L.I.A",
+        "description": "Tu estratega de marketing personal. Resuelve dudas, genera ideas y audita tus estrategias 24/7."
+      }
+    }
+  },
+  "LanguageSwitcher": {
+    "selectLanguage_sr": "Seleccionar idioma",
+    "language_en_US": "English",
+    "flag_en_US": "🇺🇸",
+    "language_es_ES": "Español",
+    "flag_es_ES": "🇪🇸",
+    "language_pt_BR": "Português",
+    "flag_pt_BR": "🇧🇷"
+  },
+  "PrivacyPolicyPage": { "title": "Política de Privacidad" },
+  "TermsOfServicePage": { "title": "Términos de Servicio" },
+  "CookiePolicyPage": { "title": "Política de Cookies" },
+  "LegalNoticePage": { "title": "Aviso Legal" },
+  "DisclaimerPage": { "title": "Descargo de Responsabilidad" },
+  "AboutPage": { "title": "Sobre Nosotros" },
+  "BlogPage": { "title": "Blog" },
+  "DocsPage": { "title": "Documentación" },
+  "ChooseLanguagePage": {
+    "title": "Selecciona tu Idioma",
+    "selectFromListText": "O elige de la lista:",
+    "redirectText": "Serás redirigido a la versión en español en {seconds} segundos."
+  },
   "Breadcrumbs": {
     "dashboard": "Dashboard",
     "sites": "Mis Sitios",
@@ -12,7 +78,7 @@
   "DashboardSidebar": {
     "dashboard": "Dashboard",
     "mySites": "Mis Sitios",
-    "liaChat": "Chat L.I.A",
+    "liaChat": "Chat L.I.A.",
     "settings": "Ajustes",
     "devConsole": "Dev Console",
     "userMenu_accountSettings": "Ajustes de Cuenta",
@@ -25,93 +91,228 @@
     "empty_results": "No se encontró el workspace.",
     "createWorkspace_button": "Crear Workspace",
     "inviteMember_button": "Invitar Miembro",
+    "inviteMember_description": "Invita a un nuevo miembro a tu workspace <strong>{workspaceName}</strong>.",
     "workspaceSettings_button": "Ajustes del Workspace",
-    "changing_status": "Cambiando..."
+    "changing_status": "Cambiando...",
+    "onboarding_title": "Crea tu primer Workspace",
+    "onboarding_welcome_title": "¡Bienvenido a MetaShark!",
+    "onboarding_welcome_description": "Para empezar, crea un workspace para organizar tus sitios y campañas."
+  },
+  "DashboardHeader": {
+    "mobile_openMenu_sr": "Abrir menú de navegación",
+    "search_placeholder": "Buscar...",
+    "search_command": "⌘K"
+  },
+  "InvitationBell": {
+    "view_invitations_sr": "Ver invitaciones",
+    "pending_invitations_label": "Invitaciones Pendientes",
+    "invitation_text": "Te invitaron a unirte a <strong>{workspaceName}</strong>",
+    "no_pending_invitations": "No tienes invitaciones pendientes.",
+    "accept_invitation_success": "¡Te has unido al workspace!",
+    "accept_invitation_error": "No se pudo aceptar la invitación. Inténtalo de nuevo."
   },
   "SitesPage": {
     "header_title": "Mis Sitios",
     "header_description": "Gestiona y busca en tus sitios. Cada sitio puede tener múltiples campañas.",
     "search_placeholder": "Buscar por subdominio...",
+    "clear_search_aria": "Limpiar búsqueda",
     "createSite_button": "Crear Sitio",
+    "createSiteDialog_title": "Crear un nuevo sitio",
+    "form_name_label": "Nombre del sitio",
+    "form_name_placeholder": "Mi Primer Sitio Web",
+    "form_subdomain_label": "Subdominio",
+    "subdomain_in_use_error": "Este subdominio ya está en uso.",
+    "form_description_label": "Descripción (opcional)",
+    "form_description_placeholder": "Un sitio para mi nueva campaña de afiliados.",
+    "form_creating_button": "Creando Sitio...",
+    "form_create_button": "Crear Sitio",
     "emptyState_title": "No se encontraron sitios",
     "emptyState_description": "Intenta con otra búsqueda o crea un nuevo sitio.",
-    "createSiteDialog_title": "Crear un nuevo sitio",
-    "createSiteDialog_description": "Los sitios te permiten organizar tus campañas bajo un subdominio único."
+    "campaignCount": "{count, plural, one {Campaña} other {Campañas}}",
+    "manageCampaigns_button": "Gestionar Campañas",
+    "delete_site_aria_label": "Eliminar sitio {subdomain}",
+    "open_site_aria_label": "Abrir sitio en una nueva pestaña",
+    "popover_title": "Previsualización Rápida",
+    "popover_description": "Una previsualización del sitio aparecerá aquí. (Funcionalidad en desarrollo).",
+    "deleteDialog_title": "¿Estás seguro?",
+    "deleteDialog_description": "Esta acción es irreversible. El sitio <strong>{subdomain}</strong>, junto con todas sus campañas y datos, será eliminado permanentemente.",
+    "deleteDialog_confirmButton": "Sí, eliminar sitio"
   },
   "CampaignsPage": {
-    "header_title_prefix": "Campañas para:",
-    "header_description": "Crea y edita las páginas para este sitio.",
-    "backToSites_button": "Volver a Mis Sitios",
-    "createCampaign_button": "Nueva Campaña",
-    "tableHeader_name": "Nombre",
-    "tableHeader_slug": "Slug",
-    "tableHeader_lastUpdated": "Última Actualización",
-    "tableHeader_actions": "Acciones",
-    "tableRow_edit": "Editar",
-    "emptyState_text": "No se han creado campañas para este sitio todavía.",
-    "createCampaignDialog_title": "Crear Nueva Campaña"
+    "entityName": "Campaña",
+    "pageTitle": "Campañas para <span>{siteName}</span>",
+    "pageDescription": "Crea, edita y monitorea todas las campañas para este sitio.",
+    "backToSitesButton": "Volver a Sitios",
+    "createCampaignButton": "Nueva Campaña",
+    "createDialog": {
+      "title": "Crear una nueva campaña"
+    },
+    "deleteDialog": {
+      "title": "Eliminar Campaña",
+      "description": "Esta acción es irreversible. La campaña <strong>{campaignName}</strong> será eliminada permanentemente.",
+      "confirmButton": "Sí, eliminar campaña"
+    },
+    "search": {
+      "placeholder": "Buscar por nombre o slug...",
+      "clear_aria": "Limpiar búsqueda"
+    },
+    "table": {
+      "header_name": "Nombre",
+      "header_slug": "Slug",
+      "header_lastUpdated": "Última Actualización",
+      "header_actions": "Acciones",
+      "action_edit": "Editar",
+      "action_delete_aria": "Eliminar campaña {campaignName}",
+      "empty_state": "Todavía no se han creado campañas para este sitio."
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Ir a la página {pageNumber}"
+    },
+    "form_name_label": "Nombre de la Campaña",
+    "form_name_placeholder": "Ej: Lanzamiento Producto X",
+    "form_creating_button": "Creando Campaña...",
+    "form_create_button": "Crear Campaña"
   },
   "Dialogs": {
-    "deleteSite_title": "¿Eliminar Sitio?",
-    "deleteSite_description": "Esta acción es irreversible. El sitio <strong>{subdomain}</strong>, junto con todas sus campañas y datos, será eliminado permanentemente.",
-    "deleteSite_confirmButton": "Sí, eliminar sitio",
-    "deleteCampaign_title": "¿Eliminar Campaña?",
-    "deleteCampaign_description": "Esta acción es irreversible. La campaña <strong>{campaignName}</strong> será eliminada permanentemente.",
-    "deleteCampaign_confirmButton": "Sí, eliminar",
     "generic_cancelButton": "Cancelar"
   },
-  "AdminDashboard": {
-    "headerTitle": "Gestión de Sitios",
-    "welcomeMessage": "Bienvenido, {username}",
-    "signOutButton": "Cerrar Sesión",
-    "noSubdomains": "Aún no se ha creado ningún sitio.",
-    "visitSubdomain": "Visitar Sitio",
-    "created": "Creado"
+  "AuthLayout": {
+    "go_back_home_aria": "Volver a la página de inicio"
   },
   "LoginPage": {
-    "metadataTitle": "Iniciar Sesión | Metashark",
-    "title": "Bienvenido a Metashark",
-    "subtitle": "Accede a tu cuenta para empezar a transformar tu marketing.",
+    "metadataTitle": "Iniciar Sesión | MetaShark",
+    "title": "Bienvenido de nuevo a MetaShark",
+    "subtitle": "Introduce tus credenciales para acceder a tu panel.",
     "emailLabel": "Dirección de correo electrónico",
     "passwordLabel": "Contraseña",
     "signInButton": "Iniciar Sesión",
-    "signUpButton": "Crear Cuenta",
-    "signInWith": "Continuar con",
-    "signUpWith": "Crear cuenta con",
-    "alreadyHaveAccount": "¿Ya tienes una cuenta? Inicia Sesión",
+    "signInWith": "Iniciar sesión con",
     "dontHaveAccount": "¿No tienes una cuenta? Regístrate",
-    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
-    "sendInstructionsButton": "Enviar Instrucciones de Reseteo"
+    "alreadyHaveAccount": "¿Ya tienes una cuenta? Inicia sesión"
+  },
+  "SignUpPage": {
+    "metadataTitle": "Registrarse | MetaShark",
+    "title": "Crea tu Cuenta",
+    "subtitle": "Únete a la plataforma para empezar a construir tus campañas.",
+    "signUpButton": "Crear Cuenta",
+    "signUpWith": "Registrarse con"
+  },
+  "AuthNoticePage": {
+    "confirmation": {
+      "title": "Revisa tu correo electrónico",
+      "description": "Hemos enviado un enlace de confirmación a tu bandeja de entrada"
+    },
+    "reset": {
+      "title": "Revisa tu correo electrónico",
+      "description": "Hemos enviado un enlace para restablecer tu contraseña a tu bandeja de entrada"
+    },
+    "default": {
+      "title": "Aviso",
+      "description": "Por favor, revisa tu correo electrónico para más instrucciones."
+    }
   },
   "ForgotPasswordPage": {
-    "title": "¿Olvidaste tu Contraseña?",
-    "description": "Introduce tu correo y te enviaremos un enlace para restablecerla.",
-    "emailLabel": "Dirección de Correo",
-    "submitButton": "Enviar Enlace de Reseteo",
+    "title": "¿Olvidaste tu contraseña?",
+    "description": "No te preocupes, te enviaremos instrucciones para restablecerla.",
+    "emailLabel": "Correo electrónico",
+    "submitButton": "Enviar Enlace de Restablecimiento",
     "sendingButton": "Enviando..."
   },
   "ResetPasswordPage": {
-    "title": "Restablecer tu Contraseña",
+    "title": "Establecer una Nueva Contraseña",
     "newPasswordLabel": "Nueva Contraseña",
     "confirmPasswordLabel": "Confirmar Nueva Contraseña",
-    "submitButton": "Actualizar Contraseña",
-    "strength_veryWeak": "Muy Débil",
-    "strength_weak": "Débil",
-    "strength_medium": "Media",
-    "strength_strong": "Fuerte",
-    "strength_veryStrong": "Muy Fuerte"
+    "submitButton": "Actualizar Contraseña"
   },
-  "AuthNoticePage": {
-    "confirmation_title": "Revisa tu correo",
-    "confirmation_description": "Hemos enviado un enlace de confirmación a tu dirección de correo.",
-    "reset_title": "Revisa tu correo",
-    "reset_description": "Hemos enviado un enlace para restablecer tu contraseña a tu correo.",
-    "default_title": "Acción Requerida",
-    "default_description": "Por favor, revisa tu correo electrónico para seguir las instrucciones.",
-    "backToLogin_button": "Volver a Inicio de Sesión",
-    "resend_button": "Reenviar correo",
-    "resend_countdown": "Reenviar en {seconds}s",
-    "open_email_provider": "Abrir {provider}"
+  "DashboardPage": {
+    "error_title": "Error al Cargar el Dashboard",
+    "error_description": "No pudimos obtener los últimos datos. Por favor, inténtalo de nuevo."
+  },
+  "DevConsoleSidebar": {
+    "overview": "Resumen",
+    "userManagement": "Gestión de Usuarios",
+    "campaignViewer": "Visor de Campañas",
+    "telemetry": "Telemetría",
+    "auditLogs": "Logs de Auditoría",
+    "routeViewer": "Visor de Rutas del Proyecto",
+    "loadingRoutes": "Cargando rutas...",
+    "signOut": "Cerrar Sesión"
+  },
+  "DevConsole": {
+    "UserManagementTable": {
+      "table_header": {
+        "email": "Email / ID de Usuario",
+        "full_name": "Nombre Completo",
+        "role": "Rol",
+        "actions": "Acciones"
+      },
+      "search_placeholder": "Buscar por email o nombre...",
+      "clear_search_aria": "Limpiar búsqueda",
+      "table_empty_state": "No se encontraron usuarios.",
+      "pagination": {
+        "previousPageLabel": "Página anterior",
+        "nextPageLabel": "Página siguiente",
+        "pageLabelTemplate": "Ir a la página {pageNumber}"
+      },
+      "role_update_success_toast": "Rol de usuario actualizado con éxito.",
+      "role_update_error_toast": "No se pudo actualizar el rol del usuario.",
+      "impersonate_dialog": {
+        "aria_label": "Suplantar al usuario {email}",
+        "title": "¿Suplantar Usuario?",
+        "description": "Esto abrirá una nueva pestaña donde iniciarás sesión como <strong>{email}</strong>. Esta es una acción de alto privilegio para fines de depuración.",
+        "cancel_button": "Cancelar",
+        "confirm_button": "Sí, Suplantar",
+        "success_toast": "Enlace de suplantación generado. Abriendo en una nueva pestaña.",
+        "default_error_toast": "No se pudo generar el enlace de suplantación."
+      }
+    },
+    "CampaignsTable": {
+      "title": "Visor de Campañas",
+      "description": "Supervisa todas las campañas creadas en la plataforma.",
+      "error_title": "Error al Cargar Campañas",
+      "error_description": "No se pudo obtener la información desde la capa de datos.",
+      "header_name": "Nombre de Campaña",
+      "header_site": "Sitio (Subdominio)",
+      "header_created": "Fecha de Creación",
+      "header_updated": "Última Actualización",
+      "header_actions": "Acciones",
+      "action_view_json": "Ver JSON",
+      "dialog_title": "Contenido para: {campaignName}"
+    },
+    "TelemetryTable": {
+      "title": "Visor de Telemetría de Visitantes",
+      "description": "Supervisa la actividad de los visitantes en la plataforma.",
+      "error_title": "Error al Cargar los Logs",
+      "error_description": "No pudimos obtener la información de telemetría. Por favor, intenta recargar la página.",
+      "header_timestamp": "Fecha y Hora",
+      "header_user_session": "Usuario / Sesión",
+      "header_ip_country": "IP / País",
+      "header_fingerprint": "Huella Digital",
+      "header_actions": "Acciones",
+      "action_view_geo": "Ver Geo Datos",
+      "action_view_utms": "Ver UTMs",
+      "empty_state": "No se han registrado visitas todavía.",
+      "dialog_title_geo": "Datos Geográficos",
+      "dialog_title_utms": "Parámetros UTM"
+    },
+    "DashboardPage": {
+      "tooltip": "This is your Command Center. Drag and drop the cards to customize your layout.",
+      "welcomeMessage": "Welcome, {username}",
+      "subtitle": "Which high-performance campaign are we launching today?",
+      "layoutSaveError": "Could not save the dashboard layout.",
+      "RecentCampaigns": {
+        "title": "Continue working on...",
+        "emptyState": {
+          "title": "Let's start your first campaign!",
+          "ctaTitle": "Guided Campaign",
+          "ctaDescription": "I'll guide you step-by-step to create a high-converting landing page.",
+          "ctaButton": "Create my First Campaign"
+        },
+        "lastEdited": "Last edited",
+        "preview": "Preview"
+      }
+    }
   }
 }
-

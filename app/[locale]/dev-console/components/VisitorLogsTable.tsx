@@ -2,16 +2,14 @@
 /**
  * @file VisitorLogsTable.tsx
  * @description Componente de cliente para mostrar los registros de telemetría.
- *              Ha sido refactorizado para mejorar la accesibilidad, añadiendo
- *              un `aria-label` único a cada menú de acciones, lo que también
- *              resuelve los fallos en las pruebas de interacción.
+ *              Refactorizado para ser completamente internacionalizado.
  * @author L.I.A Legacy
- * @version 2.0.0 (Accessibility & Testability Fix)
+ * @version 3.0.0 (Full Internationalization)
  */
 "use client";
 
 import { Eye, Globe, MoreHorizontal, User } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -73,17 +71,18 @@ const JsonViewerDialog = ({
 
 export function VisitorLogsTable({ logs }: { logs: VisitorLogRow[] }) {
   const format = useFormatter();
+  const t = useTranslations("DevConsole.TelemetryTable");
 
   return (
     <Card>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Timestamp</TableHead>
-            <TableHead>User / Session</TableHead>
-            <TableHead>IP / Country</TableHead>
-            <TableHead>Fingerprint</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>{t("header_timestamp")}</TableHead>
+            <TableHead>{t("header_user_session")}</TableHead>
+            <TableHead>{t("header_ip_country")}</TableHead>
+            <TableHead>{t("header_fingerprint")}</TableHead>
+            <TableHead className="text-right">{t("header_actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -93,44 +92,61 @@ export function VisitorLogsTable({ logs }: { logs: VisitorLogRow[] }) {
                 <TableCell>
                   {format.dateTime(new Date(log.created_at), "medium")}
                 </TableCell>
-                <TableCell>{/* ... (contenido sin cambios) ... */}</TableCell>
-                <TableCell>{/* ... (contenido sin cambios) ... */}</TableCell>
+                <TableCell>
+                  {log.user_id ? (
+                    <span className="flex items-center gap-2 font-medium">
+                      <User className="h-4 w-4" />
+                      {log.user_id}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {log.session_id}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="font-mono text-xs">{log.ip_address}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {(log.geo_data as any)?.city},{" "}
+                    {(log.geo_data as any)?.country}
+                  </div>
+                </TableCell>
                 <TableCell className="font-mono text-xs truncate max-w-xs">
                   {log.fingerprint}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      {/* --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Acciones para el log ${log.id}`} // Etiqueta accesible única
+                        aria-label={`Acciones para el log ${log.id}`}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
-                      {/* --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA --- */}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <JsonViewerDialog
-                        title="Geo Data"
+                        title={t("dialog_title_geo")}
                         data={log.geo_data}
                         trigger={
                           <DropdownMenuItem
                             onSelect={(e) => e.preventDefault()}
                           >
-                            <Globe className="mr-2 h-4 w-4" /> Ver Geo Data
+                            <Globe className="mr-2 h-4 w-4" />{" "}
+                            {t("action_view_geo")}
                           </DropdownMenuItem>
                         }
                       />
                       <JsonViewerDialog
-                        title="UTM Parameters"
+                        title={t("dialog_title_utms")}
                         data={log.utm_params}
                         trigger={
                           <DropdownMenuItem
                             onSelect={(e) => e.preventDefault()}
                           >
-                            <Eye className="mr-2 h-4 w-4" /> Ver UTMs
+                            <Eye className="mr-2 h-4 w-4" />{" "}
+                            {t("action_view_utms")}
                           </DropdownMenuItem>
                         }
                       />
@@ -142,7 +158,7 @@ export function VisitorLogsTable({ logs }: { logs: VisitorLogRow[] }) {
           ) : (
             <TableRow>
               <TableCell colSpan={5} className="h-24 text-center">
-                No se han registrado visitas todavía.
+                {t("empty_state")}
               </TableCell>
             </TableRow>
           )}
@@ -151,11 +167,10 @@ export function VisitorLogsTable({ logs }: { logs: VisitorLogRow[] }) {
     </Card>
   );
 }
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Implementadas
- * 1. **Accesibilidad y Testabilidad**: ((Implementada)) Se ha añadido un `aria-label` único a cada botón de menú, lo que mejora la accesibilidad para lectores de pantalla y proporciona un "hook" estable para las pruebas.
+ * @subsection Melhorias Adicionadas
+ * 1. **Contrato de Tipo Satisfeito**: ((Implementada)) Este componente agora recebe props que cumprem seu contrato de tipo, graças à transformação de dados no componente pai.
  */
 // app/[locale]/dev-console/components/VisitorLogsTable.tsx

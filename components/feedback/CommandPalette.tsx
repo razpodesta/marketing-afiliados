@@ -1,10 +1,11 @@
+// components/feedback/CommandPalette.tsx
 /**
  * @file components/feedback/CommandPalette.tsx
- * @description Componente de paleta de comandos global (accesible con Ctrl+K),
- *              que proporciona una interfaz de búsqueda rápida para navegar y
- *              ejecutar acciones en toda la aplicación.
+ * @description Componente de paleta de comandos global. Ha sido refactorizado
+ *              para importar sus Server Actions de forma atómica, respetando
+ *              el límite Servidor-Cliente y resolviendo el error de compilación.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 3.3.0 (Correct Type-Safe Navigation)
+ * @version 4.0.0 (Atomic Server Action Imports)
  */
 "use client";
 
@@ -21,13 +22,12 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
-import {
-  session as sessionActions,
-  workspaces as workspaceActions,
-} from "@/lib/actions";
+import { signOutAction } from "@/lib/actions/session.actions";
+import { setActiveWorkspaceAction } from "@/lib/actions/workspaces.actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
 import { useRouter } from "@/lib/navigation";
+import { logger } from "@/lib/logging";
 
 export function CommandPalette() {
   const { workspaces, activeWorkspace, modules } = useDashboard();
@@ -53,7 +53,8 @@ export function CommandPalette() {
   }, [isOpen]);
 
   const runCommand = React.useCallback(
-    (action: () => void) => {
+    (action: () => void, commandName: string) => {
+      logger.trace(`[CommandPalette] Executing command: ${commandName}`);
       close();
       action();
     },
@@ -78,9 +79,7 @@ export function CommandPalette() {
                 <CommandItem
                   key={link.href}
                   onSelect={() =>
-                    // El `useRouter` de next-intl es tipado y puede manejar
-                    // directamente el tipo AppPathname de nuestro navigation.ts
-                    runCommand(() => router.push(link.href as any))
+                    runCommand(() => router.push(link.href as any), link.title)
                   }
                   value={`Ir a ${link.title}`}
                 >
@@ -100,7 +99,10 @@ export function CommandPalette() {
             <CommandGroup heading="Cuenta">
               <CommandItem
                 onSelect={() =>
-                  runCommand(() => router.push("/dashboard/settings"))
+                  runCommand(
+                    () => router.push("/dashboard/settings"),
+                    "Go to Settings"
+                  )
                 }
                 value="Ajustes de Cuenta"
               >
@@ -108,9 +110,7 @@ export function CommandPalette() {
                 <span>Mi Perfil</span>
               </CommandItem>
               <CommandItem
-                onSelect={() =>
-                  runCommand(() => sessionActions.signOutAction())
-                }
+                onSelect={() => runCommand(signOutAction, "Sign Out")}
                 value="Cerrar Sesión"
               >
                 <LogOut className="mr-2 h-4 w-4" />
@@ -129,8 +129,9 @@ export function CommandPalette() {
                 <CommandItem
                   key={workspace.id}
                   onSelect={() =>
-                    runCommand(() =>
-                      workspaceActions.setActiveWorkspaceAction(workspace.id)
+                    runCommand(
+                      () => setActiveWorkspaceAction(workspace.id),
+                      `Switch to ${workspace.name}`
                     )
                   }
                   value={workspace.name}
@@ -146,20 +147,14 @@ export function CommandPalette() {
     </CommandDialog>
   );
 }
-
 /**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar la Paleta de Comandos.
+ * @section MEJORA CONTINUA
  *
- * 1.  **Registro de Comandos Dinámico:** Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales, en lugar de tener una lista estática.
- * 2.  **Búsqueda en Servidor para Entidades:** La búsqueda de workspaces debe invocar una Server Action para realizar la búsqueda en la base de datos y escalar a un gran número de entidades.
- * 3.  **Historial de Comandos Recientes:** Guardar los últimos comandos ejecutados en `localStorage` y mostrarlos en una sección "Recientemente Usados" para un acceso rápido.
- */
-/**
- * @section MEJORAS FUTURAS A IMPLEMENTAR
- * @description Mejoras incrementales para evolucionar la Paleta de Comandos.
+ * @subsection Melhorias Adicionadas
+ * 1.  **Desacoplamiento de Importaciones Atómicas**: ((Implementada)) Se han refactorizado las importaciones de Server Actions para que apunten directamente a sus archivos de origen, resolviendo la violación del límite Servidor-Cliente y corrigiendo el error de compilación.
+ * 2.  **Full Observabilidad**: ((Implementada)) Se ha añadido un log de `trace` en `runCommand` para registrar la ejecución de comandos, mejorando la visibilidad del comportamiento del usuario.
  *
- * 1.  **Registro de Comandos Dinámico:** Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales, en lugar de tener una lista estática.
- * 2.  **Búsqueda en Servidor para Entidades:** La búsqueda de workspaces debe invocar una Server Action para realizar la búsqueda en la base de datos y escalar a un gran número de entidades.
- * 3.  **Historial de Comandos Recientes:** Guardar los últimos comandos ejecutados en `localStorage` y mostrarlos en una sección "Recientemente Usados" para un acceso rápido.
+ * @subsection Melhorias Futuras
+ * 1.  **Registro de Comandos Dinámico**: ((Vigente)) Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales.
  */
+// components/feedback/CommandPalette.tsx

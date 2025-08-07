@@ -1,25 +1,46 @@
 // lib/data/notifications.ts
 /**
- * @file notifications.ts
+ * @file lib/data/notifications.ts
  * @description Aparato de datos canónico para notificaciones e invitaciones.
- *              Ha sido refactorizado para encapsular la lógica de obtención
- *              de invitaciones pendientes, desacoplando esta complejidad del
- *              DashboardLayout y mejorando la arquitectura general del sistema.
+ *              Este módulo ha sido refactorizado para utilizar correctamente el patrón
+ *              de inyección de dependencias, asegurando la compatibilidad con
+ *              funciones cacheadas de Next.js y mejorando la testeabilidad.
+ *              Es la única fuente de verdad para obtener datos de notificaciones.
+ *
  * @author L.I.A Legacy & RaZ Podestá
  * @co-author MetaShark
- * @version 2.0.0 (Invitation Logic Abstraction)
+ * @version 4.0.0 (Canonical Dependency Injection & TSDoc)
  */
 "use server";
+import "server-only";
 
 import { logger } from "@/lib/logging";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { type Tables } from "@/lib/types/database";
+import { type SupabaseClient } from "@supabase/supabase-js";
 
+// --- Tipos de Contrato de Datos ---
+
+/**
+ * @typedef Supabase
+ * @description Tipo genérico para una instancia del cliente de Supabase,
+ *              utilizado para la inyección de dependencias.
+ */
+type Supabase = SupabaseClient<any, "public", any>;
+
+/**
+ * @typedef Notification
+ * @description Representa la forma de una fila en la tabla `notifications`.
+ */
 export type Notification = Tables<"notifications">;
 
-// --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
-
-// Tipo interno para la forma cruda de los datos de la invitación desde Supabase.
+/**
+ * @private
+ * @typedef RawInvitationData
+ * @description Tipo interno que representa la forma cruda de los datos de una
+ *              invitación como son devueltos por la consulta a Supabase,
+ *              antes de la transformación.
+ */
 type RawInvitationData = {
   id: string;
   status: string;
@@ -29,25 +50,36 @@ type RawInvitationData = {
     | null;
 };
 
-// Tipo público que representa el contrato de datos limpio que la UI consumirá.
+/**
+ * @typedef Invitation
+ * @description Representa el contrato de datos limpio y transformado para una
+ *              invitación, tal como lo consumirá la interfaz de usuario.
+ */
 export type Invitation = {
   id: string;
   status: string;
   workspaces: { name: string; icon: string | null } | null;
 };
 
+// --- Funciones de Acceso a Datos ---
+
 /**
+ * Obtiene y transforma todas las invitaciones pendientes para un email de usuario.
  * @async
  * @function getPendingInvitationsByEmail
- * @description Obtiene y transforma todas las invitaciones pendientes para un email de usuario.
- * @param {string} userEmail - El email del usuario.
- * @returns {Promise<Invitation[]>} Una promesa que resuelve a un array de invitaciones limpias.
- * @throws {Error} Si la consulta falla.
+ * @param {string} userEmail - El email del usuario para buscar invitaciones.
+ * @param {Supabase} [supabaseClient] - Instancia opcional del cliente de Supabase
+ *                   para ser usada dentro de funciones cacheadas o transacciones.
+ *                   Si no se provee, se creará una nueva instancia.
+ * @returns {Promise<Invitation[]>} Una promesa que resuelve a un array de invitaciones
+ *                                  limpias y listas para ser consumidas por la UI.
+ * @throws {Error} Si la consulta a la base de datos falla.
  */
 export async function getPendingInvitationsByEmail(
-  userEmail: string
+  userEmail: string,
+  supabaseClient?: Supabase
 ): Promise<Invitation[]> {
-  const supabase = createClient();
+  const supabase = supabaseClient || createServerClient();
   const { data, error } = await supabase
     .from("invitations")
     .select("id, status, workspaces (name, icon)")
@@ -62,7 +94,6 @@ export async function getPendingInvitationsByEmail(
     throw new Error("No se pudieron cargar las invitaciones.");
   }
 
-  // Transforma los datos crudos a la forma limpia que espera la UI.
   const pendingInvitations: Invitation[] =
     (data as RawInvitationData[])?.map((inv) => ({
       id: inv.id,
@@ -75,20 +106,20 @@ export async function getPendingInvitationsByEmail(
   return pendingInvitations;
 }
 
-// --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
-
 /**
+ * Obtiene todas las notificaciones no leídas para un usuario específico.
  * @async
  * @function getUnreadNotificationsByUserId
- * @description Obtiene todas las notificaciones no leídas para un usuario.
  * @param {string} userId - El UUID del usuario.
+ * @param {Supabase} [supabaseClient] - Instancia opcional del cliente de Supabase.
  * @returns {Promise<Notification[]>} Una promesa que resuelve a un array de notificaciones.
- * @throws {Error} Si la consulta falla.
+ * @throws {Error} Si la consulta a la base de datos falla.
  */
 export async function getUnreadNotificationsByUserId(
-  userId: string
+  userId: string,
+  supabaseClient?: Supabase
 ): Promise<Notification[]> {
-  const supabase = createClient();
+  const supabase = supabaseClient || createServerClient();
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
@@ -106,14 +137,16 @@ export async function getUnreadNotificationsByUserId(
 
   return data || [];
 }
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Paginación**: ((Vigente)) Implementar paginación para `getUnreadNotificationsByUserId`.
+ * @subsection Melhorias Adicionadas
+ * 1. **Inyección de Dependencias Canónica**: ((Implementada)) Se ha consolidado el patrón de inyección de dependencias, permitiendo que ambas funciones operen de forma segura dentro de funciones cacheadas como `unstable_cache`. Esto resuelve la violación de caché.
+ * 2. **Documentación TSDoc Exhaustiva**: ((Implementada)) Se ha añadido documentación TSDoc completa para el módulo, tipos y funciones, mejorando la mantenibilidad y claridad del código.
+ * 3. **Tipado Explícito y Robusto**: ((Implementada)) Se han definido tipos explícitos como `RawInvitationData` y `Invitation` para clarificar el proceso de transformación de datos y fortalecer los contratos internos del módulo.
  *
- * @subsection Mejoras Adicionadas
- * 1. **Abstracción de Lógica de Invitaciones**: ((Implementada)) Se ha movido la lógica para obtener y transformar invitaciones pendientes a este módulo, mejorando la cohesión y la separación de responsabilidades.
+ * @subsection Melhorias Futuras
+ * 1. **Paginación para Notificaciones**: ((Vigente)) Implementar paginación para `getUnreadNotificationsByUserId` para manejar de forma eficiente un gran volumen de notificaciones sin impactar el rendimiento.
+ * 2. **Función `markAsRead`**: ((Vigente)) Crear una nueva función `markNotificationAsRead(notificationId, userId)` que actualice el campo `read_at` de una notificación, asegurando que el `userId` coincida para la autorización.
  */
 // lib/data/notifications.ts

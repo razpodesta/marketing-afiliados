@@ -1,11 +1,12 @@
 // lib/data/permissions.ts
 /**
  * @file permissions.ts
- * @description Módulo centralizado para la lógica de autorización.
- *              Ha sido optimizado con caché de servidor para un rendimiento
- *              de nivel de producción en comprobaciones de permisos repetitivas.
+ * @description Módulo centralizado para a lógica de autorização.
+ *              Utiliza `unstable_cache` para um rendimento de nível de produção
+ *              em verificações de permissões repetitivas.
  * @author L.I.A Legacy
- * @version 2.0.0 (Server-Side Caching Optimization)
+ * @version 3.0.0 (Elite Caching Validation)
+ * @see tests/integration/lib/data/permissions.test.ts
  */
 "use server";
 
@@ -20,12 +21,12 @@ export type WorkspaceRole = Database["public"]["Enums"]["workspace_role"];
 /**
  * @async
  * @function hasWorkspacePermission
- * @description Verifica si un usuario tiene uno de los roles requeridos en un workspace específico.
- *              El resultado de esta función es cacheado para optimizar el rendimiento.
- * @param {string} userId - El UUID del usuario a verificar.
- * @param {string} workspaceId - El UUID del workspace en el que se requiere el permiso.
- * @param {WorkspaceRole[]} requiredRoles - Un array de roles que otorgan el permiso.
- * @returns {Promise<boolean>} Devuelve `true` si el usuario tiene el permiso, `false` en caso contrario.
+ * @description Verifica se um usuário tem um dos roles requeridos em um workspace específico.
+ *              O resultado desta função é cacheado por requisição para otimizar o rendimento.
+ * @param {string} userId - O UUID do usuário a verificar.
+ * @param {string} workspaceId - O UUID do workspace no qual se requer a permissão.
+ * @param {WorkspaceRole[]} requiredRoles - Um array de roles que outorgam a permissão.
+ * @returns {Promise<boolean>} Retorna `true` se o usuário tiver a permissão, `false` caso contrário.
  */
 export async function hasWorkspacePermission(
   userId: string,
@@ -35,7 +36,7 @@ export async function hasWorkspacePermission(
   return cache(
     async () => {
       logger.info(
-        `[Cache MISS] Verificando permisos en DB para user:${userId} en ws:${workspaceId}`
+        `[Cache MISS] Verificando permissões no DB para user:${userId} em ws:${workspaceId}`
       );
       if (!requiredRoles || requiredRoles.length === 0) {
         return false;
@@ -52,7 +53,7 @@ export async function hasWorkspacePermission(
       if (error) {
         if (error.code !== "PGRST116") {
           logger.error(
-            `Error al verificar permisos para ${userId} en ${workspaceId}:`,
+            `Erro ao verificar permissões para ${userId} em ${workspaceId}:`,
             error
           );
         }
@@ -67,14 +68,13 @@ export async function hasWorkspacePermission(
     }
   )();
 }
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Futuras
- * 1. **Permisos a Nivel de Aplicación**: ((Vigente)) Crear una función `hasAppPermission(userId, requiredRoles)` que verifique el `app_role` en la tabla `profiles`.
+ * @subsection Melhorias Adicionadas
+ * 1. **Validação de Cache**: ((Implementada)) O arnês de testes de integração agora valida explicitamente que a lógica de permissões está envolvida pela função `unstable_cache`, garantindo que a otimização de performance seja mantida.
  *
- * @subsection Mejoras Implementadas
- * 1. **Cacheo de Servidor**: ((Implementada)) La función ahora utiliza `unstable_cache` con tags para una invalidación granular, reduciendo drásticamente la carga en la base de datos para comprobaciones de permisos repetitivas.
+ * @subsection Melhorias Futuras
+ * 1. **Permissões a Nível de Aplicação**: ((Vigente)) Criar uma função `hasAppPermission(userId, requiredRoles)` que verifique o `app_role` na tabela `profiles`.
  */
 // lib/data/permissions.ts

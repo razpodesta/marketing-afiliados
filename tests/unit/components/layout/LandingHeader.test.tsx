@@ -1,72 +1,84 @@
 // tests/unit/components/layout/LandingHeader.test.tsx
-/**
- * @file LandingHeader.test.tsx
- * @description Suite de pruebas final y blindada para `LandingHeader`.
- * @author L.I.A. Legacy
- * @version 6.0.0 (Warning-Free Execution)
- */
-import { render, screen, within } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
-import React from "react";
+import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { LandingHeader } from "@/components/layout/LandingHeader";
-import messages from "@/messages/pt-BR.json";
+import {
+  LandingHeader,
+  type LandingHeaderProps,
+} from "@/components/layout/LandingHeader";
+import { SmartLink } from "@/components/ui/SmartLink";
 
-// --- Mocks de Alta Fidelidad (Sin Advertencias) ---
-vi.mock("next/image", () => ({
-  default: ({
-    priority, // Capturamos la prop booleana
-    ...props
-  }: {
-    priority?: boolean;
-    [key: string]: any;
-  }) => (
-    // La pasamos como un string al DOM si es `true`
-    <img {...props} data-priority={priority ? "true" : "false"} />
+vi.mock("@/lib/navigation", () => ({
+  Link: (props: { href: string; children: React.ReactNode }) => (
+    <a href={props.href}>{props.children}</a>
   ),
 }));
 
-// El resto de mocks y la configuración se mantienen igual.
+vi.mock("@/components/ui/SmartLink", () => ({
+  SmartLink: vi.fn((props: any) => (
+    <a
+      href={
+        typeof props.href === "string" ? props.href : JSON.stringify(props.href)
+      }
+    >
+      {props.label}
+    </a>
+  )),
+}));
+
+vi.mock("next/image", () => ({
+  default: (props: any) => <img {...props} />,
+}));
 vi.mock("@/components/ui/LanguageSwitcher", () => ({
-  LanguageSwitcher: () => <div data-testid="language-switcher-mock" />,
+  LanguageSwitcher: () => null,
 }));
 vi.mock("@/components/ui/sheet", () => ({
-  Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SheetContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mobile-menu">{children}</div>
+  Sheet: ({ children, onOpenChange }: any) => (
+    <div data-testid="sheet" data-on-open-change={onOpenChange}>
+      {children}
+    </div>
   ),
-  SheetTrigger: ({
-    children,
-    asChild,
-  }: {
-    children: React.ReactNode;
-    asChild?: boolean;
-  }) => (asChild ? <>{children}</> : <button>{children}</button>),
+  SheetContent: ({ children }: any) => <div>{children}</div>,
+  SheetTrigger: ({ children }: any) => <button>{children}</button>,
 }));
 
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
-    <NextIntlClientProvider locale="pt-BR" messages={messages}>
-      {ui}
-    </NextIntlClientProvider>
-  );
-};
+/**
+ * @file LandingHeader.test.tsx
+ * @description Suite de pruebas para `LandingHeader`, validando su rol de orquestador
+ *              y el comportamiento del menú móvil.
+ * @author L.I.A Legacy
+ * @version 4.1.0
+ */
+describe("Componente de Orquestación: LandingHeader", () => {
+  const mockProps: LandingHeaderProps = {
+    navLinks: [{ href: "#features", label: "Test Features" }],
+    signInText: "Test Sign In",
+    signUpText: "Test Sign Up",
+    openMenuText: "Test Open Menu",
+  };
 
-describe("Componente: LandingHeader (i18n-Aware)", () => {
-  it("debe usar el Link de i18n para el botón 'Iniciar Sesión' en escritorio", () => {
-    renderWithProviders(<LandingHeader />);
-    const loginLinks = screen.getAllByRole("link", { name: "Iniciar Sesión" });
-    const desktopLoginLink = loginLinks[0];
-    expect(desktopLoginLink).toHaveAttribute("href", "/pt-BR/login");
-  });
+  it("debe delegar el renderizado de los enlaces de navegación al componente SmartLink", () => {
+    // Arrange
+    render(<LandingHeader {...mockProps} />);
+    const mockedSmartLink = vi.mocked(SmartLink);
 
-  it("debe usar el Link de i18n para el botón 'Regístrate Gratis' en el menú móvil", () => {
-    renderWithProviders(<LandingHeader />);
-    const mobileMenu = screen.getByTestId("mobile-menu");
-    const signUpLink = within(mobileMenu).getByRole("link", {
-      name: "Regístrate Gratis",
-    });
-    expect(signUpLink).toHaveAttribute("href", "/pt-BR/login");
+    // Assert
+    expect(mockedSmartLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        href: "#features",
+        label: "Test Features",
+      }),
+      expect.anything()
+    );
   });
 });
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1. **Prueba de Orquestación**: ((Implementada)) La prueba valida que el componente delega correctamente la responsabilidad de renderizar los enlaces.
+ *
+ * @subsection Melhorias Futuras
+ * 1. **Prueba de Interacción de Menú Móvil**: ((Vigente)) Añadir una prueba que simule un clic en el enlace del menú móvil y verifique que el `Sheet` se cierra.
+ */
+// tests/unit/components/layout/LandingHeader.test.tsx
