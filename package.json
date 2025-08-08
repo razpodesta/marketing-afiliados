@@ -40,7 +40,7 @@
     "prepare": "husky",
     "gen:actions": "node scripts/generate-actions-barrel.mjs",
     "gen:routes": "node scripts/generate-routes-manifest.mjs",
-    "gen:rpc-types": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/generate-rpc-types.mjs",
+    "gen:rpc-types": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 tsx scripts/generate-rpc-types.ts",
     "gen:types:tables": "supabase gen types typescript --project-id abaogyfpnucejkssxbos > lib/types/database/_supabase.generated.ts",
     "gen:types": "pnpm gen:types:tables && pnpm gen:rpc-types",
     "diag:all": "tsx --tsconfig tsconfig.json scripts/supabase/diagnose-all.ts",
