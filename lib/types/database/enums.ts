@@ -2,9 +2,10 @@
 /**
  * @file enums.ts
  * @description Contiene las definiciones de tipo para todos los ENUMs de la base de datos.
- *              Se han añadido tipos para gamificación y el marketplace de afiliados.
+ *              Ha sido sincronizado con los tipos autogenerados para resolver
+ *              conflictos de compatibilidad.
  * @author Metashark (adaptado de Supabase CLI, expandido por L.I.A Legacy)
- * @version 1.3.0 (Gamification & Marketplace Enums)
+ * @version 2.0.0 (Schema Synchronization)
  */
 export type Enums = {
   app_role: "user" | "admin" | "developer";
@@ -18,7 +19,8 @@ export type Enums = {
     | "incomplete_expired"
     | "past_due"
     | "unpaid";
-  workspace_role: "owner" | "admin" | "member" | "editor" | "viewer";
+  // Sincronizado con el esquema de Supabase generado:
+  workspace_role: "owner" | "admin" | "member";
   token_type: "general_purpose" | "image_generation" | "text_analysis";
   ticket_status:
     | "open"
@@ -38,13 +40,9 @@ export type Enums = {
 };
 
 /**
- * @description Este aparato centraliza todos los tipos ENUM de la base de datos.
- *              Es fundamental para garantizar que los valores de cadena utilizados en
- *              toda la aplicación se adhieran a un conjunto predefinido y válido,
- *              previniendo errores de integridad de datos.
- * @propose_new_improvements
- * 1. **Script de Verificación de Sincronización**: Crear un script de diagnóstico que consulte los tipos ENUM directamente desde `pg_type` en PostgreSQL y los compare con las definiciones en este archivo para detectar desajustes.
- * 2. **Mapeo a Etiquetas Amigables**: Crear un objeto de mapeo en la capa de la UI que traduzca estos valores de ENUM a etiquetas legibles y traducibles para el usuario (ej. `in_progress` -> "En Progreso").
- * 3. **ENUM para `invitations.status`**: Formalizar los estados de invitación ('pending', 'accepted', etc.) en un nuevo tipo ENUM para mejorar la robustez del sistema de invitaciones.
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1.  **Sincronización de ENUMs**: ((Implementada)) Se ha actualizado la definición de `workspace_role` para que coincida con el esquema generado. Esto resuelve el conflicto de tipos en el sistema.
  */
 // lib/types/database/enums.ts

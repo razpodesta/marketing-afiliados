@@ -2,8 +2,9 @@
 /**
  * @file mock-session.ts
  * @description Aparato especializado para generar datos de desarrollo simulados.
+ *              Ha sido sincronizado con el tipo `SiteWithCampaignsCount` actualizado.
  * @author L.I.A Legacy
- * @version 2.1.0 (Explicit Typing)
+ * @version 3.1.0 (Type Contract Synchronization)
  */
 import type { User } from "@supabase/supabase-js";
 
@@ -11,8 +12,7 @@ import type { FeatureModule } from "@/lib/data/modules";
 import type { SiteWithCampaignsCount } from "@/lib/data/sites";
 import type { Tables } from "@/lib/types/database";
 
-// --- DATOS SIMULADOS ---
-
+// ... (mockUser, mockWorkspaces, mockModules no cambian)
 const mockUser: User = {
   id: "dev-user-uuid-12345",
   app_metadata: {
@@ -38,8 +38,7 @@ const mockUser: User = {
   updated_at: new Date().toISOString(),
 };
 
-// CORRECCIÓN: Se añade aserción de tipo explícita para guiar al compilador.
-const mockWorkspaces = [
+const mockWorkspaces: Tables<"workspaces">[] = [
   {
     id: "ws-uuid-dev-01",
     name: "Deve's Workspace",
@@ -48,7 +47,6 @@ const mockWorkspaces = [
     created_at: new Date().toISOString(),
     updated_at: null,
     current_site_count: 0,
-    storage_used_mb: 0,
   },
   {
     id: "ws-uuid-dev-02",
@@ -58,9 +56,8 @@ const mockWorkspaces = [
     created_at: new Date().toISOString(),
     updated_at: null,
     current_site_count: 0,
-    storage_used_mb: 0,
   },
-] as Tables<"workspaces">[];
+];
 
 const mockModules: FeatureModule[] = [
   {
@@ -92,10 +89,14 @@ const mockModules: FeatureModule[] = [
   },
 ];
 
-// CORRECCIÓN: Se añade aserción de tipo explícita.
-export const mockSites = [
+// --- INICIO DE CORRECCIÓN (TS2322) ---
+// Se añaden las propiedades `name` y `description` faltantes para cumplir
+// con el contrato de tipo `SiteWithCampaignsCount`.
+export const mockSites: SiteWithCampaignsCount[] = [
   {
     id: "site-uuid-dev-01",
+    name: "Mi Primer Sitio",
+    description: "Descripción de mi primer sitio.",
     subdomain: "mi-primer-sitio",
     icon: "🚀",
     created_at: new Date().toISOString(),
@@ -107,6 +108,8 @@ export const mockSites = [
   },
   {
     id: "site-uuid-dev-02",
+    name: "Proyecto Cliente",
+    description: "Sitio para el proyecto del cliente.",
     subdomain: "proyecto-cliente",
     icon: "💼",
     created_at: new Date().toISOString(),
@@ -116,11 +119,9 @@ export const mockSites = [
     updated_at: null,
     campaigns: [{ count: 0 }],
   },
-] as SiteWithCampaignsCount[];
+];
+// --- FIN DE CORRECCIÓN ---
 
-/**
- * @description Genera el conjunto completo de datos para la sesión simulada.
- */
 export function getMockLayoutData() {
   return {
     user: mockUser,
@@ -132,11 +133,10 @@ export function getMockLayoutData() {
     totalCount: mockSites.length,
   };
 }
-/* MEJORAS FUTURAS DETECTADAS
- * 1. Datos Configurables desde JSON: Para mayor flexibilidad, los datos de `mockUser` y `mockWorkspaces` podrían ser leídos desde un archivo `mock-data.json`. Esto permitiría a los desarrolladores modificar los datos de prueba sin tocar el código TypeScript.
- * 2. Selector de Personas en UI: En un futuro, se podría crear una pequeña UI de desarrollo (un widget flotante) que permita cambiar entre diferentes "personas" simuladas (ej. "Usuario Admin", "Usuario Básico", "Usuario sin Workspaces") llamando a diferentes funciones de este módulo, para probar rápidamente diferentes estados de la aplicación.
+/**
+ * @section MEJORA CONTINUA
+ *
+ * @subsection Melhorias Adicionadas
+ * 1.  **Sincronización de Contrato de Mock**: ((Implementada)) Se han añadido las propiedades `name` y `description` al mock `mockSites`, alineándolo con el tipo `SiteWithCampaignsCount` actualizado y resolviendo el error de compilación `TS2322`.
  */
-/* MEJORAS FUTURAS DETECTADAS (NUEVAS)
- * 1. Datos Configurables desde JSON: Para mayor flexibilidad, los datos de `mockUser` y `mockWorkspaces` podrían ser leídos desde un archivo `mock-data.json`. Esto permitiría a los desarrolladores modificar los datos de prueba sin tocar el código TypeScript.
- * 2. Selector de Personas en UI: En un futuro, se podría crear una pequeña UI de desarrollo (un widget flotante) que permita cambiar entre diferentes "personas" simuladas (ej. "Usuario Admin", "Usuario Básico", "Usuario sin Workspaces") llamando a diferentes funciones de este módulo, para probar rápidamente diferentes estados de la aplicación.
- */
+// lib/dev/mock-session.ts

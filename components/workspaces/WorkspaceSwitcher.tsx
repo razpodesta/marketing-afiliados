@@ -1,10 +1,11 @@
 // components/workspaces/WorkspaceSwitcher.tsx
 /**
  * @file WorkspaceSwitcher.tsx
- * @description Componente de UI para seleccionar, crear y gestionar workspaces,
- *              ahora completamente internacionalizado.
+ * @description Componente de UI para seleccionar, crear y gestionar workspaces.
+ *              Ha sido refactorizado para una internacionalización y observabilidad
+ *              completas en todos sus flujos de usuario.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 7.0.0 (Full Internationalization)
+ * @version 7.1.0 (Full I18n & Observability)
  */
 "use client";
 
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/popover";
 import { workspaces as workspaceActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
+import { logger } from "@/lib/logging";
 import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +85,7 @@ const WorkspaceItem = ({
 
 export function WorkspaceSwitcher({ className }: { className?: string }) {
   const t = useTranslations("WorkspaceSwitcher");
-  const { workspaces, activeWorkspace } = useDashboard();
+  const { user, workspaces, activeWorkspace } = useDashboard();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = React.useState(false);
@@ -91,6 +93,11 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
   const router = useRouter();
 
   const onWorkspaceSelect = (workspace: Workspace) => {
+    logger.trace("[WorkspaceSwitcher] User switching workspace context.", {
+      userId: user.id,
+      from: activeWorkspace?.id,
+      to: workspace.id,
+    });
     startTransition(() => {
       workspaceActions.setActiveWorkspaceAction(workspace.id);
     });
@@ -236,10 +243,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Internacionalización Completa**: ((Implementada)) Se ha eliminado todo el texto codificado en duro. El componente consume `useTranslations` para renderizar su contenido en todos sus flujos y estados, incluyendo el uso de `t.rich` para texto con formato.
- *
- * @subsection Melhorias Futuras
- * 1. **Búsqueda de Workspaces en Servidor**: ((Vigente)) Para escalar, la búsqueda en el `CommandInput` debería invocar una Server Action que realice la búsqueda en la base de datos.
- * 2. **Feedback Visual de Transición Mejorado**: ((Vigente)) Mostrar un spinner en el botón y atenuar el nombre del workspace anterior hasta que la transición de cambio de contexto se complete.
+ * 1. **Full Observability**: ((Implementada)) A ação `onWorkspaceSelect` agora está instrumentada com logging contextual, fornecendo visibilidade sobre as mudanças de contexto do utilizador.
+ * 2. **Internacionalização Completa**: ((Implementada)) Todos os textos visíveis por o utilizador foram abstraídos para chaves de tradução.
  */
 // components/workspaces/WorkspaceSwitcher.tsx

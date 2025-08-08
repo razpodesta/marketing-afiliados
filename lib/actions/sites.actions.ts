@@ -3,10 +3,10 @@
  * @file sites.actions.ts
  * @description Acciones de servidor seguras para la entidad 'sites'. Ha sido
  *              refactorizado para utilizar el guardián de permisos de alto
- *              nivel `requireSitePermission`, haciendo el código más declarativo
- *              y adhiriéndose al principio DRY.
+ *              nivel `requireSitePermission` y para consumir datos ya transformados
+ *              desde la capa de validación.
  * @author RaZ Podestá & L.I.A Legacy
- * @version 8.0.0 (Declarative Authorization)
+ * @version 9.0.0 (Automated Case Transformation)
  */
 "use server";
 
@@ -51,9 +51,9 @@ export async function createSiteAction(
     const parsedData = CreateSiteServerSchema.parse(
       Object.fromEntries(formData)
     );
-    const { name, subdomain, description, icon, workspaceId } = parsedData;
+    const { workspace_id, subdomain, name } = parsedData;
 
-    const permissionCheck = await requireWorkspacePermission(workspaceId, [
+    const permissionCheck = await requireWorkspacePermission(workspace_id, [
       "owner",
       "admin",
     ]);
@@ -65,18 +65,11 @@ export async function createSiteAction(
       };
     }
     const { data: user } = permissionCheck;
-
     const supabase = createClient();
+
     const { data: newSite, error } = await supabase
       .from("sites")
-      .insert({
-        name,
-        subdomain,
-        description,
-        workspace_id: workspaceId,
-        owner_id: user.id,
-        icon,
-      })
+      .insert({ ...parsedData, owner_id: user.id })
       .select("id")
       .single();
 
@@ -92,7 +85,7 @@ export async function createSiteAction(
       userId: user.id,
       targetEntityId: newSite.id,
       targetEntityType: "site",
-      metadata: { subdomain, name, workspaceId },
+      metadata: { subdomain, name, workspaceId: workspace_id },
     });
 
     revalidatePath("/dashboard/sites");
@@ -110,11 +103,11 @@ export async function updateSiteAction(
   formData: FormData
 ): Promise<ActionResult<{ message: string }>> {
   try {
-    const { siteId, ...updateData } = UpdateSiteSchema.parse(
+    const { site_id, ...updateData } = UpdateSiteSchema.parse(
       Object.fromEntries(formData)
     );
 
-    const permissionCheck = await requireSitePermission(siteId, [
+    const permissionCheck = await requireSitePermission(site_id, [
       "owner",
       "admin",
     ]);
@@ -133,21 +126,21 @@ export async function updateSiteAction(
     const { error } = await supabase
       .from("sites")
       .update(updateData)
-      .eq("id", siteId);
+      .eq("id", site_id);
 
     if (error) {
-      logger.error(`Error al actualizar el sitio ${siteId}:`, error);
+      logger.error(`Error al actualizar el sitio ${site_id}:`, error);
       return { success: false, error: "No se pudo actualizar el sitio." };
     }
 
     await createAuditLog("site.updated", {
       userId: user.id,
-      targetEntityId: siteId,
+      targetEntityId: site_id,
       targetEntityType: "site",
       metadata: { changes: updateData },
     });
 
-    revalidatePath(`/dashboard/sites/${siteId}/settings`);
+    revalidatePath(`/dashboard/sites/${site_id}/settings`);
     revalidatePath("/dashboard/sites");
     return {
       success: true,
@@ -215,7 +208,7 @@ export async function deleteSiteAction(
 }
 /**
  * @section MEJORA CONTINUA
- * @subsection Mejoras Implementadas
- * 1. **Autorización Declarativa**: ((Implementada)) El código ahora utiliza el guardián de alto nivel `requireSitePermission`, haciendo la lógica de seguridad más limpia y DRY.
+ * @subsection Melhorias Implementadas
+ * 1. **Consumo de Dados Transformados**: ((Implementada)) As ações `createSiteAction` e `updateSiteAction` agora recebem dados já em `snake_case` da camada de validação, simplificando as chamadas à base de dados e eliminando o mapeamento manual de chaves.
  */
 // lib/actions/sites.actions.ts

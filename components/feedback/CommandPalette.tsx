@@ -2,10 +2,10 @@
 /**
  * @file components/feedback/CommandPalette.tsx
  * @description Componente de paleta de comandos global. Ha sido refactorizado
- *              para importar sus Server Actions de forma atómica, respetando
- *              el límite Servidor-Cliente y resolviendo el error de compilación.
+ *              para consumir las Server Actions a través de sus namespaces atómicos,
+ *              cumpliendo con el estándar de arquitectura del proyecto.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 4.0.0 (Atomic Server Action Imports)
+ * @version 5.0.0 (Atomic Namespace Alignment)
  */
 "use client";
 
@@ -22,15 +22,19 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { DynamicIcon } from "@/components/ui/DynamicIcon";
-import { signOutAction } from "@/lib/actions/session.actions";
-import { setActiveWorkspaceAction } from "@/lib/actions/workspaces.actions";
+// --- INÍCIO DA REATORIZAÇÃO ARQUITETÓNICA ---
+import {
+  session as sessionActions,
+  workspaces as workspaceActions,
+} from "@/lib/actions";
+// --- FIM DA REATORIZAÇÃO ARQUITETÓNICA ---
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
-import { useRouter } from "@/lib/navigation";
 import { logger } from "@/lib/logging";
+import { useRouter } from "@/lib/navigation";
 
 export function CommandPalette() {
-  const { workspaces, activeWorkspace, modules } = useDashboard();
+  const { user, workspaces, activeWorkspace, modules } = useDashboard();
   const { isOpen, close, toggle } = useCommandPaletteStore();
   const router = useRouter();
   const [search, setSearch] = React.useState("");
@@ -54,11 +58,14 @@ export function CommandPalette() {
 
   const runCommand = React.useCallback(
     (action: () => void, commandName: string) => {
-      logger.trace(`[CommandPalette] Executing command: ${commandName}`);
+      logger.trace("[CommandPalette] Executing command.", {
+        userId: user.id,
+        command: commandName,
+      });
       close();
       action();
     },
-    [close]
+    [close, user.id]
   );
 
   const mainNavLinks = modules.filter((module) => module.status === "active");
@@ -110,7 +117,9 @@ export function CommandPalette() {
                 <span>Mi Perfil</span>
               </CommandItem>
               <CommandItem
-                onSelect={() => runCommand(signOutAction, "Sign Out")}
+                onSelect={() =>
+                  runCommand(sessionActions.signOutAction, "Sign Out")
+                }
                 value="Cerrar Sesión"
               >
                 <LogOut className="mr-2 h-4 w-4" />
@@ -130,7 +139,8 @@ export function CommandPalette() {
                   key={workspace.id}
                   onSelect={() =>
                     runCommand(
-                      () => setActiveWorkspaceAction(workspace.id),
+                      () =>
+                        workspaceActions.setActiveWorkspaceAction(workspace.id),
                       `Switch to ${workspace.name}`
                     )
                   }
@@ -151,10 +161,7 @@ export function CommandPalette() {
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1.  **Desacoplamiento de Importaciones Atómicas**: ((Implementada)) Se han refactorizado las importaciones de Server Actions para que apunten directamente a sus archivos de origen, resolviendo la violación del límite Servidor-Cliente y corrigiendo el error de compilación.
- * 2.  **Full Observabilidad**: ((Implementada)) Se ha añadido un log de `trace` en `runCommand` para registrar la ejecución de comandos, mejorando la visibilidad del comportamiento del usuario.
- *
- * @subsection Melhorias Futuras
- * 1.  **Registro de Comandos Dinámico**: ((Vigente)) Implementar un sistema de registro donde diferentes partes de la aplicación puedan registrar sus propios comandos contextuales.
+ * 1.  **Alinhamento Arquitetónico**: ((Implementada)) As importações de Server Actions agora utilizam namespaces (`sessionActions`, `workspaceActions`), melhorando a clareza e a manutenibilidade.
+ * 2.  **Full Observability**: ((Implementada)) A função `runCommand` agora está instrumentada com logging contextual, fornecendo visibilidade sobre o uso da paleta de comandos.
  */
 // components/feedback/CommandPalette.tsx

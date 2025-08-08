@@ -3,30 +3,38 @@
  * @file validators/index.ts
  * @description Manifiesto de Validadores y Única Fuente de Verdad. Este aparato
  *              define todos los esquemas de validación de datos del sistema utilizando
- *              Zod, garantizando la integridad de la información en todas las capas.
+ *              Zod. Ha sido sincronizado con los ENUMs de la base de datos para
+ *              garantizar la integridad de los tipos de extremo a extremo y
+ *              automatiza la conversión de nomenclatura a `snake_case`.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 8.0.0 (Canonical Restoration & Full Schema Synchronization)
+ * @version 9.0.0 (System-Wide Case Transformation)
  */
 import { z } from "zod";
+
+import { keysToSnakeCase } from "@/lib/helpers/object-case-converter";
 
 /**
  * @typedef ActionResult
  * @description Contrato de tipo genérico para los valores de retorno de todas las Server Actions.
- * @template T - El tipo de los datos devueltos en caso de una operación exitosa.
+ *              Define una unión discriminada para manejar explícitamente los casos de
+ *              éxito y error, mejorando la seguridad de tipos en el cliente.
+ * @template T - El tipo de los datos (`data`) devueltos en caso de una operación exitosa.
  */
 export type ActionResult<T = unknown> =
   | { success: true; data: T }
-  | { success: false; error: string | null };
+  | { success: false; error: string };
 
 /**
  * @const UuidSchema
- * @description Esquema Zod para la validación de un Identificador Único Universal (UUID).
+ * @description Esquema Zod canónico para la validación de un Identificador Único Universal (UUID).
+ *              Se utiliza para todas las claves primarias y foráneas de tipo UUID.
  */
 const UuidSchema = z.string().uuid("ID inválido.");
 
 /**
  * @const NameSchema
- * @description Esquema Zod para la validación de nombres genéricos (ej. workspaces, sitios).
+ * @description Esquema Zod para la validación de nombres genéricos (ej. workspaces, sitios, campañas).
+ *              Asegura una longitud mínima y elimina espacios en blanco.
  */
 const NameSchema = z
   .string()
@@ -36,6 +44,8 @@ const NameSchema = z
 /**
  * @const SubdomainSchema
  * @description Esquema Zod para la validación de subdominios.
+ *              Asegura que el formato sea compatible con DNS, permitiendo solo
+ *              letras minúsculas, números y guiones.
  */
 const SubdomainSchema = z
   .string()
@@ -57,8 +67,10 @@ export const EmailSchema = z
   .email("Por favor, introduce un email válido.");
 
 /**
+ * @private
  * @function slugify
- * @description Convierte una cadena de texto en un "slug" amigable para URLs.
+ * @description Convierte una cadena de texto en un "slug" amigable para URLs,
+ *              realizando transliteración de caracteres especiales.
  * @param {string} text - El texto a convertir.
  * @returns {string} El slug generado.
  */
@@ -82,7 +94,8 @@ const slugify = (text: string): string => {
 
 /**
  * @const CreateSiteClientSchema
- * @description Esquema de validación para la creación de un sitio desde el cliente.
+ * @description Esquema de validación para los datos del formulario de creación de un
+ *              sitio, tal como se reciben desde el cliente.
  */
 export const CreateSiteClientSchema = z.object({
   name: NameSchema.optional(),
@@ -95,7 +108,8 @@ export const CreateSiteClientSchema = z.object({
 
 /**
  * @const CreateSiteServerSchema
- * @description Esquema para el servidor que transforma los datos del cliente.
+ * @description Esquema para el servidor que transforma y enriquece los datos del
+ *              cliente, y convierte sus claves a `snake_case` antes de la inserción.
  */
 export const CreateSiteServerSchema = CreateSiteClientSchema.transform(
   (data) => ({
@@ -104,22 +118,25 @@ export const CreateSiteServerSchema = CreateSiteClientSchema.transform(
     description: data.description || null,
     icon: null,
   })
-);
+).transform(keysToSnakeCase);
 
 /**
  * @const UpdateSiteSchema
- * @description Esquema para la actualización de un sitio.
+ * @description Esquema para la actualización de un sitio. Todos los campos son opcionales.
+ *              Convierte las claves a `snake_case` para la base de datos.
  */
-export const UpdateSiteSchema = z.object({
-  siteId: UuidSchema.describe("ID del sitio a actualizar."),
-  name: NameSchema.optional(),
-  subdomain: SubdomainSchema.optional(),
-  description: z.string().optional(),
-});
+export const UpdateSiteSchema = z
+  .object({
+    siteId: UuidSchema.describe("ID del sitio a actualizar."),
+    name: NameSchema.optional(),
+    subdomain: SubdomainSchema.optional(),
+    description: z.string().optional(),
+  })
+  .transform(keysToSnakeCase);
 
 /**
  * @const DeleteSiteSchema
- * @description Esquema para la eliminación de un sitio.
+ * @description Esquema para la eliminación de un sitio, validando solo el ID.
  */
 export const DeleteSiteSchema = z.object({
   siteId: UuidSchema.describe("ID del sitio a eliminar."),
@@ -136,19 +153,23 @@ export const CreateWorkspaceSchema = z.object({
 
 /**
  * @const InvitationSchema
- * @description Esquema para invitar a un miembro a un workspace.
+ * @description Esquema para invitar a un miembro a un workspace. El ENUM de `role`
+ *              está sincronizado con la base de datos y convierte las claves a `snake_case`.
  */
-export const InvitationSchema = z.object({
-  email: EmailSchema,
-  role: z.enum(["admin", "member", "editor", "viewer"], {
-    errorMap: () => ({ message: "Por favor, selecciona un rol válido." }),
-  }),
-  workspaceId: UuidSchema.describe("ID del workspace de la invitación."),
-});
+export const InvitationSchema = z
+  .object({
+    email: EmailSchema,
+    role: z.enum(["admin", "member", "owner"], {
+      errorMap: () => ({ message: "Por favor, selecciona un rol válido." }),
+    }),
+    workspaceId: UuidSchema.describe("ID del workspace de la invitación."),
+  })
+  .transform(keysToSnakeCase);
 
 /**
  * @const CreateCampaignSchema
- * @description Esquema para la creación de una nueva campaña.
+ * @description Esquema para la creación de una nueva campaña. Transforma el `name`
+ *              en un `slug` y convierte las claves a `snake_case`.
  */
 export const CreateCampaignSchema = z
   .object({
@@ -161,11 +182,12 @@ export const CreateCampaignSchema = z
       .optional(),
     siteId: UuidSchema.describe("ID del sitio al que pertenece la campaña."),
   })
-  .transform((data) => ({ ...data, slug: data.slug || slugify(data.name) }));
+  .transform((data) => ({ ...data, slug: data.slug || slugify(data.name) }))
+  .transform(keysToSnakeCase);
 
 /**
  * @const DeleteCampaignSchema
- * @description Esquema para la eliminación de una campaña.
+ * @description Esquema para la eliminación de una campaña, validando solo el ID.
  */
 export const DeleteCampaignSchema = z.object({
   campaignId: UuidSchema.describe("ID de la campaña a eliminar."),
@@ -188,20 +210,21 @@ export const ClientVisitSchema = z.object({
 
 /**
  * @const VisitorLogSchema
- * @description Esquema para los datos de registro de visitantes que se insertan en la base de datos.
+ * @description Esquema para los datos de registro de visitantes que se insertan en
+ *              la base de datos, con nomenclatura `snake_case`.
  */
 export const VisitorLogSchema = z.object({
-  sessionId: UuidSchema,
+  session_id: UuidSchema,
   fingerprint: z.string().min(1, "Fingerprint es requerido."),
-  ipAddress: z.string().ip("Dirección IP inválida."),
+  ip_address: z.string().ip("Dirección IP inválida."),
   geo_data: z.record(z.any()).nullable().optional(),
-  userAgent: z.string().nullable().optional(),
-  utmParams: z.record(z.any()).nullable().optional(),
+  user_agent: z.string().nullable().optional(),
+  utm_params: z.record(z.any()).nullable().optional(),
   referrer: z.string().url().nullable().optional(),
-  landingPage: z.string().nullable().optional(),
+  landing_page: z.string().nullable().optional(),
   browser_context: z.record(z.any()).nullable().optional(),
-  isBot: z.boolean().optional(),
-  isKnownAbuser: z.boolean().optional(),
+  is_bot: z.boolean().optional(),
+  is_known_abuser: z.boolean().optional(),
 });
 
 /**
@@ -214,11 +237,10 @@ export type RequestPasswordResetState = { error: string | null };
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Restauración de Integridad**: ((Implementada)) Se han restaurado todos los esquemas de validación desde el snapshot, eliminando la regresión.
- * 2. **Sincronización Completa de Esquema**: ((Implementada)) Se ha renombrado `geoData` y `browserContext` a sus equivalentes `snake_case` para coincidir 1:1 con la base de datos, resolviendo todos los errores de telemetría.
- * 3. **Documentación TSDoc Exhaustiva**: ((Implementada)) Todos los esquemas y tipos exportados ahora tienen documentación verbosa.
+ * 1. **Transformação Automática de Nomenclatura**: ((Implementada)) Os esquemas `CreateSiteServerSchema`, `UpdateSiteSchema`, `CreateCampaignSchema`, e `InvitationSchema` utilizam `.transform(keysToSnakeCase)` para converter automaticamente os dados validados para o formato `snake_case`, estabelecendo um ponto único e robusto de conversão.
  *
  * @subsection Melhorias Futuras
- * 1. **Validación de Unicidad Asíncrona**: ((Vigente)) El `CreateCampaignSchema` y `CreateSiteSchema` podrían usar el método `.refine` de Zod para realizar una llamada a una Server Action que verifique la unicidad del slug/subdominio.
+ * 1. **Aplicação Sistêmica**: ((Vigente)) O padrão de transformação `.transform(keysToSnakeCase)` deve ser aplicado a todos os outros esquemas Zod que definem dados destinados à base de dados para garantir a consistência em toda a aplicação.
+ * 2. **Esquemas a Nível de Arquivo**: ((Vigente)) Para projetos maiores, cada esquema de domínio (ej. `SiteSchemas`, `WorkspaceSchemas`) poderia ser movido a seu próprio arquivo dentro de `lib/validators/` e exportado desde aqui para uma maior granularidade.
  */
 // lib/validators/index.ts

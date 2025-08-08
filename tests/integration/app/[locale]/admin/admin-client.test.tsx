@@ -1,13 +1,11 @@
-// tests/app/[locale]/admin/admin-client.test.tsx
+// tests/integration/app/[locale]/admin/admin-client.test.tsx
 /**
  * @file admin-client.test.tsx
  * @description Arnés de pruebas de producción para el componente AdminClient.
- *              Ha sido refactorizado para alinearse con la nueva gestión de
- *              estado simplificada, resolviendo los fallos de aserción y
- *              garantizando una validación fiable de los estados de carga.
+ *              Ha sido corregido para proveer datos de prueba que cumplen
+ *              con el contrato de tipo `TransformedSite`.
  * @author L.I.A. Legacy & Raz Podestá
- * @co-author MetaShark
- * @version 8.0.0 (Simplified State Validation)
+ * @version 8.1.0 (Type-Safe Mock Data)
  */
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -20,26 +18,31 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { admin, session } from "@/lib/actions";
 import { type ActionResult } from "@/lib/validators";
 
-// --- Simulación de Dependencias ---
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: (date: Date) => date.toLocaleDateString() }),
 }));
-vi.mock("@/components/sites", () => ({
+vi.mock("@/components/shared/PaginationControls", () => ({
   PaginationControls: () => <div data-testid="pagination-controls-mock" />,
 }));
 vi.mock("@/lib/actions");
 vi.mock("react-hot-toast");
 
-// --- Datos de Prueba ---
 const mockUser = {
   id: "admin-user-id",
   email: "admin@metashark.com",
   user_metadata: { full_name: "Admin User" },
 };
+// --- INICIO DE CORRECCIÓN (TS2322) ---
 const mockSites = [
-  { subdomain: "site-alpha", icon: "🚀", createdAt: new Date().getTime() },
+  {
+    id: "site-alpha-id",
+    subdomain: "site-alpha",
+    icon: "🚀",
+    createdAt: new Date().getTime(),
+  },
 ];
+// --- FIN DE CORRECCIÓN ---
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -53,7 +56,6 @@ describe("Arnés de Pruebas: tests/app/[locale]/admin/admin-client.test.tsx", ()
   });
 
   it("debe mostrar un toast de error si la acción de eliminar falla", async () => {
-    // Arrange
     const mockErrorResult: ActionResult<any> = {
       success: false,
       error: "Permiso denegado.",
@@ -69,23 +71,19 @@ describe("Arnés de Pruebas: tests/app/[locale]/admin/admin-client.test.tsx", ()
       />
     );
 
-    // Act
-    const deleteButton = screen.getByRole("button", { name: /Eliminar/i });
+    const deleteButton = screen.getByRole("button", { name: "deleteButton" });
     await user.click(deleteButton);
     const confirmButton = await screen.findByRole("button", {
-      name: /Sí, eliminar sitio/i,
+      name: "deleteDialog.confirmButton",
     });
     await user.click(confirmButton);
 
-    // Assert
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Permiso denegado.");
     });
   });
 
-  // --- INICIO DE REFACTORIZACIÓN ARQUITECTÓNICA ---
   it("debe mostrar el estado de carga en el botón mientras la acción está pendiente", async () => {
-    // Arrange
     let resolveAction: (value: ActionResult<any>) => void;
     const promise = new Promise<ActionResult<any>>((resolve) => {
       resolveAction = resolve;
@@ -102,34 +100,29 @@ describe("Arnés de Pruebas: tests/app/[locale]/admin/admin-client.test.tsx", ()
       />
     );
 
-    // Act
-    const deleteButton = screen.getByRole("button", { name: /Eliminar/i });
+    const deleteButton = screen.getByRole("button", { name: "deleteButton" });
     await user.click(deleteButton);
     const confirmButton = await screen.findByRole("button", {
-      name: /Sí, eliminar sitio/i,
+      name: "deleteDialog.confirmButton",
     });
     await user.click(confirmButton);
 
-    // Assert: El estado de carga se muestra inmediatamente después del clic
     const pendingButton = await screen.findByRole("button", {
-      name: /Sí, eliminar sitio/i,
+      name: "deleteDialog.confirmButton",
     });
     expect(pendingButton).toBeDisabled();
     expect(pendingButton.querySelector("svg.animate-spin")).toBeInTheDocument();
 
-    // Cleanup: resolver la promesa para que la prueba termine limpiamente
     await act(async () => {
       resolveAction({ success: true, data: { message: "Ok" } });
       await promise;
     });
   });
-  // --- FIN DE REFACTORIZACIÓN ARQUITECTÓNICA ---
 });
-
 /**
  * @section MEJORA CONTINUA
  *
- * @subsection Mejoras Implementadas
- * 1. **Validación de Estado Simplificada**: ((Implementada)) La prueba ahora se alinea con la lógica de estado unificada del componente, eliminando la condición de carrera y resolviendo el fallo de aserción.
+ * @subsection Melhorias Adicionadas
+ * 1.  **Sincronización de Contrato de Mock**: ((Implementada)) Se ha añadido la propiedad `id` al objeto `mockSites`, alineándolo con el contrato de tipo `TransformedSite` y resolviendo el error de compilación `TS2322`.
  */
-// tests/app/[locale]/admin/admin-client.test.tsx
+// tests/integration/app/[locale]/admin/admin-client.test.tsx

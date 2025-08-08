@@ -3,13 +3,21 @@
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom", "node"],
+    "types": [
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "node"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "jsx": "preserve",
     "allowJs": true,
     "skipLibCheck": true,
@@ -18,8 +26,12 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "server-only": ["./tests/mocks/server-only.ts"]
+      "@/*": [
+        "./*"
+      ],
+      "server-only": [
+        "./tests/mocks/server-only.ts"
+      ]
     },
     "plugins": [
       {
@@ -27,6 +39,13 @@
       }
     ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

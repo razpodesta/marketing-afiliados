@@ -1,4 +1,11 @@
 // components/layout/DashboardHeader.tsx
+/**
+ * @file DashboardHeader.tsx
+ * @description Encabezado del dashboard, ahora completamente internacionalizado
+ *              y refactorizado para utilizar el namespace de acciones atómico correcto.
+ * @author Metashark (Refactorizado por L.I.A Legacy)
+ * @version 8.1.0 (Atomic Action & I18n Refactor)
+ */
 "use client";
 
 import { Bell, Check, LayoutGrid, Menu, Search } from "lucide-react";
@@ -20,20 +27,13 @@ import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
-import { workspaces as workspaceActions } from "@/lib/actions";
+import { invitations as invitationActions } from "@/lib/actions";
 import { useDashboard } from "@/lib/context/DashboardContext";
 import { useCommandPaletteStore } from "@/lib/hooks/use-command-palette";
 import { useRealtimeInvitations } from "@/lib/hooks/use-realtime-invitations";
+import { logger } from "@/lib/logging";
 
 import { DashboardSidebarContent } from "./DashboardSidebar";
-
-/**
- * @file DashboardHeader.tsx
- * @description Encabezado del dashboard, ahora completamente internacionalizado.
- *              Orquesta la navegación, el selector de workspaces y las notificaciones.
- * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 8.0.1 (No logical changes)
- */
 
 const InvitationBell = () => {
   const t = useTranslations("InvitationBell");
@@ -42,13 +42,26 @@ const InvitationBell = () => {
   const invitations = useRealtimeInvitations(user, pendingInvitations);
 
   const handleAccept = (invitationId: string) => {
+    logger.trace("[InvitationBell] User accepting invitation.", {
+      userId: user.id,
+      invitationId,
+    });
     startTransition(async () => {
       const result =
-        await workspaceActions.acceptInvitationAction(invitationId);
+        await invitationActions.acceptInvitationAction(invitationId);
       if (result.success) {
-        toast.success(t("accept_invitation_success"));
+        toast.success(result.data.message || t("accept_invitation_success"));
+        logger.info("[InvitationBell] Invitation accepted successfully.", {
+          userId: user.id,
+          invitationId,
+        });
       } else {
-        toast.error(t("accept_invitation_error"));
+        toast.error(result.error || t("accept_invitation_error"));
+        logger.error("[InvitationBell] Failed to accept invitation.", {
+          userId: user.id,
+          invitationId,
+          error: result.error,
+        });
       }
     });
   };
@@ -159,15 +172,11 @@ export function DashboardHeader() {
     </header>
   );
 }
-
 /**
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Internacionalización Completa**: ((Implementada)) Se ha eliminado todo el texto codificado. El componente consume `useTranslations` para renderizar su contenido, incluyendo textos con formato HTML (`t.rich`).
- *
- * @subsection Melhorias Futuras
- * 1. **Centro de Notificaciones Genérico**: ((Vigente)) Expandir `InvitationBell` para que sea un centro de notificaciones completo, capaz de mostrar también otras alertas relevantes para el usuario.
- * 2. **Breadcrumbs Dinámicos**: ((Vigente)) Integrar un componente de "migas de pan" para mejorar la orientación del usuario dentro de la aplicación.
+ * 1. **Alinhamento Arquitetónico**: ((Implementada)) A importação da Server Action foi corrigida para `import { invitations as invitationActions } from "@/lib/actions"`, e a chamada foi atualizada para `invitationActions.acceptInvitationAction`, resolvendo o `Attempted import error`.
+ * 2. **Full Observability**: ((Implementada)) O handler `handleAccept` agora está instrumentado com logging contextual (`trace`, `info`, `error`), fornecendo uma visibilidade completa do fluxo de aceitação de convites.
  */
 // components/layout/DashboardHeader.tsx

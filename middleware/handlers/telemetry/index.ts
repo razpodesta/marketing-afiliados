@@ -2,13 +2,14 @@
 /**
  * @file middleware/handlers/telemetry/index.ts
  * @description Manejador de middleware para la inteligencia de visitante.
- *              Sincronizado con el contrato de validación `snake_case` definitivo.
+ *              Ha sido sincronizado con el contrato de validación `snake_case`
+ *              definitivo y enriquecido con observabilidad de alto nivel.
  * @author L.I.A Legacy
- * @version 9.0.0 (Definitive Schema Synchronization)
+ * @version 11.0.0 (Definitive Schema Synchronization & Full Observability)
  */
 import { type NextRequest, type NextResponse } from "next/server";
+import { ZodError } from "zod";
 
-import { logger } from "@/lib/logging";
 import { lookupIpAddress } from "@/lib/services/geoip.service";
 import { createClient } from "@/lib/supabase/middleware";
 import { VisitorLogSchema } from "@/lib/validators";
@@ -22,7 +23,7 @@ type Logger = {
 
 async function checkIpBlacklist(ip: string | null): Promise<boolean> {
   if (!ip) return false;
-  return ip.startsWith("8.8.8.8");
+  return ip.startsWith("8.8.8.8"); // Placeholder for a real blacklist check
 }
 
 export async function handleTelemetry(
@@ -31,8 +32,10 @@ export async function handleTelemetry(
   logger: Logger
 ): Promise<void> {
   if (request.cookies.has("metashark_session_id")) {
+    logger.trace("[TelemetryHandler] Skipping log, session cookie exists.");
     return;
   }
+  logger.info("[TelemetryHandler] New visitor detected, initiating log.");
 
   try {
     const sessionId = self.crypto.randomUUID();
@@ -40,55 +43,72 @@ export async function handleTelemetry(
     const ip = request.ip ?? "127.0.0.1";
     const enrichedGeoData = await lookupIpAddress(ip);
 
-    const logPayload = VisitorLogSchema.parse({
-      sessionId,
-      fingerprint: "server_placeholder",
-      ipAddress: ip,
+    const logPayload = {
+      session_id: sessionId,
+      fingerprint: "server_placeholder", // Será actualizado por el cliente
+      ip_address: ip,
       geo_data: enrichedGeoData
         ? { ...request.geo, ...enrichedGeoData }
         : request.geo,
-      userAgent: headers.get("user-agent") || null,
-      utmParams: Object.fromEntries(request.nextUrl.searchParams.entries()),
+      user_agent: headers.get("user-agent") || null,
+      utm_params: Object.fromEntries(request.nextUrl.searchParams.entries()),
       referrer: headers.get("referer") || null,
-      landingPage: request.nextUrl.pathname,
+      landing_page: request.nextUrl.pathname,
       browser_context: {
         secChUa: headers.get("sec-ch-ua") || null,
         secChUaMobile: headers.get("sec-ch-ua-mobile") || null,
         secChUaPlatform: headers.get("sec-ch-ua-platform") || null,
       },
-      isBot: /bot|crawl|slurp|spider|mediapartners/i.test(
+      is_bot: /bot|crawl|slurp|spider|mediapartners/i.test(
         headers.get("user-agent") || ""
       ),
-      isKnownAbuser: await checkIpBlacklist(ip),
-    });
+      is_known_abuser: await checkIpBlacklist(ip),
+    };
+
+    // Validar el payload antes de la inserción
+    const validatedPayload = VisitorLogSchema.parse(logPayload);
 
     const { supabase } = await createClient(request);
-    const { error } = await supabase.from("visitor_logs").insert(logPayload);
+    const { error } = await supabase
+      .from("visitor_logs")
+      .insert(validatedPayload);
 
     if (error) {
-      logger.error(
-        "[TELEMETRY_HANDLER] Fallo al registrar la sesión del visitante.",
-        { error: error.message }
-      );
+      logger.error("[TelemetryHandler] Failed to register visitor session.", {
+        error: error.message,
+        details: error.details,
+      });
     } else {
+      logger.info(
+        "[TelemetryHandler] Visitor session registered successfully.",
+        { sessionId }
+      );
       response.cookies.set("metashark_session_id", sessionId, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        maxAge: 31536000,
+        maxAge: 31536000, // 1 año
       });
     }
   } catch (error) {
-    logger.error(
-      "[TELEMETRY_HANDLER] Fallo crítico en el manejador de telemetría.",
-      { error: error instanceof Error ? error.message : String(error) }
-    );
+    if (error instanceof ZodError) {
+      logger.warn("[TelemetryHandler] Invalid visitor log payload.", {
+        errors: error.flatten(),
+      });
+    } else {
+      logger.error(
+        "[TelemetryHandler] Critical failure in telemetry handler.",
+        { error: error instanceof Error ? error.message : String(error) }
+      );
+    }
   }
 }
 /**
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1. **Sincronización Definitiva de Esquema**: ((Implementada)) Se ha corregido el nombre de todos los campos para que coincidan con la nomenclatura `snake_case`, alineándolo con el validador y la base de datos.
+ * 1.  **Sincronización Definitiva de Esquema**: ((Implementada)) Se ha corregido la nomenclatura de todos los campos en el `logPayload` para que sea `snake_case`, alineándolo con `VisitorLogSchema` y resolviendo el error de compilación `TS2769`.
+ * 2.  **Validación Explícita**: ((Implementada)) Se ha añadido una llamada explícita a `VisitorLogSchema.parse()` para validar el payload antes de intentar insertarlo, mejorando la robustez y el manejo de errores.
+ * 3.  **Full Observabilidad**: ((Implementada)) Se ha enriquecido el logging para incluir detalles de errores de Zod y de la base de datos, proporcionando una visibilidad completa del flujo.
  */
 // middleware/handlers/telemetry/index.ts

@@ -2,34 +2,28 @@
 /**
  * @file CreateWorkspaceForm.tsx
  * @description Formulario de cliente para la creación de nuevos workspaces.
- *              Implementa el patrón arquitectónico canónico con `react-hook-form`
- *              y `zodResolver` para una validación instantánea del lado del cliente
- *              y una experiencia de usuario superior.
+ *              Ha sido refactorizado para ser completamente internacionalizado
+ *              y observable, cumpliendo con todos los mandatos de ingeniería.
  * @author Metashark (Refactorizado por L.I.A Legacy)
- * @version 5.0.0 (Canonical Form Pattern)
- *
- * @functionality
- * - **Gestión de Estado con `react-hook-form`**: `useForm` gestiona el estado de los campos, la validación y los errores.
- * - **Validación Instantánea con Zod**: El `zodResolver` conecta el `CreateWorkspaceSchema` con el estado del formulario, proporcionando feedback de validación en tiempo real.
- * - **Control de Componentes Complejos**: El `EmojiPicker` es gestionado a través del componente `<Controller>` de `react-hook-form`, integrando su estado directamente en el formulario.
- * - **Comunicación con Server Action**: La función `handleSubmit` de `react-hook-form` envuelve la lógica de envío, asegurando que la Server Action solo sea invocada si la validación del lado del cliente es exitosa. `useTransition` se utiliza para gestionar el estado de carga de la operación asíncrona.
- *
- * @relationships
- * - Es un componente hijo de `app/[locale]/welcome/page.tsx` y de `components/workspaces/WorkspaceSwitcher.tsx`.
- * - Invoca la Server Action `workspaces.createWorkspaceAction` de `lib/actions/workspaces.actions.ts`.
- * - Utiliza el esquema `CreateWorkspaceSchema` del manifiesto de validadores `lib/validators/index.ts`.
+ * @version 6.0.0 (Full I18n & Observability)
  */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import type { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { EmojiPicker } from "@/components/ui/emoji-picker";
+import {
+  EmojiPicker,
+  EmojiPickerContent,
+  EmojiPickerFooter,
+  EmojiPickerSearch,
+} from "@/components/ui/emoji-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,11 +32,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { workspaces as workspaceActions } from "@/lib/actions";
+import { logger } from "@/lib/logging";
 import { CreateWorkspaceSchema } from "@/lib/validators";
 
 type FormData = z.infer<typeof CreateWorkspaceSchema>;
 
 export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
+  const t = useTranslations("WorkspaceSwitcher");
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -59,6 +55,9 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
   });
 
   const processSubmit = (data: FormData) => {
+    logger.trace("[CreateWorkspaceForm] Submitting new workspace.", {
+      workspaceName: data.workspaceName,
+    });
     startTransition(async () => {
       const formData = new FormData();
       formData.append("workspaceName", data.workspaceName);
@@ -67,25 +66,33 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
       const result = await workspaceActions.createWorkspaceAction(formData);
 
       if (result.success) {
-        toast.success("¡Workspace creado con éxito!");
+        toast.success(t("create_form.success_toast"));
+        logger.info("[CreateWorkspaceForm] Workspace created successfully.", {
+          workspaceId: result.data.id,
+        });
         onSuccess();
       } else {
         toast.error(result.error);
+        logger.error("[CreateWorkspaceForm] Failed to create workspace.", {
+          error: result.error,
+        });
       }
     });
   };
 
+  const isLoading = isSubmitting || isPending;
+
   return (
     <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 relative">
       <div className="space-y-2">
-        <Label htmlFor="workspaceName">Nombre del Workspace</Label>
+        <Label htmlFor="workspaceName">{t("create_form.name_label")}</Label>
         <Input
           id="workspaceName"
-          placeholder="Mi Nuevo Proyecto"
-          aria-invalid={errors.workspaceName ? "true" : "false"}
+          placeholder={t("create_form.name_placeholder")}
+          aria-invalid={!!errors.workspaceName}
           {...register("workspaceName")}
         />
-        {errors.workspaceName && (
+        {errors.workspaceName?.message && (
           <p className="text-sm text-destructive" role="alert">
             {errors.workspaceName.message}
           </p>
@@ -93,7 +100,7 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <Label>Ícono del Workspace</Label>
+        <Label>{t("create_form.icon_label")}</Label>
         <Controller
           name="icon"
           control={control}
@@ -106,45 +113,42 @@ export function CreateWorkspaceForm({ onSuccess }: { onSuccess: () => void }) {
                   type="button"
                 >
                   <span className="mr-4 text-2xl">{field.value}</span>
-                  <span>Seleccionar un ícono</span>
+                  <span>{t("create_form.icon_placeholder")}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 border-0">
                 <EmojiPicker
                   onEmojiSelect={({ emoji }) => field.onChange(emoji)}
-                />
+                >
+                  <EmojiPickerSearch />
+                  <EmojiPickerContent />
+                  <EmojiPickerFooter />
+                </EmojiPicker>
               </PopoverContent>
             </Popover>
           )}
         />
-        {errors.icon && (
+        {errors.icon?.message && (
           <p className="text-sm text-destructive" role="alert">
             {errors.icon.message}
           </p>
         )}
       </div>
 
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isSubmitting || isPending}
-      >
-        {(isSubmitting || isPending) && (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        )}
-        {isSubmitting || isPending ? "Creando..." : "Crear Workspace"}
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isLoading
+          ? t("create_form.creating_button")
+          : t("create_form.create_button")}
       </Button>
     </form>
   );
 }
-
 /**
  * @section MEJORA CONTINUA
- * @description Mejoras incrementales para evolucionar el formulario de creación de workspaces.
  *
- * @subsection Mejoras Futuras
- * 1. **Verificación de Nombre en Tiempo Real**: ((Vigente)) Implementar una validación asíncrona "debounced" que verifique la disponibilidad del nombre del workspace en tiempo real a medida que el usuario escribe, para prevenir envíos fallidos.
- * 2. **Plantillas de Workspace**: ((Vigente)) Permitir al usuario crear un workspace a partir de una plantilla (ej. "Para Agencia"). Esto requeriría una nueva UI en este formulario y una lógica expandida en la `createWorkspaceAction` para poblar el nuevo workspace con sitios o campañas de ejemplo.
- * 3. **Avatares de Workspace Personalizados**: ((Vigente)) Permitir al usuario subir una imagen como ícono del workspace. Esto implicaría integrar un componente de subida de archivos, configurar Supabase Storage y modificar la Server Action para manejar la subida.
+ * @subsection Melhorias Adicionadas
+ * 1. **Full Internacionalização**: ((Implementada)) Todos os textos visíveis foram abstraídos para chaves de tradução, eliminando a dívida de i18n.
+ * 2. **Full Observability**: ((Implementada)) O handler de submissão agora está instrumentado com logging contextual.
  */
 // components/workspaces/CreateWorkspaceForm.tsx
