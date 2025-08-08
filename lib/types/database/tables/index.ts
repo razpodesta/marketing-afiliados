@@ -2,10 +2,9 @@
 /**
  * @file index.ts
  * @description Archivo barril para la exportación modular de todos los tipos de tabla.
- *              Actualizado para incluir la tabla `notifications`, resolviendo un
- *              error de compilación crítico.
+ *              Actualizado para incluir las nuevas entidades del sistema de templates.
  * @author L.I.A Legacy
- * @version 2.1.0 (Schema Synchronization)
+ * @version 3.0.0 (Template System Integration)
  */
 export * from "./achievements";
 export * from "./affiliate_products";
@@ -18,14 +17,16 @@ export * from "./custom_blocks";
 export * from "./customers";
 export * from "./feature_flags";
 export * from "./invitations";
-export * from "./notifications"; // <-- LÍNEA RESTAURADA/AÑADIDA
+export * from "./notifications";
 export * from "./prices";
 export * from "./product_categories";
 export * from "./products";
 export * from "./profiles";
+export * from "./site_templates"; // <-- NOVO
 export * from "./sites";
 export * from "./subscribers";
 export * from "./subscriptions";
+export * from "./template_categories"; // <-- NOVO
 export * from "./ticket_messages";
 export * from "./tickets";
 export * from "./user_achievements";
@@ -38,9 +39,9 @@ export * from "./workspaces";
  * @section MEJORA CONTINUA
  *
  * @subsection Melhorias Adicionadas
- * 1.  **Sincronización de Esquema**: ((Implementada)) Se ha añadido la exportación de la tabla 'notifications', alineando el contrato de tipos con el esquema manual y resolviendo errores de compilación aguas abajo.
+ * 1.  **Sincronização de Esquema**: ((Implementada)) Se han añadido las exportaciones para los nuevos tipos `SiteTemplates` y `TemplateCategories`, manteniendo el manifiesto de tipos sincronizado con la base de datos.
  *
  * @subsection Melhorias Futuras
- * 1.  **Generación Automática**: ((Vigente)) Crear un script para generar este archivo y prevenir omisiones manuales.
+ * 1.  **Generación Automática**: ((Vigente)) O comando `pnpm gen:types:tables` deverá ser atualizado para incluir estas novas tabelas. No entanto, como são tipos manuais, a sua inclusão aqui é a abordagem correta por agora.
  */
 // lib/types/database/tables/index.ts
